@@ -103,14 +103,18 @@ export function TraceDetailPage() {
   }
 
   if (traceQuery.isLoading) {
-    return <div className="text-muted-foreground p-6 text-sm">Loading trace…</div>;
+    return (
+      <div className="flex h-full items-center justify-center p-6">
+        <p className="text-muted-foreground text-sm">Loading trace…</p>
+      </div>
+    );
   }
 
   if (!trace || wrongJournal) {
     return (
-      <div className="p-6">
+      <div className="flex h-full flex-col items-start gap-4 px-4 pt-[4.75rem] pb-8 sm:px-6 sm:pt-[5.25rem]">
         <p className="text-muted-foreground text-sm">Trace not found or not in this journal.</p>
-        <Link to="/" className={buttonVariants({ variant: "outline", className: "mt-4 inline-flex" })}>
+        <Link to="/" className={buttonVariants({ variant: "outline", className: "inline-flex gap-1 rounded-xl" })}>
           Back to map
         </Link>
       </div>
@@ -118,17 +122,25 @@ export function TraceDetailPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 p-4">
-      <div className="flex items-center gap-2">
-        <Link to="/" className={buttonVariants({ variant: "ghost", size: "sm", className: "inline-flex gap-1" })}>
+    <div className="h-full overflow-y-auto px-3 pt-[4.75rem] pb-10 sm:px-6 sm:pt-[5.25rem]">
+      <div className="mx-auto max-w-2xl space-y-4">
+        <Link
+          to="/"
+          className={buttonVariants({
+            variant: "secondary",
+            size: "sm",
+            className: "inline-flex gap-1.5 rounded-xl border-0 bg-foreground/5 shadow-sm hover:bg-foreground/10",
+          })}
+        >
           <ArrowLeft className="size-4" />
           Map
         </Link>
-      </div>
-      <Card>
-        <CardHeader className="flex flex-row items-start justify-between gap-2">
+        <Card className="border-[var(--panel-border)] bg-[var(--panel-bg)] shadow-[var(--panel-shadow)] backdrop-blur-xl">
+          <CardHeader className="flex flex-row items-start justify-between gap-2">
           <div>
-            <CardTitle>{trace.title || "Untitled place"}</CardTitle>
+            <CardTitle className="font-display text-2xl font-semibold tracking-tight">
+              {trace.title || "Untitled place"}
+            </CardTitle>
             <p className="text-muted-foreground mt-1 text-sm">
               {new Date(trace.visited_at).toLocaleString()} · {trace.lat.toFixed(5)}, {trace.lng.toFixed(5)}
             </p>
@@ -140,12 +152,12 @@ export function TraceDetailPage() {
               ))}
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-            <Pencil className="size-4" />
-            Edit
-          </Button>
-        </CardHeader>
-        <CardContent className="space-y-4">
+            <Button variant="outline" size="sm" className="rounded-xl" onClick={() => setEditOpen(true)}>
+              <Pencil className="size-4" />
+              Edit
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-4">
           {trace.description ? <p className="text-sm whitespace-pre-wrap">{trace.description}</p> : null}
           <div>
             <h3 className="mb-2 text-sm font-medium">Photos</h3>
@@ -177,14 +189,15 @@ export function TraceDetailPage() {
               </label>
             </div>
           </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
       <TraceFormDialog
         open={editOpen}
         onOpenChange={setEditOpen}
         journalId={trace.journal_id}
         trace={trace}
       />
+      </div>
     </div>
   );
 }

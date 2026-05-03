@@ -2,10 +2,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useJournal } from "@/providers/journal-provider";
 import { getConnectorDefinition } from "@/connectors/registry";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import type { ConnectorType, JournalConnector } from "@/types/database";
+import { FloatingPanel } from "@/components/layout/floating-panel";
 
 function ConnectorRow({
   ct,
@@ -23,7 +23,7 @@ function ConnectorRow({
   const enabled = jc?.enabled ?? false;
 
   return (
-    <div className="flex flex-col gap-2 border-b py-4 last:border-0 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-2 border-b border-border/60 py-4 last:border-0 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <p className="font-medium">{ct.display_name}</p>
         <p className="text-muted-foreground text-sm">{ct.description}</p>
@@ -91,27 +91,29 @@ export function ConnectorsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl p-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Connectors</CardTitle>
-          <CardDescription>
-            Enable integrations for this journal. Actual sync with Google Maps, OsmAnd, Google Photos, and Immich will
-            ship later.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {(typesQuery.data ?? []).map((ct) => (
-            <ConnectorRow
-              key={ct.id}
-              ct={ct}
-              journalId={activeJournalId ?? ""}
-              jc={connectorsQuery.data?.find((c) => c.connector_type_id === ct.id)}
-              onToggle={(en) => void toggle(ct.id, en)}
-            />
-          ))}
-        </CardContent>
-      </Card>
+    <div className="h-full overflow-y-auto px-3 pt-[4.75rem] pb-10 sm:px-6 sm:pt-[5.25rem]">
+      <div className="mx-auto max-w-2xl">
+        <FloatingPanel className="p-5 sm:p-6">
+          <div className="mb-4">
+            <h1 className="font-display text-foreground text-2xl font-semibold tracking-tight">Connectors</h1>
+            <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
+              Enable integrations for this journal. Actual sync with Google Maps, OsmAnd, Google Photos, and Immich will
+              ship later.
+            </p>
+          </div>
+          <div>
+            {(typesQuery.data ?? []).map((ct) => (
+              <ConnectorRow
+                key={ct.id}
+                ct={ct}
+                journalId={activeJournalId ?? ""}
+                jc={connectorsQuery.data?.find((c) => c.connector_type_id === ct.id)}
+                onToggle={(en) => void toggle(ct.id, en)}
+              />
+            ))}
+          </div>
+        </FloatingPanel>
+      </div>
     </div>
   );
 }

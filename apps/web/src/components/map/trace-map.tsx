@@ -1,3 +1,4 @@
+import { cn } from "@/lib/utils";
 import type { Trace } from "@/types/database";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -11,9 +12,11 @@ type TraceMapProps = {
   traces: TraceWithTags[];
   selectedTagIds: Set<string>;
   onSelectTrace: (id: string) => void;
+  className?: string;
 };
 
-const BRIGHT_STYLE = "https://tiles.openfreemap.org/styles/bright";
+/** Light basemap; pairs with parchment UI panels */
+const BASE_STYLE = "https://tiles.openfreemap.org/styles/positron";
 
 function filterTraces(traces: TraceWithTags[], selectedTagIds: Set<string>) {
   return traces.filter((t) => {
@@ -30,7 +33,7 @@ function filterTraces(traces: TraceWithTags[], selectedTagIds: Set<string>) {
   });
 }
 
-export function TraceMap({ traces, selectedTagIds, onSelectTrace }: TraceMapProps) {
+export function TraceMap({ traces, selectedTagIds, onSelectTrace, className }: TraceMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
@@ -41,11 +44,11 @@ export function TraceMap({ traces, selectedTagIds, onSelectTrace }: TraceMapProp
     if (!containerRef.current) return;
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: BRIGHT_STYLE,
+      style: BASE_STYLE,
       center: [10, 20],
       zoom: 1.5,
     });
-    map.addControl(new maplibregl.NavigationControl(), "top-right");
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-left");
     mapRef.current = map;
     return () => {
       map.remove();
@@ -80,7 +83,7 @@ export function TraceMap({ traces, selectedTagIds, onSelectTrace }: TraceMapProp
       const el = document.createElement("button");
       el.type = "button";
       el.className =
-        "flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-2 border-background bg-primary text-lg shadow-md ring-2 ring-primary/30 transition hover:scale-110";
+        "flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border-2 border-[var(--map-marker-ring)] bg-primary text-lg text-primary-foreground shadow-lg ring-2 ring-primary/35 transition hover:scale-110 active:scale-95";
       el.textContent =
         (t.trace_tags?.[0]?.tags?.icon_emoji as string | undefined) ?? "📍";
       el.title = t.title ?? "Trace";
@@ -93,5 +96,5 @@ export function TraceMap({ traces, selectedTagIds, onSelectTrace }: TraceMapProp
     }
   }, [filtered, onSelectTrace]);
 
-  return <div ref={containerRef} className="h-full min-h-[420px] w-full rounded-lg border" />;
+  return <div ref={containerRef} className={cn("h-full min-h-0 w-full min-w-0", className)} />;
 }

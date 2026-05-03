@@ -1,5 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 
+import type { Database } from "./database.types";
+
+export type { Database } from "./database.types";
+
 /** Local Supabase default; overridden in production via `.env`. */
 const PLACEHOLDER_URL = "http://127.0.0.1:54321";
 /** Supabase CLI demo anon JWT — only used when env vars are unset (e.g. CI smoke tests). */
@@ -15,7 +19,7 @@ if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_PUBLISH
   );
 }
 
-export const supabase = createClient(url, key, {
+export const supabase = createClient<Database>(url, key, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,

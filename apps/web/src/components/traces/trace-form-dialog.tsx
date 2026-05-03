@@ -148,9 +148,9 @@ export function TraceFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
+      <DialogContent className="max-h-[90vh] overflow-y-auto border-[var(--panel-border)] bg-[var(--panel-bg)] backdrop-blur-xl sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{trace ? "Edit trace" : "New trace"}</DialogTitle>
+          <DialogTitle className="font-display text-xl font-semibold">{trace ? "Edit trace" : "New trace"}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-3 py-2">
           <div className="space-y-2">

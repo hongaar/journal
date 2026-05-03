@@ -7,7 +7,6 @@ import { useJournal } from "@/providers/journal-provider";
 import { TraceMap, type TraceWithTags } from "@/components/map/trace-map";
 import { TraceFormDialog } from "@/components/traces/trace-form-dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
@@ -18,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FloatingPanel } from "@/components/layout/floating-panel";
 
 export function MapPage() {
   const navigate = useNavigate();
@@ -26,7 +26,7 @@ export function MapPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [tagDialogOpen, setTagDialogOpen] = useState(false);
   const [newTagName, setNewTagName] = useState("");
-  const [newTagColor, setNewTagColor] = useState("#6366f1");
+  const [newTagColor, setNewTagColor] = useState("#2d6a5d");
   const [newTagEmoji, setNewTagEmoji] = useState("📍");
   const [filterTagIds, setFilterTagIdsState] = useState<Set<string>>(() => new Set());
   const setFilterTagIds = useCallback((action: SetStateAction<Set<string>>) => {
@@ -97,105 +97,124 @@ export function MapPage() {
 
   if (journalLoading || !activeJournalId) {
     return (
-      <div className="text-muted-foreground flex min-h-[50vh] items-center justify-center text-sm">
-        {!activeJournalId ? "No journal available." : "Loading journal…"}
+      <div className="flex h-full items-center justify-center p-6">
+        <FloatingPanel className="max-w-sm text-center">
+          <p className="text-muted-foreground text-sm">
+            {!activeJournalId ? "No journal available." : "Loading journal…"}
+          </p>
+        </FloatingPanel>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-4 p-4 lg:flex-row">
-      <div className="flex min-h-[50vh] flex-1 flex-col gap-2 lg:min-h-[calc(100svh-4rem)]">
-        <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={() => setFormOpen(true)}>
-            <Plus className="size-4" />
-            Add trace
-          </Button>
-          <Button variant="outline" onClick={() => setTagDialogOpen(true)}>
-            <Tag className="size-4" />
-            New tag
-          </Button>
-        </div>
+    <div className="relative h-full w-full">
+      <div className="absolute inset-0 z-0">
+        <div
+          className="pointer-events-none absolute inset-0 z-[1] bg-[radial-gradient(ellipse_at_center,transparent_45%,oklch(0.35_0.04_260/0.12)_100%)]"
+          aria-hidden
+        />
         <TraceMap
           traces={traces}
           selectedTagIds={filterTagIds}
           onSelectTrace={onSelectTrace}
+          className="absolute inset-0 z-0 min-h-0"
         />
-        <TraceFormDialog
-          open={formOpen}
-          onOpenChange={setFormOpen}
-          journalId={activeJournalId}
-          trace={null}
-          defaultLat={center.lat}
-          defaultLng={center.lng}
-        />
-        <Dialog open={tagDialogOpen} onOpenChange={setTagDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>New tag</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-3 py-2">
-              <div className="space-y-2">
-                <Label htmlFor="tag-name">Name</Label>
-                <Input id="tag-name" value={newTagName} onChange={(e) => setNewTagName(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="tag-color">Color</Label>
-                <Input
-                  id="tag-color"
-                  type="color"
-                  className="h-10 w-full cursor-pointer"
-                  value={newTagColor}
-                  onChange={(e) => setNewTagColor(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="tag-emoji">Icon (emoji)</Label>
-                <Input id="tag-emoji" value={newTagEmoji} onChange={(e) => setNewTagEmoji(e.target.value)} />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setTagDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={() => void createTag()}>Create tag</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
-      <Card className="w-full shrink-0 lg:w-72">
-        <CardHeader>
-          <CardTitle className="text-base">Filter by tag</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {(tagsQuery.data ?? []).length === 0 ? (
-            <p className="text-muted-foreground text-sm">No tags yet.</p>
-          ) : (
-            (tagsQuery.data ?? []).map((tag) => (
-              <label key={tag.id} className="flex cursor-pointer items-center gap-2 text-sm">
-                <Checkbox
-                  checked={filterTagIds.has(tag.id)}
-                  onCheckedChange={(c) => {
-                    setFilterTagIds((prev) => {
-                      const next = new Set(prev);
-                      if (c === true) next.add(tag.id);
-                      else next.delete(tag.id);
-                      return next;
-                    });
-                  }}
-                />
-                <span>{tag.icon_emoji}</span>
-                <span>{tag.name}</span>
-              </label>
-            ))
-          )}
-          {filterTagIds.size > 0 ? (
-            <Button variant="ghost" size="sm" className="w-full" onClick={() => setFilterTagIds(new Set())}>
-              Clear filters
+
+      <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between p-3 pt-[4.75rem] sm:p-4 sm:pt-[5.25rem]">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 sm:flex-row sm:justify-between">
+          <FloatingPanel className="pointer-events-auto flex w-fit max-w-full shrink-0 flex-col gap-2 self-start p-2 sm:p-3">
+            <Button size="sm" className="h-10 justify-start gap-2 rounded-xl px-4 shadow-sm" onClick={() => setFormOpen(true)}>
+              <Plus className="size-4" />
+              Add trace
             </Button>
-          ) : null}
-        </CardContent>
-      </Card>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="h-10 justify-start gap-2 rounded-xl border-0 bg-foreground/5 px-4 shadow-none hover:bg-foreground/10"
+              onClick={() => setTagDialogOpen(true)}
+            >
+              <Tag className="size-4" />
+              New tag
+            </Button>
+          </FloatingPanel>
+
+          <FloatingPanel className="pointer-events-auto mt-auto flex max-h-[min(42vh,22rem)] w-full max-w-full flex-col gap-2 overflow-hidden p-3 sm:mt-0 sm:max-h-[calc(100svh-6.5rem)] sm:w-72 sm:max-w-[min(100%,18rem)] sm:self-start sm:p-4">
+            <p className="font-display text-foreground text-base font-semibold tracking-tight">Filter by tag</p>
+            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+              {(tagsQuery.data ?? []).length === 0 ? (
+                <p className="text-muted-foreground text-sm">No tags yet.</p>
+              ) : (
+                (tagsQuery.data ?? []).map((tag) => (
+                  <label key={tag.id} className="flex cursor-pointer items-center gap-2.5 text-sm">
+                    <Checkbox
+                      checked={filterTagIds.has(tag.id)}
+                      onCheckedChange={(c) => {
+                        setFilterTagIds((prev) => {
+                          const next = new Set(prev);
+                          if (c === true) next.add(tag.id);
+                          else next.delete(tag.id);
+                          return next;
+                        });
+                      }}
+                    />
+                    <span className="text-base leading-none">{tag.icon_emoji}</span>
+                    <span className="truncate">{tag.name}</span>
+                  </label>
+                ))
+              )}
+            </div>
+            {filterTagIds.size > 0 ? (
+              <Button variant="ghost" size="sm" className="h-9 w-full shrink-0 rounded-xl" onClick={() => setFilterTagIds(new Set())}>
+                Clear filters
+              </Button>
+            ) : null}
+          </FloatingPanel>
+        </div>
+      </div>
+
+      <TraceFormDialog
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        journalId={activeJournalId}
+        trace={null}
+        defaultLat={center.lat}
+        defaultLng={center.lng}
+      />
+      <Dialog open={tagDialogOpen} onOpenChange={setTagDialogOpen}>
+        <DialogContent className="border-[var(--panel-border)] bg-[var(--panel-bg)] backdrop-blur-xl sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display text-xl font-semibold">New tag</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="tag-name">Name</Label>
+              <Input id="tag-name" value={newTagName} onChange={(e) => setNewTagName(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="tag-color">Color</Label>
+              <Input
+                id="tag-color"
+                type="color"
+                className="h-10 w-full cursor-pointer rounded-lg"
+                value={newTagColor}
+                onChange={(e) => setNewTagColor(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="tag-emoji">Icon (emoji)</Label>
+              <Input id="tag-emoji" value={newTagEmoji} onChange={(e) => setNewTagEmoji(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTagDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => void createTag()}>Create tag</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
