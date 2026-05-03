@@ -1,13 +1,29 @@
-import { useCallback, useEffect, useMemo, useState, type SetStateAction } from "react";
-import { useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Tag } from "lucide-react";
+import { ListFilter, Plus, Tag } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useJournal } from "@/providers/journal-provider";
-import { TraceMap, type TraceWithTags } from "@/components/map/trace-map";
+import {
+  MapToolbarGroup,
+  MapToolbarIconButton,
+  MAP_TOOLBAR_ICON_CELL,
+  MAP_TOOLBAR_LABEL_CELL,
+  MAP_TOOLBAR_TRIGGER_CLASS,
+} from "@/components/map/map-toolbar";
+import { TraceMap, type TraceMapHandle, type TraceWithTags } from "@/components/map/trace-map";
+import { TraceMapSidebar } from "@/components/map/trace-map-sidebar";
 import { TraceFormDialog } from "@/components/traces/trace-form-dialog";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -21,12 +37,14 @@ import { FloatingPanel } from "@/components/layout/floating-panel";
 import { cn } from "@/lib/utils";
 
 export function MapPage() {
-  const navigate = useNavigate();
   const qc = useQueryClient();
+  const mapRef = useRef<TraceMapHandle>(null);
   const { activeJournalId, loading: journalLoading } = useJournal();
   const [formOpen, setFormOpen] = useState(false);
   const [placementActive, setPlacementActive] = useState(false);
   const [placedCoords, setPlacedCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [anchorScreen, setAnchorScreen] = useState<{ x: number; y: number } | null>(null);
+  const [sidebarTraceId, setSidebarTraceId] = useState<string | null>(null);
   const [tagDialogOpen, setTagDialogOpen] = useState(false);
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState("#2d6a5d");
@@ -69,16 +87,19 @@ export function MapPage() {
     enabled: Boolean(activeJournalId) && !journalLoading,
   });
 
-  const onSelectTrace = useCallback(
-    (id: string) => {
-      navigate(`/traces/${id}`);
-    },
-    [navigate],
-  );
+  const onSelectTrace = useCallback((id: string) => {
+    setFormOpen(false);
+    setPlacedCoords(null);
+    setAnchorScreen(null);
+    setSidebarTraceId(id);
+  }, []);
 
   const onPlacementClick = useCallback((lng: number, lat: number) => {
     setPlacementActive(false);
     setPlacedCoords({ lat, lng });
+    setSidebarTraceId(null);
+    const p = mapRef.current?.lngLatToScreen(lng, lat);
+    setAnchorScreen(p ?? null);
     setFormOpen(true);
   }, []);
 
@@ -91,6 +112,17 @@ export function MapPage() {
   }, [placedCoords, traces]);
 
   useEffect(() => {
+    if (!formOpen || !placedCoords) return;
+    const map = mapRef.current;
+    if (!map) return;
+    const upd = () => {
+      const p = map.lngLatToScreen(placedCoords.lng, placedCoords.lat);
+      if (p) setAnchorScreen(p);
+    };
+    return map.subscribeCamera(upd);
+  }, [formOpen, placedCoords?.lat, placedCoords?.lng]);
+
+  useEffect(() => {
     if (!placementActive) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setPlacementActive(false);
@@ -98,6 +130,15 @@ export function MapPage() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [placementActive]);
+
+  useEffect(() => {
+    if (!sidebarTraceId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSidebarTraceId(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [sidebarTraceId]);
 
   async function createTag() {
     if (!activeJournalId || !newTagName.trim()) return;
@@ -117,6 +158,7 @@ export function MapPage() {
   function toggleAddTracePlacement() {
     setPlacementActive((prev) => {
       if (prev) return false;
+      setSidebarTraceId(null);
       return true;
     });
   }
@@ -141,6 +183,7 @@ export function MapPage() {
           aria-hidden
         />
         <TraceMap
+          ref={mapRef}
           traces={traces}
           selectedTagIds={filterTagIds}
           onSelectTrace={onSelectTrace}
@@ -162,40 +205,46 @@ export function MapPage() {
         </div>
       ) : null}
 
-      <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between p-3 pt-[4.75rem] sm:p-4 sm:pt-[5.25rem]">
-        <div className="flex min-h-0 flex-1 flex-col gap-3 sm:flex-row sm:justify-between">
-          <FloatingPanel className="pointer-events-auto flex w-fit max-w-full shrink-0 flex-col gap-2 self-start p-2 sm:p-3">
-            <Button
-              size="sm"
+      <div className="pointer-events-none absolute inset-0 z-10 p-3 pt-[4.75rem] sm:p-4 sm:pt-[5.25rem]">
+        <MapToolbarGroup>
+          <MapToolbarIconButton
+            icon={<Plus className="size-4" />}
+            label={placementActive ? "Placing pin…" : "Add trace"}
+            active={placementActive}
+            onClick={toggleAddTracePlacement}
+          />
+          <MapToolbarIconButton
+            icon={<Tag className="size-4" />}
+            label="New tag"
+            onClick={() => setTagDialogOpen(true)}
+            className="bg-muted/20 hover:bg-muted/40"
+          />
+          <DropdownMenu>
+            <DropdownMenuTrigger
               className={cn(
-                "h-10 justify-start gap-2 rounded-xl px-4 shadow-sm",
-                placementActive && "ring-2 ring-primary ring-offset-2 ring-offset-[var(--panel-bg)]",
+                MAP_TOOLBAR_TRIGGER_CLASS,
+                filterTagIds.size > 0 && "bg-primary/8 ring-1 ring-inset ring-primary/15",
               )}
-              onClick={toggleAddTracePlacement}
             >
-              <Plus className="size-4" />
-              {placementActive ? "Placing pin…" : "Add trace"}
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              className="h-10 justify-start gap-2 rounded-xl border-0 bg-foreground/5 px-4 shadow-none hover:bg-foreground/10"
-              onClick={() => setTagDialogOpen(true)}
-            >
-              <Tag className="size-4" />
-              New tag
-            </Button>
-          </FloatingPanel>
-
-          <FloatingPanel className="pointer-events-auto mt-auto flex max-h-[min(42vh,22rem)] w-full max-w-full flex-col gap-2 overflow-hidden p-3 sm:mt-0 sm:max-h-[calc(100svh-6.5rem)] sm:w-72 sm:max-w-[min(100%,18rem)] sm:self-start sm:p-4">
-            <p className="font-display text-foreground text-base font-semibold tracking-tight">Filter by tag</p>
-            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-              {(tagsQuery.data ?? []).length === 0 ? (
-                <p className="text-muted-foreground text-sm">No tags yet.</p>
-              ) : (
-                (tagsQuery.data ?? []).map((tag) => (
-                  <label key={tag.id} className="flex cursor-pointer items-center gap-2.5 text-sm">
-                    <Checkbox
+              <span className={cn(MAP_TOOLBAR_ICON_CELL, "relative")}>
+                <ListFilter className="size-4" />
+                {filterTagIds.size > 0 ? (
+                  <span className="bg-primary ring-background absolute top-1.5 right-1.5 size-1.5 rounded-full ring-2" />
+                ) : null}
+              </span>
+              <span className={MAP_TOOLBAR_LABEL_CELL}>Filter</span>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="right" sideOffset={8} align="start" className="w-56">
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Filter by tag</DropdownMenuLabel>
+                {(tagsQuery.data ?? []).length === 0 ? (
+                  <DropdownMenuItem disabled className="text-muted-foreground">
+                    No tags yet
+                  </DropdownMenuItem>
+                ) : (
+                  (tagsQuery.data ?? []).map((tag) => (
+                    <DropdownMenuCheckboxItem
+                      key={tag.id}
                       checked={filterTagIds.has(tag.id)}
                       onCheckedChange={(c) => {
                         setFilterTagIds((prev) => {
@@ -205,21 +254,33 @@ export function MapPage() {
                           return next;
                         });
                       }}
-                    />
-                    <span className="text-base leading-none">{tag.icon_emoji}</span>
-                    <span className="truncate">{tag.name}</span>
-                  </label>
-                ))
-              )}
-            </div>
-            {filterTagIds.size > 0 ? (
-              <Button variant="ghost" size="sm" className="h-9 w-full shrink-0 rounded-xl" onClick={() => setFilterTagIds(new Set())}>
-                Clear filters
-              </Button>
-            ) : null}
-          </FloatingPanel>
-        </div>
+                    >
+                      <span className="text-base">{tag.icon_emoji}</span>
+                      {tag.name}
+                    </DropdownMenuCheckboxItem>
+                  ))
+                )}
+              </DropdownMenuGroup>
+              {filterTagIds.size > 0 ? (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setFilterTagIds(new Set());
+                    }}
+                  >
+                    Clear filters
+                  </DropdownMenuItem>
+                </>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </MapToolbarGroup>
       </div>
+
+      {sidebarTraceId ? (
+        <TraceMapSidebar traceId={sidebarTraceId} journalId={activeJournalId} onClose={() => setSidebarTraceId(null)} />
+      ) : null}
 
       <TraceFormDialog
         open={formOpen}
@@ -227,6 +288,7 @@ export function MapPage() {
           setFormOpen(open);
           if (!open) {
             setPlacedCoords(null);
+            setAnchorScreen(null);
             setPlacementActive(false);
           }
         }}
@@ -234,6 +296,7 @@ export function MapPage() {
         trace={null}
         defaultLat={formDefaults.lat}
         defaultLng={formDefaults.lng}
+        anchorScreen={formOpen && placedCoords ? anchorScreen : null}
       />
       <Dialog open={tagDialogOpen} onOpenChange={setTagDialogOpen}>
         <DialogContent className="border-[var(--panel-border)] bg-[var(--panel-bg)] backdrop-blur-xl sm:max-w-md">

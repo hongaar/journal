@@ -20,6 +20,18 @@ export const connectorRegistry: ConnectorRegistry = {
     capabilities: ["import_media"],
     implemented: false,
   },
+  google_calendar: {
+    id: "google_calendar",
+    displayName: "Google Calendar",
+    capabilities: ["calendar_traces"],
+    implemented: false,
+  },
+  ics: {
+    id: "ical",
+    displayName: "iCalendar",
+    capabilities: ["export_ics"],
+    implemented: false,
+  },
 };
 
 export function getConnectorDefinition(id: string): ConnectorDefinition | undefined {

@@ -2,29 +2,33 @@ import { cn } from "@/lib/utils";
 import type { Trace } from "@/types/database";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { useEffect, useMemo, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from "react";
 import { toast } from "sonner";
 
 export type TraceWithTags = Trace & {
   trace_tags?: { tag_id: string; tags: { id: string; name: string; color: string; icon_emoji: string } | null }[];
 };
 
-/** Pin hotspot at tip (bottom center), fallback crosshair */
-const PIN_CURSOR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="40" viewBox="0 0 24 36"><path fill="#15653c" stroke="white" stroke-width="1.2" d="M12 1.5C6.8 1.5 2.5 5.8 2.5 11c0 6.2 7.5 19.2 9.2 22.5.2.4.8.4 1 0C14.5 30.2 21.5 17.2 21.5 11 21.5 5.8 17.2 1.5 12 1.5z"/><circle cx="12" cy="11" r="3.2" fill="white"/></svg>`;
-const PIN_CURSOR = `url("data:image/svg+xml,${encodeURIComponent(PIN_CURSOR_SVG)}") 14 36, crosshair`;
+export type TraceMapHandle = {
+  lngLatToScreen: (lng: number, lat: number) => { x: number; y: number } | null;
+  subscribeCamera: (cb: () => void) => () => void;
+};
 
 type TraceMapProps = {
   traces: TraceWithTags[];
   selectedTagIds: Set<string>;
   onSelectTrace: (id: string) => void;
-  /** When true, map shows a pin cursor and the next map click calls `onPlacementClick`. */
   placementMode?: boolean;
   onPlacementClick?: (lng: number, lat: number) => void;
   className?: string;
 };
 
-/** Light basemap; pairs with parchment UI panels */
 const BASE_STYLE = "https://tiles.openfreemap.org/styles/positron";
+
+const CAMERA_DURATION_MS = 850;
+const CAMERA_PADDING = 80;
+const CAMERA_MAX_ZOOM = 14;
+const SINGLE_TRACE_ZOOM = 10;
 
 function filterTraces(traces: TraceWithTags[], selectedTagIds: Set<string>) {
   return traces.filter((t) => {
@@ -52,21 +56,58 @@ function geolocationToastMessage(err: unknown): string {
   return "Could not get your location.";
 }
 
-export function TraceMap({
-  traces,
-  selectedTagIds,
-  onSelectTrace,
-  placementMode = false,
-  onPlacementClick,
-  className,
-}: TraceMapProps) {
+/** Stable key for visible traces — camera only updates when this changes. */
+function cameraKeyForFiltered(filtered: TraceWithTags[], placementMode: boolean) {
+  if (placementMode) return "placement";
+  if (filtered.length === 0) return "empty";
+  return filtered
+    .map((t) => t.id)
+    .sort()
+    .join(",");
+}
+
+export const TraceMap = forwardRef<TraceMapHandle, TraceMapProps>(function TraceMap(
+  { traces, selectedTagIds, onSelectTrace, placementMode = false, onPlacementClick, className },
+  ref,
+) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const onPlacementClickRef = useRef(onPlacementClick);
   onPlacementClickRef.current = onPlacementClick;
+  const lastCameraKeyRef = useRef<string>("");
 
   const filtered = useMemo(() => filterTraces(traces, selectedTagIds), [traces, selectedTagIds]);
+  const cameraKey = useMemo(() => cameraKeyForFiltered(filtered, placementMode), [filtered, placementMode]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      lngLatToScreen(lng: number, lat: number) {
+        const map = mapRef.current;
+        const el = containerRef.current;
+        if (!map || !el) return null;
+        const p = map.project([lng, lat]);
+        const r = el.getBoundingClientRect();
+        return { x: r.left + p.x, y: r.top + p.y };
+      },
+      subscribeCamera(cb: () => void) {
+        const map = mapRef.current;
+        if (!map) return () => {};
+        map.on("move", cb);
+        map.on("zoom", cb);
+        map.on("rotate", cb);
+        map.on("pitch", cb);
+        return () => {
+          map.off("move", cb);
+          map.off("zoom", cb);
+          map.off("rotate", cb);
+          map.off("pitch", cb);
+        };
+      },
+    }),
+    [],
+  );
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -102,6 +143,8 @@ export function TraceMap({
     const map = mapRef.current;
     if (!map) return;
 
+    const canvas = map.getCanvas();
+
     const onClick = (e: maplibregl.MapMouseEvent) => {
       if (!placementMode) return;
       const fn = onPlacementClickRef.current;
@@ -111,15 +154,54 @@ export function TraceMap({
 
     if (placementMode) {
       map.on("click", onClick);
+      map.dragPan.disable();
       map.dragRotate.disable();
       map.touchZoomRotate.disableRotation();
+      canvas.style.cursor = "crosshair";
+    } else {
+      canvas.style.cursor = "";
     }
     return () => {
       map.off("click", onClick);
+      map.dragPan.enable();
       map.dragRotate.enable();
       map.touchZoomRotate.enable();
+      canvas.style.cursor = "";
     };
   }, [placementMode]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (placementMode) return;
+    if (cameraKey === lastCameraKeyRef.current) return;
+    lastCameraKeyRef.current = cameraKey;
+    if (filtered.length === 0) return;
+
+    if (filtered.length === 1) {
+      const t = filtered[0];
+      map.flyTo({
+        center: [t.lng, t.lat],
+        zoom: SINGLE_TRACE_ZOOM,
+        duration: CAMERA_DURATION_MS,
+        essential: true,
+      });
+      return;
+    }
+
+    const bounds = new maplibregl.LngLatBounds(
+      [filtered[0].lng, filtered[0].lat],
+      [filtered[0].lng, filtered[0].lat],
+    );
+    for (const t of filtered) {
+      bounds.extend([t.lng, t.lat]);
+    }
+    map.fitBounds(bounds, {
+      padding: CAMERA_PADDING,
+      maxZoom: CAMERA_MAX_ZOOM,
+      duration: CAMERA_DURATION_MS,
+    });
+  }, [cameraKey, filtered, placementMode]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -127,24 +209,6 @@ export function TraceMap({
 
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
-
-    if (filtered.length === 0) return;
-
-    if (!placementMode) {
-      if (filtered.length === 1) {
-        const t = filtered[0];
-        map.jumpTo({ center: [t.lng, t.lat], zoom: 10 });
-      } else {
-        const bounds = new maplibregl.LngLatBounds(
-          [filtered[0].lng, filtered[0].lat],
-          [filtered[0].lng, filtered[0].lat],
-        );
-        for (const t of filtered) {
-          bounds.extend([t.lng, t.lat]);
-        }
-        map.fitBounds(bounds, { padding: 80, maxZoom: 14, duration: 600 });
-      }
-    }
 
     for (const t of filtered) {
       const el = document.createElement("button");
@@ -161,13 +225,14 @@ export function TraceMap({
       const marker = new maplibregl.Marker({ element: el }).setLngLat([t.lng, t.lat]).addTo(map);
       markersRef.current.push(marker);
     }
-  }, [filtered, onSelectTrace, placementMode]);
+  }, [filtered, onSelectTrace]);
 
   return (
     <div
       ref={containerRef}
       className={cn("h-full min-h-0 w-full min-w-0", placementMode && "ring-2 ring-primary/50", className)}
-      style={placementMode ? { cursor: PIN_CURSOR } : undefined}
     />
   );
-}
+});
+
+TraceMap.displayName = "TraceMap";
