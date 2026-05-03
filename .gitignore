@@ -1,0 +1,14 @@
+node_modules
+dist
+.turbo
+*.local
+.env
+.env.*
+!.env.example
+.DS_Store
+coverage
+*.log
+
+# Supabase CLI (local)
+supabase/.branches
+supabase/.temp

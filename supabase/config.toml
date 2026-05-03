@@ -1,0 +1,15 @@
+# Local-only ref (change when you `supabase link` to a cloud project).
+project_id = "journal-local"
+
+[api]
+enabled = true
+
+[db]
+major_version = 17
+
+[auth]
+enabled = true
+
+# Local dev: sign up without confirming email in Mailpit (optional).
+[auth.email]
+enable_confirmations = false

@@ -1,0 +1,6 @@
+{
+  "installCommand": "npm ci",
+  "buildCommand": "npx turbo run build --filter=web",
+  "outputDirectory": "apps/web/dist",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}
