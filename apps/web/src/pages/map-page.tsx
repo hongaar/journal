@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type SetStateAction } from "react";
+import { useCallback, useEffect, useMemo, useState, type SetStateAction } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Tag } from "lucide-react";
@@ -18,12 +18,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FloatingPanel } from "@/components/layout/floating-panel";
+import { cn } from "@/lib/utils";
 
 export function MapPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { activeJournalId, loading: journalLoading } = useJournal();
   const [formOpen, setFormOpen] = useState(false);
+  const [placementActive, setPlacementActive] = useState(false);
+  const [placedCoords, setPlacedCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [tagDialogOpen, setTagDialogOpen] = useState(false);
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState("#2d6a5d");
@@ -73,12 +76,28 @@ export function MapPage() {
     [navigate],
   );
 
+  const onPlacementClick = useCallback((lng: number, lat: number) => {
+    setPlacementActive(false);
+    setPlacedCoords({ lat, lng });
+    setFormOpen(true);
+  }, []);
+
   const traces = useMemo(() => tracesQuery.data ?? [], [tracesQuery.data]);
 
-  const center = useMemo(() => {
+  const formDefaults = useMemo(() => {
+    if (placedCoords) return placedCoords;
     if (traces.length === 0) return { lat: 20, lng: 0 };
     return { lat: traces[0].lat, lng: traces[0].lng };
-  }, [traces]);
+  }, [placedCoords, traces]);
+
+  useEffect(() => {
+    if (!placementActive) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPlacementActive(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [placementActive]);
 
   async function createTag() {
     if (!activeJournalId || !newTagName.trim()) return;
@@ -93,6 +112,13 @@ export function MapPage() {
       setTagDialogOpen(false);
       await qc.invalidateQueries({ queryKey: ["tags", activeJournalId] });
     }
+  }
+
+  function toggleAddTracePlacement() {
+    setPlacementActive((prev) => {
+      if (prev) return false;
+      return true;
+    });
   }
 
   if (journalLoading || !activeJournalId) {
@@ -118,16 +144,37 @@ export function MapPage() {
           traces={traces}
           selectedTagIds={filterTagIds}
           onSelectTrace={onSelectTrace}
+          placementMode={placementActive}
+          onPlacementClick={onPlacementClick}
           className="absolute inset-0 z-0 min-h-0"
         />
       </div>
 
+      {placementActive ? (
+        <div className="pointer-events-none absolute top-[4.5rem] left-1/2 z-20 w-[min(100%,22rem)] -translate-x-1/2 px-3 sm:top-[5rem]">
+          <FloatingPanel className="pointer-events-auto py-3 text-center shadow-xl">
+            <p className="text-foreground text-sm font-medium">Click the map to place your trace</p>
+            <p className="text-muted-foreground mt-1 text-xs">Press Esc or cancel to stop</p>
+            <Button variant="outline" size="sm" className="mt-3 rounded-xl" onClick={() => setPlacementActive(false)}>
+              Cancel
+            </Button>
+          </FloatingPanel>
+        </div>
+      ) : null}
+
       <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between p-3 pt-[4.75rem] sm:p-4 sm:pt-[5.25rem]">
         <div className="flex min-h-0 flex-1 flex-col gap-3 sm:flex-row sm:justify-between">
           <FloatingPanel className="pointer-events-auto flex w-fit max-w-full shrink-0 flex-col gap-2 self-start p-2 sm:p-3">
-            <Button size="sm" className="h-10 justify-start gap-2 rounded-xl px-4 shadow-sm" onClick={() => setFormOpen(true)}>
+            <Button
+              size="sm"
+              className={cn(
+                "h-10 justify-start gap-2 rounded-xl px-4 shadow-sm",
+                placementActive && "ring-2 ring-primary ring-offset-2 ring-offset-[var(--panel-bg)]",
+              )}
+              onClick={toggleAddTracePlacement}
+            >
               <Plus className="size-4" />
-              Add trace
+              {placementActive ? "Placing pin…" : "Add trace"}
             </Button>
             <Button
               size="sm"
@@ -176,11 +223,17 @@ export function MapPage() {
 
       <TraceFormDialog
         open={formOpen}
-        onOpenChange={setFormOpen}
+        onOpenChange={(open) => {
+          setFormOpen(open);
+          if (!open) {
+            setPlacedCoords(null);
+            setPlacementActive(false);
+          }
+        }}
         journalId={activeJournalId}
         trace={null}
-        defaultLat={center.lat}
-        defaultLng={center.lng}
+        defaultLat={formDefaults.lat}
+        defaultLng={formDefaults.lng}
       />
       <Dialog open={tagDialogOpen} onOpenChange={setTagDialogOpen}>
         <DialogContent className="border-[var(--panel-border)] bg-[var(--panel-bg)] backdrop-blur-xl sm:max-w-md">

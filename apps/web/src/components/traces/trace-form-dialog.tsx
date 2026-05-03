@@ -170,16 +170,28 @@ export function TraceFormDialog({
               onChange={(e) => setVisitedAt(e.target.value)}
             />
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-2">
-              <Label htmlFor="t-lat">Latitude</Label>
-              <Input id="t-lat" value={lat} onChange={(e) => setLat(e.target.value)} />
+          {trace ? (
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-2">
+                <Label htmlFor="t-lat">Latitude</Label>
+                <Input id="t-lat" value={lat} onChange={(e) => setLat(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="t-lng">Longitude</Label>
+                <Input id="t-lng" value={lng} onChange={(e) => setLng(e.target.value)} />
+              </div>
             </div>
+          ) : (
             <div className="space-y-2">
-              <Label htmlFor="t-lng">Longitude</Label>
-              <Input id="t-lng" value={lng} onChange={(e) => setLng(e.target.value)} />
+              <Label>Location</Label>
+              <div className="text-muted-foreground rounded-xl border border-border/80 bg-muted/40 px-3 py-2.5 text-sm">
+                <span className="text-foreground font-medium">Pinned on map</span>
+                <span className="mt-1 block font-mono text-xs tracking-tight">
+                  {Number(lat).toFixed(5)}°, {Number(lng).toFixed(5)}°
+                </span>
+              </div>
             </div>
-          </div>
+          )}
           <div className="space-y-2">
             <Label>Tags</Label>
             <div className="max-h-40 space-y-2 overflow-y-auto rounded-md border p-2">
