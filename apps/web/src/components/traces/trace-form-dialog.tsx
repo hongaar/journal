@@ -1,4 +1,4 @@
-import { autoUpdate, computePosition, flip, offset, shift, size } from "@floating-ui/dom";
+import { autoUpdate, computePosition } from "@floating-ui/dom";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FloatingPanel } from "@/components/layout/floating-panel";
+import { mapAnchorPanelMiddleware } from "@/lib/map-anchor-floating-ui";
 
 type TraceFormDialogProps = {
   open: boolean;
@@ -29,9 +30,6 @@ type TraceFormDialogProps = {
   /** Fires while creating a trace when tag selection changes (for map preview). */
   onNewTraceTagIdsChange?: (tagIds: string[]) => void;
 };
-
-/** Space from map anchor (marker center) to the panel along the placement axis (~half marker + air). */
-const ANCHOR_PANEL_GAP_PX = 28;
 
 export function TraceFormDialog({
   open,
@@ -81,24 +79,7 @@ export function TraceFormDialog({
       computePosition(virtualReference, floating, {
         placement: "right",
         strategy: "fixed",
-        middleware: [
-          offset(ANCHOR_PANEL_GAP_PX),
-          flip({
-            fallbackPlacements: ["left", "top", "bottom"],
-          }),
-          shift({ padding: 12, crossAxis: true }),
-          size({
-            padding: 12,
-            apply({ availableHeight, availableWidth, elements }) {
-              const maxH = Math.max(140, availableHeight);
-              const maxW = Math.min(400, Math.max(288, availableWidth));
-              Object.assign(elements.floating.style, {
-                maxHeight: `${maxH}px`,
-                maxWidth: `${maxW}px`,
-              });
-            },
-          }),
-        ],
+        middleware: mapAnchorPanelMiddleware(),
       }).then((data) => {
         const el = floatingRef.current;
         if (!el) return;

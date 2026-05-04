@@ -1,15 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { NavLink, useNavigate } from "react-router-dom";
-import {
-  BookOpen,
-  ChevronDown,
-  Map,
-  Plug,
-  Plus,
-  Settings2,
-  User,
-  UserCircle,
-} from "lucide-react";
+import { BookOpen, ChevronDown, Map, Plug, Plus, Settings2, User } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -36,6 +27,7 @@ import { Label } from "@/components/ui/label";
 import { FloatingPanel } from "@/components/layout/floating-panel";
 import { supabase } from "@/lib/supabase";
 import type { Profile } from "@/types/database";
+import { UserAvatar } from "@/components/user-avatar";
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   cn(
@@ -62,8 +54,6 @@ export function FloatingNav() {
     },
     enabled: Boolean(user),
   });
-
-  const avatarUrl = profileQuery.data?.avatar_url?.trim();
 
   async function handleCreateJournal() {
     if (!newJournalName.trim()) return;
@@ -164,16 +154,13 @@ export function FloatingNav() {
               title="Account"
               aria-label="Account menu"
             >
-              {avatarUrl ? (
-                <img
-                  src={avatarUrl}
-                  alt=""
-                  className="size-8 rounded-full object-cover ring-1 ring-foreground/15"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <UserCircle className="text-muted-foreground size-7" />
-              )}
+              <UserAvatar
+                storedAvatarUrl={profileQuery.data?.avatar_url}
+                email={user?.email}
+                gravatarSize={128}
+                className="flex items-center justify-center"
+                imgClassName="size-8"
+              />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52">
               <DropdownMenuGroup>

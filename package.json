@@ -16,6 +16,7 @@
     "db:stop": "supabase stop",
     "db:status": "supabase status",
     "db:reset": "supabase db reset",
+    "db:migrate": "supabase migration up",
     "db:types": "supabase gen types typescript --local > apps/web/src/lib/database.types.ts"
   },
   "devDependencies": {

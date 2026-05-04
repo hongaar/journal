@@ -19,7 +19,7 @@ export function useTracePhotosSignedUrls(traceId: string | undefined) {
     enabled: Boolean(traceId),
   });
 
-  const photos = photosQuery.data ?? [];
+  const photos = useMemo(() => photosQuery.data ?? [], [photosQuery.data]);
   const idsKey = photoIdsKey(photos);
 
   const signedUrlsQuery = useQuery({
@@ -63,7 +63,7 @@ export function useJournalTracesPhotosSignedUrls(journalId: string | undefined, 
     enabled: Boolean(journalId) && traceIds.length > 0,
   });
 
-  const photos = photosQuery.data ?? [];
+  const photos = useMemo(() => photosQuery.data ?? [], [photosQuery.data]);
   const idsKey = photoIdsKey(photos);
 
   const signedUrlsQuery = useQuery({

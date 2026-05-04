@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { TracePhotoLightbox, TracePhotoThumb } from "@/components/traces/trace-photo-lightbox";
+import { photosToLightboxItems } from "@/lib/trace-photo-lightbox-items";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Pencil, Upload } from "lucide-react";
@@ -22,6 +24,7 @@ export function TraceDetailPage() {
   const { activeJournalId } = useJournal();
   const qc = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
+  const [photoLightbox, setPhotoLightbox] = useState<{ photoId: string } | null>(null);
 
   const traceQuery = useQuery({
     queryKey: ["trace", traceId],
@@ -50,6 +53,8 @@ export function TraceDetailPage() {
     const rows = trace?.trace_tags ?? [];
     return rows.map((tt) => tt.tags).filter(Boolean) as { id: string; name: string; color: string; icon_emoji: string }[];
   }, [trace]);
+
+  const lightboxItems = useMemo(() => photosToLightboxItems(photos, signedUrlByPhotoId), [photos, signedUrlByPhotoId]);
 
   async function onUploadPhotos(files: FileList | null) {
     if (!files?.length || !trace || !activeJournalId) return;
@@ -152,9 +157,12 @@ export function TraceDetailPage() {
               {photos.map((p) => {
                 const url = signedUrlByPhotoId[p.id];
                 return url ? (
-                  <a key={p.id} href={url} target="_blank" rel="noreferrer" className="block">
-                    <img src={url} alt="" className="h-24 w-24 rounded-md border object-cover" />
-                  </a>
+                  <TracePhotoThumb
+                    key={p.id}
+                    url={url}
+                    className="h-24 w-24 shrink-0 overflow-hidden rounded-md border"
+                    onOpen={() => setPhotoLightbox({ photoId: p.id })}
+                  />
                 ) : (
                   <div key={p.id} className="text-muted-foreground flex h-24 w-24 items-center justify-center rounded-md border text-xs">
                     …
@@ -183,6 +191,15 @@ export function TraceDetailPage() {
         onOpenChange={setEditOpen}
         journalId={trace.journal_id}
         trace={trace}
+      />
+      <TracePhotoLightbox
+        open={photoLightbox !== null}
+        onOpenChange={(o) => {
+          if (!o) setPhotoLightbox(null);
+        }}
+        items={lightboxItems}
+        initialPhotoId={photoLightbox?.photoId ?? null}
+        title={trace.title?.trim() || "Untitled place"}
       />
       </div>
     </div>

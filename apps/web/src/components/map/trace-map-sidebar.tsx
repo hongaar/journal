@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ExternalLink, X } from "lucide-react";
@@ -9,6 +9,8 @@ import { FloatingPanel } from "@/components/layout/floating-panel";
 import { contrastingForeground } from "@/lib/utils";
 import type { TraceWithTags } from "@/lib/trace-with-tags";
 import { useTracePhotosSignedUrls } from "@/lib/use-trace-photos";
+import { TracePhotoLightbox, TracePhotoThumb } from "@/components/traces/trace-photo-lightbox";
+import { photosToLightboxItems } from "@/lib/trace-photo-lightbox-items";
 
 type TraceMapSidebarProps = {
   traceId: string;
@@ -17,6 +19,8 @@ type TraceMapSidebarProps = {
 };
 
 export function TraceMapSidebar({ traceId, journalId, onClose }: TraceMapSidebarProps) {
+  const [photoLightbox, setPhotoLightbox] = useState<{ photoId: string } | null>(null);
+
   const traceQuery = useQuery({
     queryKey: ["trace", traceId],
     queryFn: async () => {
@@ -37,6 +41,8 @@ export function TraceMapSidebar({ traceId, journalId, onClose }: TraceMapSidebar
   const trace = traceQuery.data;
   const { photos, signedUrlByPhotoId } = useTracePhotosSignedUrls(traceId);
   const wrongJournal = trace && journalId && trace.journal_id !== journalId;
+
+  const lightboxItems = useMemo(() => photosToLightboxItems(photos, signedUrlByPhotoId), [photos, signedUrlByPhotoId]);
 
   const tagBadges = useMemo(() => {
     const rows = trace?.trace_tags ?? [];
@@ -87,15 +93,12 @@ export function TraceMapSidebar({ traceId, journalId, onClose }: TraceMapSidebar
                 {photos.map((p) => {
                   const url = signedUrlByPhotoId[p.id];
                   return url ? (
-                    <a
+                    <TracePhotoThumb
                       key={p.id}
-                      href={url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="border-border shrink-0 overflow-hidden rounded-lg border"
-                    >
-                      <img src={url} alt="" className="size-20 object-cover sm:size-24" />
-                    </a>
+                      url={url}
+                      className="border-border size-20 shrink-0 overflow-hidden rounded-lg border sm:size-24"
+                      onOpen={() => setPhotoLightbox({ photoId: p.id })}
+                    />
                   ) : (
                     <div key={p.id} className="bg-muted size-20 shrink-0 animate-pulse rounded-lg border sm:size-24" />
                   );
@@ -110,6 +113,15 @@ export function TraceMapSidebar({ traceId, journalId, onClose }: TraceMapSidebar
             <ExternalLink className="size-4" />
             Open full page
           </Link>
+          <TracePhotoLightbox
+            open={photoLightbox !== null}
+            onOpenChange={(o) => {
+              if (!o) setPhotoLightbox(null);
+            }}
+            items={lightboxItems}
+            initialPhotoId={photoLightbox?.photoId ?? null}
+            title={trace.title?.trim() || "Untitled place"}
+          />
         </>
       )}
     </FloatingPanel>

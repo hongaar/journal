@@ -1,13 +1,25 @@
+import { TracePhotoLightboxByTraceId, TracePhotoThumb } from "@/components/traces/trace-photo-lightbox";
 import { FloatingPanel } from "@/components/layout/floating-panel";
+import { mapAnchorPanelMiddleware } from "@/lib/map-anchor-floating-ui";
 import { supabase } from "@/lib/supabase";
 import { cn, contrastingForeground } from "@/lib/utils";
+import { autoUpdate, computePosition } from "@floating-ui/dom";
 import maplibregl from "maplibre-gl";
 import { useQuery } from "@tanstack/react-query";
 import { filterTracesByTags, type TraceWithTags } from "@/lib/trace-with-tags";
 import type { MapCamera } from "@/lib/map-view-params";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useTheme } from "next-themes";
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 
 const HOVER_PHOTO_COUNT = 2;
@@ -108,22 +120,35 @@ function geolocationToastMessage(err: unknown): string {
 
 function styleTraceMarkerFace(
   el: HTMLElement,
-  opts: { emoji: string; fill: string | null; selected: boolean; interactive: boolean; draft?: boolean },
+  opts: {
+    emoji: string;
+    fill: string | null;
+    selected: boolean;
+    hovered?: boolean;
+    interactive: boolean;
+    draft?: boolean;
+  },
 ) {
   el.textContent = opts.emoji;
   const fill = opts.fill;
   const draft = Boolean(opts.draft);
+  const hovered = Boolean(opts.hovered);
   el.className = cn(
-    "flex h-9 w-9 items-center justify-center rounded-full border-2 border-white/80 text-lg shadow-md transition-[transform,box-shadow,filter]",
+    "flex h-9 w-9 items-center justify-center rounded-full border-2 border-white/80 text-lg shadow-md transition-[box-shadow,filter]",
     opts.interactive && "cursor-pointer hover:shadow-lg hover:brightness-105 active:brightness-95",
     !fill && "bg-primary text-primary-foreground",
     draft &&
-      "z-[4] ring-[3px] ring-dashed ring-primary ring-offset-2 ring-offset-background shadow-lg",
+      "ring-[3px] ring-dashed ring-primary ring-offset-2 ring-offset-background shadow-lg",
     !draft &&
       opts.selected &&
-      "z-[3] ring-[3px] ring-primary ring-offset-2 ring-offset-background shadow-lg",
+      "ring-[3px] ring-primary ring-offset-2 ring-offset-background shadow-lg",
     !draft &&
       !opts.selected &&
+      hovered &&
+      "ring-[3px] ring-[var(--map-marker-ring)] ring-offset-2 ring-offset-background shadow-lg",
+    !draft &&
+      !opts.selected &&
+      !hovered &&
       "ring-2 ring-[var(--map-marker-ring)]/40 hover:ring-[var(--map-marker-ring)]/55 hover:shadow-lg",
   );
   el.style.backgroundColor = fill ?? "";
@@ -160,18 +185,61 @@ export const TraceMap = forwardRef<TraceMapHandle, TraceMapProps>(function Trace
   const mapRef = useRef<maplibregl.Map | null>(null);
   const leaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [traceHover, setTraceHover] = useState<TraceHoverPreview | null>(null);
+  const [mapPhotoLightbox, setMapPhotoLightbox] = useState<{ traceId: string; photoId: string } | null>(null);
+  const hoverFloatingRef = useRef<HTMLDivElement>(null);
+  const hoverAnchorRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  const hoverVirtualReference = useMemo(
+    () => ({
+      getBoundingClientRect() {
+        const a = hoverAnchorRef.current;
+        return new DOMRect(a.x, a.y, 0, 0);
+      },
+    }),
+    [],
+  );
   const appliedMapStyleUrlRef = useRef<string>("");
   const markersRef = useRef<maplibregl.Marker[]>([]);
+  /** Inner face element (MapLibre marker root is a wrapper we never className-replace). */
+  const markerElByTraceIdRef = useRef<Map<string, HTMLElement>>(new Map());
+  const markerRootByTraceIdRef = useRef<Map<string, HTMLDivElement>>(new Map());
   const previewMarkerRef = useRef<maplibregl.Marker | null>(null);
   const onPlacementClickRef = useRef(onPlacementClick);
-  onPlacementClickRef.current = onPlacementClick;
   const onCameraIdleRef = useRef(onCameraIdle);
-  onCameraIdleRef.current = onCameraIdle;
   const lastAppliedSyncKeyRef = useRef<string>("");
 
   const filtered = useMemo(() => filterTracesByTags(traces, selectedTagIds), [traces, selectedTagIds]);
   const filteredRef = useRef(filtered);
-  filteredRef.current = filtered;
+  const selectedTraceIdRef = useRef(selectedTraceId);
+  const latestTraceHoverIdRef = useRef<string | null>(null);
+
+  useLayoutEffect(() => {
+    onPlacementClickRef.current = onPlacementClick;
+    onCameraIdleRef.current = onCameraIdle;
+    filteredRef.current = filtered;
+    selectedTraceIdRef.current = selectedTraceId;
+    latestTraceHoverIdRef.current = traceHover?.trace.id ?? null;
+  }, [onPlacementClick, onCameraIdle, filtered, selectedTraceId, traceHover]);
+
+  const applyMarkerHoverStack = useCallback((hoveredId: string | null) => {
+    for (const t of filteredRef.current) {
+      const face = markerElByTraceIdRef.current.get(t.id);
+      const root = markerRootByTraceIdRef.current.get(t.id);
+      if (!face || !root) continue;
+      const tag0 = t.trace_tags?.[0]?.tags;
+      const fill = tag0?.color ?? null;
+      const emoji = tag0?.icon_emoji ?? "📍";
+      styleTraceMarkerFace(face, {
+        emoji,
+        fill,
+        selected: t.id === selectedTraceIdRef.current,
+        hovered: hoveredId !== null && t.id === hoveredId,
+        interactive: true,
+      });
+      const raised = t.id === selectedTraceIdRef.current || (hoveredId !== null && t.id === hoveredId);
+      root.style.zIndex = raised ? "3" : "1";
+    }
+  }, []);
 
   const cancelHidePreview = useCallback(() => {
     if (leaveTimerRef.current) {
@@ -184,9 +252,10 @@ export const TraceMap = forwardRef<TraceMapHandle, TraceMapProps>(function Trace
     if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
     leaveTimerRef.current = setTimeout(() => {
       leaveTimerRef.current = null;
+      applyMarkerHoverStack(null);
       setTraceHover(null);
     }, HOVER_LEAVE_MS);
-  }, []);
+  }, [applyMarkerHoverStack]);
 
   useEffect(() => () => cancelHidePreview(), [cancelHidePreview]);
 
@@ -231,6 +300,47 @@ export const TraceMap = forwardRef<TraceMapHandle, TraceMapProps>(function Trace
       window.removeEventListener("resize", project);
     };
   }, [traceHoverAnchorId, traceHoverLng, traceHoverLat]);
+
+  useLayoutEffect(() => {
+    applyMarkerHoverStack(traceHover?.trace.id ?? null);
+  }, [traceHover, applyMarkerHoverStack]);
+
+  useLayoutEffect(() => {
+    if (!traceHover) {
+      hoverAnchorRef.current = { x: 0, y: 0 };
+      return;
+    }
+    hoverAnchorRef.current = { x: traceHover.x, y: traceHover.y };
+  }, [traceHover]);
+
+  useLayoutEffect(() => {
+    if (!traceHover) return;
+    const floating = hoverFloatingRef.current;
+    if (!floating) return;
+
+    const run = () =>
+      computePosition(hoverVirtualReference, floating, {
+        placement: "right",
+        strategy: "fixed",
+        middleware: mapAnchorPanelMiddleware(),
+      }).then((data) => {
+        const el = hoverFloatingRef.current;
+        if (!el) return;
+        Object.assign(el.style, {
+          position: "fixed",
+          left: `${data.x}px`,
+          top: `${data.y}px`,
+          right: "auto",
+          bottom: "auto",
+        });
+      });
+
+    void run();
+    return autoUpdate(hoverVirtualReference, floating, run, {
+      animationFrame: true,
+      layoutShift: true,
+    });
+  }, [traceHover, hoverVirtualReference]);
 
   useImperativeHandle(
     ref,
@@ -398,25 +508,35 @@ export const TraceMap = forwardRef<TraceMapHandle, TraceMapProps>(function Trace
 
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
+    markerElByTraceIdRef.current.clear();
+    markerRootByTraceIdRef.current.clear();
 
     for (const t of filtered) {
       const tag0 = t.trace_tags?.[0]?.tags;
       const fill = tag0?.color ?? null;
       const emoji = tag0?.icon_emoji ?? "📍";
-      const el = document.createElement("button");
-      el.type = "button";
-      el.setAttribute("aria-label", t.title?.trim() || "Open trace");
-      styleTraceMarkerFace(el, {
+      const root = document.createElement("div");
+      root.style.display = "flex";
+      root.style.alignItems = "center";
+      root.style.justifyContent = "center";
+      const face = document.createElement("button");
+      face.type = "button";
+      face.setAttribute("aria-label", t.title?.trim() || "Open trace");
+      root.appendChild(face);
+      styleTraceMarkerFace(face, {
         emoji,
         fill,
         selected: t.id === selectedTraceId,
+        hovered: false,
         interactive: true,
       });
-      el.addEventListener("click", (e) => {
+      markerElByTraceIdRef.current.set(t.id, face);
+      markerRootByTraceIdRef.current.set(t.id, root);
+      face.addEventListener("click", (e) => {
         e.stopPropagation();
         onSelectTrace(t.id);
       });
-      el.addEventListener("mouseenter", () => {
+      face.addEventListener("mouseenter", () => {
         cancelHidePreview();
         const mapInst = mapRef.current;
         const wrap = containerRef.current;
@@ -430,10 +550,10 @@ export const TraceMap = forwardRef<TraceMapHandle, TraceMapProps>(function Trace
         }
         setTraceHover({ trace: t, lng: t.lng, lat: t.lat, x, y });
       });
-      el.addEventListener("mouseleave", () => {
+      face.addEventListener("mouseleave", () => {
         requestHidePreview();
       });
-      const marker = new maplibregl.Marker({ element: el }).setLngLat([t.lng, t.lat]).addTo(map);
+      const marker = new maplibregl.Marker({ element: root }).setLngLat([t.lng, t.lat]).addTo(map);
       markersRef.current.push(marker);
     }
 
@@ -442,7 +562,9 @@ export const TraceMap = forwardRef<TraceMapHandle, TraceMapProps>(function Trace
       if (!filtered.some((x) => x.id === h.trace.id)) return null;
       return h;
     });
-  }, [filtered, onSelectTrace, selectedTraceId, cancelHidePreview, requestHidePreview]);
+
+    applyMarkerHoverStack(latestTraceHoverIdRef.current);
+  }, [filtered, onSelectTrace, selectedTraceId, applyMarkerHoverStack, cancelHidePreview, requestHidePreview]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -451,18 +573,24 @@ export const TraceMap = forwardRef<TraceMapHandle, TraceMapProps>(function Trace
     previewMarkerRef.current = null;
     if (!previewPin) return;
 
-    const el = document.createElement("div");
-    el.setAttribute("role", "presentation");
-    el.setAttribute("aria-hidden", "true");
-    el.className = "pointer-events-none relative z-[4]";
-    styleTraceMarkerFace(el, {
+    const root = document.createElement("div");
+    root.style.display = "flex";
+    root.style.alignItems = "center";
+    root.style.justifyContent = "center";
+    root.style.pointerEvents = "none";
+    root.style.zIndex = "5";
+    const face = document.createElement("div");
+    face.setAttribute("role", "presentation");
+    face.setAttribute("aria-hidden", "true");
+    root.appendChild(face);
+    styleTraceMarkerFace(face, {
       emoji: previewPin.icon,
       fill: previewPin.color,
       selected: false,
       interactive: false,
       draft: true,
     });
-    const marker = new maplibregl.Marker({ element: el }).setLngLat([previewPin.lng, previewPin.lat]).addTo(map);
+    const marker = new maplibregl.Marker({ element: root }).setLngLat([previewPin.lng, previewPin.lat]).addTo(map);
     previewMarkerRef.current = marker;
     return () => {
       marker.remove();
@@ -477,54 +605,65 @@ export const TraceMap = forwardRef<TraceMapHandle, TraceMapProps>(function Trace
   const hoverUrls = hoverPhotoUrlsQuery.data ?? [];
 
   return (
-    <div className={cn("relative h-full min-h-0 w-full min-w-0", className)}>
+    <>
       <div
         ref={containerRef}
-        className={cn("absolute inset-0 min-h-0 min-w-0", placementMode && "ring-2 ring-primary/50")}
+        className={cn("h-full min-h-0 w-full min-w-0", placementMode && "ring-2 ring-primary/50", className)}
       />
       {traceHover ? (
-        <div
-          className="pointer-events-auto fixed z-[60] w-[min(18rem,calc(100vw-1.5rem))]"
-          style={{
-            left: traceHover.x,
-            top: traceHover.y,
-            transform: "translate(-50%, calc(-100% - 10px))",
-          }}
-          onMouseEnter={cancelHidePreview}
-          onMouseLeave={requestHidePreview}
-        >
-          <FloatingPanel className="border-[var(--panel-border)] p-3 shadow-2xl">
-            <p className="font-display text-foreground text-sm leading-snug font-semibold tracking-tight">{hoverTitle}</p>
-            {hoverDesc ? (
-              <p className="text-muted-foreground mt-1.5 max-h-24 overflow-y-auto text-xs leading-relaxed whitespace-pre-wrap">
-                {hoverDesc}
-              </p>
-            ) : null}
-            {hoverPreviewPhotos.length > 0 ? (
-              <div className="mt-2.5 flex gap-1.5">
-                {hoverPreviewPhotos.map((p, i) => (
-                  <div
-                    key={p.id}
-                    className="bg-muted relative aspect-square min-h-0 flex-1 overflow-hidden rounded-lg"
-                  >
-                    {hoverUrls[i] ? (
-                      <img
-                        src={hoverUrls[i]}
-                        alt=""
-                        className="size-full object-cover"
-                        draggable={false}
-                      />
-                    ) : (
-                      <div className="bg-muted flex size-full min-h-[4.5rem] animate-pulse items-center justify-center" />
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </FloatingPanel>
+        <div ref={hoverFloatingRef} className="pointer-events-none z-[60] w-max min-w-0">
+          <div
+            className="pointer-events-auto relative"
+            onMouseEnter={cancelHidePreview}
+            onMouseLeave={requestHidePreview}
+          >
+            <FloatingPanel className="max-h-[inherit] min-w-[288px] max-w-sm overflow-y-auto border-[var(--panel-border)] p-4 shadow-2xl">
+              <p className="font-display text-foreground mb-1 text-xl font-semibold tracking-tight">{hoverTitle}</p>
+              {hoverDesc ? (
+                <p className="text-muted-foreground mt-3 max-h-24 overflow-y-auto text-sm leading-relaxed whitespace-pre-wrap">
+                  {hoverDesc}
+                </p>
+              ) : null}
+              {hoverPreviewPhotos.length > 0 ? (
+                <div className="mt-3 flex gap-2">
+                  {hoverPreviewPhotos.map((p, i) => (
+                    <div
+                      key={p.id}
+                      className="bg-muted relative aspect-square min-h-0 flex-1 overflow-hidden rounded-lg"
+                    >
+                      {hoverUrls[i] ? (
+                        <TracePhotoThumb
+                          url={hoverUrls[i]}
+                          className="size-full"
+                          onOpen={() =>
+                            setMapPhotoLightbox({ traceId: traceHover.trace.id, photoId: p.id })
+                          }
+                        />
+                      ) : (
+                        <div className="bg-muted flex size-full min-h-[4.5rem] animate-pulse items-center justify-center" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </FloatingPanel>
+          </div>
         </div>
       ) : null}
-    </div>
+      <TracePhotoLightboxByTraceId
+        traceId={mapPhotoLightbox?.traceId ?? null}
+        open={mapPhotoLightbox !== null}
+        onOpenChange={(o) => {
+          if (!o) setMapPhotoLightbox(null);
+        }}
+        initialPhotoId={mapPhotoLightbox?.photoId ?? null}
+        title={
+          mapPhotoLightbox && traceHover?.trace.id === mapPhotoLightbox.traceId
+            ? traceHover.trace.title?.trim() || "Untitled place"
+            : undefined
+        }
+      />
+    </>
   );
 });
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/auth-provider";
@@ -7,13 +7,29 @@ import { FloatingPanel } from "@/components/layout/floating-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { UserAvatar } from "@/components/user-avatar";
+
+const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
+
+const MIME_TO_EXT: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/gif": "gif",
+  "image/webp": "webp",
+};
+
+function extFromImageFile(file: File): string | null {
+  return MIME_TO_EXT[file.type] ?? null;
+}
 
 export function ProfilePage() {
   const { user } = useAuth();
   const qc = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [displayName, setDisplayName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
   const profileQuery = useQuery({
@@ -57,6 +73,75 @@ export function ProfilePage() {
     await qc.invalidateQueries({ queryKey: ["profile", user.id] });
   }
 
+  async function uploadAvatar(file: File) {
+    if (!user) return;
+    setMessage(null);
+    const ext = extFromImageFile(file);
+    if (!ext) {
+      setMessage("Please choose a JPEG, PNG, GIF, or WebP image.");
+      return;
+    }
+    if (file.size > MAX_AVATAR_BYTES) {
+      setMessage("Image must be 2 MB or smaller.");
+      return;
+    }
+    setUploading(true);
+    const path = `${user.id}/avatar.${ext}`;
+    const { error: uploadError } = await supabase.storage.from("avatars").upload(path, file, {
+      upsert: true,
+      contentType: file.type || `image/${ext === "jpg" ? "jpeg" : ext}`,
+    });
+    if (uploadError) {
+      setUploading(false);
+      setMessage(uploadError.message);
+      return;
+    }
+    const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
+    const publicUrl = pub.publicUrl;
+    const { error: dbError } = await supabase
+      .from("profiles")
+      .update({
+        avatar_url: publicUrl,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", user.id);
+    setUploading(false);
+    if (dbError) {
+      setMessage(dbError.message);
+      return;
+    }
+    setAvatarUrl(publicUrl);
+    setMessage("Photo updated.");
+    await qc.invalidateQueries({ queryKey: ["profile", user.id] });
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  async function removeAvatar() {
+    if (!user) return;
+    setMessage(null);
+    setUploading(true);
+    const { data: files } = await supabase.storage.from("avatars").list(user.id);
+    if (files?.length) {
+      const paths = files.map((f) => `${user.id}/${f.name}`);
+      await supabase.storage.from("avatars").remove(paths);
+    }
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        avatar_url: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", user.id);
+    setUploading(false);
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+    setAvatarUrl("");
+    setMessage("Photo removed. Your Gravatar or default icon will show if applicable.");
+    await qc.invalidateQueries({ queryKey: ["profile", user.id] });
+  }
+
   return (
     <div className="h-full overflow-y-auto px-3 pt-[4.75rem] pb-10 sm:px-6 sm:pt-[5.25rem]">
       <div className="mx-auto max-w-lg">
@@ -71,6 +156,65 @@ export function ProfilePage() {
             </p>
           ) : null}
           <div className="mt-6 grid gap-4">
+            <div className="space-y-3">
+              <Label>Photo</Label>
+              <div className="flex flex-wrap items-center gap-4">
+                <UserAvatar
+                  storedAvatarUrl={avatarUrl}
+                  email={user?.email}
+                  gravatarSize={256}
+                  className="size-24 shrink-0"
+                  imgClassName="size-24"
+                  label={displayName.trim() || user?.email || "Profile"}
+                />
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  className="sr-only"
+                  aria-label="Upload profile photo"
+                  disabled={uploading || profileQuery.isLoading || !user}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) void uploadAvatar(file);
+                  }}
+                />
+                <div className="flex min-w-0 flex-col gap-2">
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="rounded-xl"
+                      disabled={uploading || profileQuery.isLoading || !user}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      {uploading ? "Working…" : "Upload photo"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="rounded-xl"
+                      disabled={uploading || profileQuery.isLoading || !user || !avatarUrl.trim()}
+                      onClick={() => void removeAvatar()}
+                    >
+                      Remove photo
+                    </Button>
+                  </div>
+                  <p className="text-muted-foreground max-w-sm text-xs leading-relaxed">
+                    If you do not upload a photo, we show your{" "}
+                    <a
+                      className="text-foreground underline decoration-foreground/25 underline-offset-2 hover:decoration-foreground/60"
+                      href="https://gravatar.com"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Gravatar
+                    </a>{" "}
+                    for this email, then the default icon.
+                  </p>
+                </div>
+              </div>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="pf-name">Display name</Label>
               <Input
@@ -80,17 +224,6 @@ export function ProfilePage() {
                 placeholder="Your name"
                 disabled={profileQuery.isLoading}
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="pf-avatar">Avatar URL</Label>
-              <Input
-                id="pf-avatar"
-                value={avatarUrl}
-                onChange={(e) => setAvatarUrl(e.target.value)}
-                placeholder="https://…"
-                disabled={profileQuery.isLoading}
-              />
-              <p className="text-muted-foreground text-xs">Paste a direct image URL. Hosted uploads can come later.</p>
             </div>
             {message ? <p className="text-sm">{message}</p> : null}
             <Button className="w-fit rounded-xl" disabled={saving || profileQuery.isLoading} onClick={() => void save()}>

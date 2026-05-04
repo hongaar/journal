@@ -22,6 +22,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PresetColorPicker } from "@/components/traces/preset-color-picker";
+import { EmojiPicker } from "@/components/traces/emoji-picker";
+import { DEFAULT_TRACE_TAG_COLOR } from "@/lib/preset-trace-tag-colors";
 import { FloatingPanel } from "@/components/layout/floating-panel";
 import {
   applyFilterTagIdsToSearchParams,
@@ -59,7 +62,7 @@ export function MapPage() {
   const [anchorScreen, setAnchorScreen] = useState<{ x: number; y: number } | null>(null);
   const [tagDialogOpen, setTagDialogOpen] = useState(false);
   const [newTagName, setNewTagName] = useState("");
-  const [newTagColor, setNewTagColor] = useState("#2d6a5d");
+  const [newTagColor, setNewTagColor] = useState(DEFAULT_TRACE_TAG_COLOR);
   const [newTagEmoji, setNewTagEmoji] = useState("📍");
   const [newTraceTagIds, setNewTraceTagIds] = useState<string[]>([]);
   const filterTagIds = useMemo(() => parseFilterTagIdsFromSearchParams(searchParams), [searchParams]);
@@ -312,6 +315,7 @@ export function MapPage() {
 
       {sidebarTraceId ? (
         <TraceMapSidebar
+          key={sidebarTraceId}
           traceId={sidebarTraceId}
           journalId={activeJournalId}
           onClose={() => setSearchParams((prev) => applySelectedTraceToSearchParams(prev, null), { replace: true })}
@@ -346,20 +350,8 @@ export function MapPage() {
               <Label htmlFor="tag-name">Name</Label>
               <Input id="tag-name" value={newTagName} onChange={(e) => setNewTagName(e.target.value)} />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="tag-color">Color</Label>
-              <Input
-                id="tag-color"
-                type="color"
-                className="h-10 w-full cursor-pointer rounded-lg"
-                value={newTagColor}
-                onChange={(e) => setNewTagColor(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="tag-emoji">Icon (emoji)</Label>
-              <Input id="tag-emoji" value={newTagEmoji} onChange={(e) => setNewTagEmoji(e.target.value)} />
-            </div>
+            <PresetColorPicker id="tag-color" label="Color" value={newTagColor} onChange={setNewTagColor} />
+            <EmojiPicker id="tag-emoji" label="Icon (emoji)" value={newTagEmoji} onChange={setNewTagEmoji} />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setTagDialogOpen(false)}>

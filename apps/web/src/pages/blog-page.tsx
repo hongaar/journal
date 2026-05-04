@@ -16,6 +16,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PresetColorPicker } from "@/components/traces/preset-color-picker";
+import { EmojiPicker } from "@/components/traces/emoji-picker";
+import { DEFAULT_TRACE_TAG_COLOR } from "@/lib/preset-trace-tag-colors";
 import { FloatingPanel } from "@/components/layout/floating-panel";
 import { contrastingForeground } from "@/lib/utils";
 import {
@@ -23,6 +26,8 @@ import {
   parseFilterTagIdsFromSearchParams,
 } from "@/lib/map-view-params";
 import { useJournalTracesPhotosSignedUrls } from "@/lib/use-trace-photos";
+import { TracePhotoLightbox, TracePhotoThumb } from "@/components/traces/trace-photo-lightbox";
+import { photosToLightboxItems } from "@/lib/trace-photo-lightbox-items";
 
 function formatBlogDate(iso: string) {
   const d = new Date(iso);
@@ -34,9 +39,10 @@ export function BlogPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { activeJournalId, loading: journalLoading } = useJournal();
   const [formOpen, setFormOpen] = useState(false);
+  const [photoLightbox, setPhotoLightbox] = useState<{ traceId: string; photoId: string } | null>(null);
   const [tagDialogOpen, setTagDialogOpen] = useState(false);
   const [newTagName, setNewTagName] = useState("");
-  const [newTagColor, setNewTagColor] = useState("#2d6a5d");
+  const [newTagColor, setNewTagColor] = useState(DEFAULT_TRACE_TAG_COLOR);
   const [newTagEmoji, setNewTagEmoji] = useState("📍");
   const filterTagIds = useMemo(() => parseFilterTagIdsFromSearchParams(searchParams), [searchParams]);
   const setFilterTagIds = useCallback(
@@ -93,6 +99,18 @@ export function BlogPage() {
     activeJournalId ?? undefined,
     visibleTraceIds,
   );
+
+  const blogLightboxItems = useMemo(() => {
+    if (!photoLightbox) return [];
+    const ps = photosByTraceId.get(photoLightbox.traceId) ?? [];
+    return photosToLightboxItems(ps, signedUrlByPhotoId);
+  }, [photoLightbox, photosByTraceId, signedUrlByPhotoId]);
+
+  const blogLightboxTitle = useMemo(() => {
+    if (!photoLightbox) return undefined;
+    const t = visible.find((x) => x.id === photoLightbox.traceId);
+    return t?.title?.trim() || "Untitled trace";
+  }, [photoLightbox, visible]);
 
   const formDefaults = useMemo(() => {
     if (traces.length === 0) return { lat: 20, lng: 0 };
@@ -213,9 +231,11 @@ export function BlogPage() {
                             const url = signedUrlByPhotoId[p.id];
                             return url ? (
                               <li key={p.id} className="overflow-hidden rounded-xl border">
-                                <Link to={`/traces/${t.id}`} className="block aspect-square">
-                                  <img src={url} alt="" className="size-full object-cover transition-opacity hover:opacity-95" />
-                                </Link>
+                                <TracePhotoThumb
+                                  url={url}
+                                  className="aspect-square size-full"
+                                  onOpen={() => setPhotoLightbox({ traceId: t.id, photoId: p.id })}
+                                />
                               </li>
                             ) : (
                               <li key={p.id}>
@@ -242,6 +262,16 @@ export function BlogPage() {
         </div>
       </div>
 
+      <TracePhotoLightbox
+        open={photoLightbox !== null}
+        onOpenChange={(o) => {
+          if (!o) setPhotoLightbox(null);
+        }}
+        items={blogLightboxItems}
+        initialPhotoId={photoLightbox?.photoId ?? null}
+        title={blogLightboxTitle}
+      />
+
       <TraceFormDialog
         open={formOpen}
         onOpenChange={setFormOpen}
@@ -262,20 +292,18 @@ export function BlogPage() {
               <Label htmlFor="blog-tag-name">Name</Label>
               <Input id="blog-tag-name" value={newTagName} onChange={(e) => setNewTagName(e.target.value)} />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="blog-tag-color">Color</Label>
-              <Input
-                id="blog-tag-color"
-                type="color"
-                className="h-10 w-full cursor-pointer rounded-lg"
-                value={newTagColor}
-                onChange={(e) => setNewTagColor(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="blog-tag-emoji">Icon (emoji)</Label>
-              <Input id="blog-tag-emoji" value={newTagEmoji} onChange={(e) => setNewTagEmoji(e.target.value)} />
-            </div>
+            <PresetColorPicker
+              id="blog-tag-color"
+              label="Color"
+              value={newTagColor}
+              onChange={setNewTagColor}
+            />
+            <EmojiPicker
+              id="blog-tag-emoji"
+              label="Icon (emoji)"
+              value={newTagEmoji}
+              onChange={setNewTagEmoji}
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setTagDialogOpen(false)}>
