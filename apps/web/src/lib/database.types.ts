@@ -34,72 +34,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      connector_types: {
-        Row: {
-          description: string | null
-          display_name: string
-          id: string
-        }
-        Insert: {
-          description?: string | null
-          display_name: string
-          id: string
-        }
-        Update: {
-          description?: string | null
-          display_name?: string
-          id?: string
-        }
-        Relationships: []
-      }
-      journal_connectors: {
-        Row: {
-          config: Json
-          connector_type_id: string
-          created_at: string
-          enabled: boolean
-          id: string
-          journal_id: string
-          status: Database["public"]["Enums"]["connector_link_status"]
-          updated_at: string
-        }
-        Insert: {
-          config?: Json
-          connector_type_id: string
-          created_at?: string
-          enabled?: boolean
-          id?: string
-          journal_id: string
-          status?: Database["public"]["Enums"]["connector_link_status"]
-          updated_at?: string
-        }
-        Update: {
-          config?: Json
-          connector_type_id?: string
-          created_at?: string
-          enabled?: boolean
-          id?: string
-          journal_id?: string
-          status?: Database["public"]["Enums"]["connector_link_status"]
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "journal_connectors_connector_type_id_fkey"
-            columns: ["connector_type_id"]
-            isOneToOne: false
-            referencedRelation: "connector_types"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "journal_connectors_journal_id_fkey"
-            columns: ["journal_id"]
-            isOneToOne: false
-            referencedRelation: "journals"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       journal_ical_feed_tokens: {
         Row: {
           created_at: string
@@ -199,6 +133,54 @@ export type Database = {
           },
         ]
       }
+      journal_plugins: {
+        Row: {
+          config: Json
+          created_at: string
+          enabled: boolean
+          id: string
+          journal_id: string
+          plugin_type_id: string
+          status: Database["public"]["Enums"]["plugin_link_status"]
+          updated_at: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          journal_id: string
+          plugin_type_id: string
+          status?: Database["public"]["Enums"]["plugin_link_status"]
+          updated_at?: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          journal_id?: string
+          plugin_type_id?: string
+          status?: Database["public"]["Enums"]["plugin_link_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_connectors_journal_id_fkey"
+            columns: ["journal_id"]
+            isOneToOne: false
+            referencedRelation: "journals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_plugins_plugin_type_id_fkey"
+            columns: ["plugin_type_id"]
+            isOneToOne: false
+            referencedRelation: "plugin_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       journals: {
         Row: {
           created_at: string
@@ -270,26 +252,35 @@ export type Database = {
       }
       photos: {
         Row: {
+          captured_at: string | null
           created_at: string
+          external_ref: Json | null
           id: string
           journal_id: string
           sort_order: number
+          source_plugin_id: string | null
           storage_path: string | null
           trace_id: string
         }
         Insert: {
+          captured_at?: string | null
           created_at?: string
+          external_ref?: Json | null
           id?: string
           journal_id: string
           sort_order?: number
+          source_plugin_id?: string | null
           storage_path?: string | null
           trace_id: string
         }
         Update: {
+          captured_at?: string | null
           created_at?: string
+          external_ref?: Json | null
           id?: string
           journal_id?: string
           sort_order?: number
+          source_plugin_id?: string | null
           storage_path?: string | null
           trace_id?: string
         }
@@ -302,6 +293,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "photos_source_plugin_id_fkey"
+            columns: ["source_plugin_id"]
+            isOneToOne: false
+            referencedRelation: "plugin_types"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "photos_trace_id_fkey"
             columns: ["trace_id"]
             isOneToOne: false
@@ -309,6 +307,62 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      plugin_oauth_pending: {
+        Row: {
+          code_verifier: string
+          created_at: string
+          expires_at: string
+          plugin_type_id: string
+          redirect_after: string | null
+          state: string
+          user_id: string
+        }
+        Insert: {
+          code_verifier: string
+          created_at?: string
+          expires_at: string
+          plugin_type_id: string
+          redirect_after?: string | null
+          state: string
+          user_id: string
+        }
+        Update: {
+          code_verifier?: string
+          created_at?: string
+          expires_at?: string
+          plugin_type_id?: string
+          redirect_after?: string | null
+          state?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plugin_oauth_pending_plugin_type_id_fkey"
+            columns: ["plugin_type_id"]
+            isOneToOne: false
+            referencedRelation: "plugin_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plugin_types: {
+        Row: {
+          description: string | null
+          display_name: string
+          id: string
+        }
+        Insert: {
+          description?: string | null
+          display_name: string
+          id: string
+        }
+        Update: {
+          description?: string | null
+          display_name?: string
+          id?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -474,58 +528,105 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "traces_modified_by_user_id_fkey"
-            columns: ["modified_by_user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "traces_journal_id_fkey"
             columns: ["journal_id"]
             isOneToOne: false
             referencedRelation: "journals"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "traces_modified_by_user_id_fkey"
+            columns: ["modified_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
-      user_connectors: {
+      user_plugin_oauth_tokens: {
         Row: {
-          config: Json
-          connector_type_id: string
+          access_token_ciphertext: string | null
+          access_token_expires_at: string | null
           created_at: string
-          enabled: boolean
           id: string
-          status: Database["public"]["Enums"]["connector_link_status"]
+          plugin_type_id: string
+          provider: string
+          refresh_token_ciphertext: string
+          revoked_at: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
-          config?: Json
-          connector_type_id: string
+          access_token_ciphertext?: string | null
+          access_token_expires_at?: string | null
           created_at?: string
-          enabled?: boolean
           id?: string
-          status?: Database["public"]["Enums"]["connector_link_status"]
+          plugin_type_id: string
+          provider: string
+          refresh_token_ciphertext: string
+          revoked_at?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
-          config?: Json
-          connector_type_id?: string
+          access_token_ciphertext?: string | null
+          access_token_expires_at?: string | null
           created_at?: string
-          enabled?: boolean
           id?: string
-          status?: Database["public"]["Enums"]["connector_link_status"]
+          plugin_type_id?: string
+          provider?: string
+          refresh_token_ciphertext?: string
+          revoked_at?: string | null
           updated_at?: string
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "user_connectors_connector_type_id_fkey"
-            columns: ["connector_type_id"]
+            foreignKeyName: "user_plugin_oauth_tokens_plugin_type_id_fkey"
+            columns: ["plugin_type_id"]
             isOneToOne: false
-            referencedRelation: "connector_types"
+            referencedRelation: "plugin_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_plugins: {
+        Row: {
+          config: Json
+          created_at: string
+          enabled: boolean
+          id: string
+          plugin_type_id: string
+          status: Database["public"]["Enums"]["plugin_link_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          plugin_type_id: string
+          status?: Database["public"]["Enums"]["plugin_link_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          plugin_type_id?: string
+          status?: Database["public"]["Enums"]["plugin_link_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_plugins_plugin_type_id_fkey"
+            columns: ["plugin_type_id"]
+            isOneToOne: false
+            referencedRelation: "plugin_types"
             referencedColumns: ["id"]
           },
         ]
@@ -585,7 +686,6 @@ export type Database = {
       }
     }
     Enums: {
-      connector_link_status: "disabled" | "pending" | "error" | "connected"
       journal_invitation_status:
         | "pending"
         | "accepted"
@@ -596,6 +696,7 @@ export type Database = {
         | "journal_invitation"
         | "journal_invitation_accepted"
         | "journal_ownership_received"
+      plugin_link_status: "disabled" | "pending" | "error" | "connected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -726,7 +827,6 @@ export const Constants = {
   },
   public: {
     Enums: {
-      connector_link_status: ["disabled", "pending", "error", "connected"],
       journal_invitation_status: [
         "pending",
         "accepted",
@@ -739,6 +839,7 @@ export const Constants = {
         "journal_invitation_accepted",
         "journal_ownership_received",
       ],
+      plugin_link_status: ["disabled", "pending", "error", "connected"],
     },
   },
 } as const

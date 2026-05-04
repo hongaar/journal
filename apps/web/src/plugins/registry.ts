@@ -1,34 +1,35 @@
-import type { ConnectorDefinition, ConnectorRegistry } from "@curolia/connector-contract";
-import { icalConnectorManifest } from "@curolia/connector-ical";
+import type { PluginDefinition, PluginRegistry } from "@curolia/plugin-contract";
+import { icalPluginManifest } from "@curolia/plugin-ical";
 
 const mapsStub = {
   capabilities: ["export_trace", "import_media"] as const,
   implemented: false,
-} satisfies Omit<ConnectorDefinition, "id" | "displayName">;
+} satisfies Omit<PluginDefinition, "id" | "displayName">;
 
 const mediaStub = {
   capabilities: ["import_media"] as const,
   implemented: false,
-} satisfies Omit<ConnectorDefinition, "id" | "displayName">;
+} satisfies Omit<PluginDefinition, "id" | "displayName">;
 
 const calendarStub = {
   capabilities: ["calendar_traces"] as const,
   implemented: false,
-} satisfies Omit<ConnectorDefinition, "id" | "displayName">;
+} satisfies Omit<PluginDefinition, "id" | "displayName">;
 
-export const connectorRegistry = {
+export const pluginRegistry = {
   google_maps: { id: "google_maps", displayName: "Google Maps", ...mapsStub },
   osmand: { id: "osmand", displayName: "OsmAnd", ...mapsStub },
   google_photos: {
     id: "google_photos",
     displayName: "Google Photos",
-    ...mediaStub,
+    capabilities: ["import_media", "trace_photo_suggestions"] as const,
+    implemented: false,
     contributions: {
       appHooks: [
         {
           name: "photos.suggestionsForTrace",
           description:
-            "Future: suggest library photos using trace coordinates and date range (web/mobile shell will subscribe).",
+            "Suggest library photos using trace coordinates and date range (shell aggregates plugin Edge handlers).",
         },
       ],
     },
@@ -43,9 +44,9 @@ export const connectorRegistry = {
     displayName: "Google Calendar",
     ...calendarStub,
   },
-  [icalConnectorManifest.id]: icalConnectorManifest,
-} satisfies ConnectorRegistry;
+  [icalPluginManifest.id]: icalPluginManifest,
+} satisfies PluginRegistry;
 
-export function getConnectorDefinition(id: string): ConnectorDefinition | undefined {
-  return connectorRegistry[id];
+export function getPluginDefinition(id: string): PluginDefinition | undefined {
+  return pluginRegistry[id];
 }

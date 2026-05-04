@@ -11,8 +11,8 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "./src"),
       // npm hoists workspace packages to the repo root; Vite’s root is apps/web only.
-      "@curolia/connector-contract": path.resolve(repoRoot, "packages/connector-contract/src/index.ts"),
-      "@curolia/connector-ical": path.resolve(repoRoot, "packages/connectors/ical/src/index.ts"),
+      "@curolia/plugin-contract": path.resolve(repoRoot, "packages/plugin-contract/src/index.ts"),
+      "@curolia/plugin-ical": path.resolve(repoRoot, "packages/plugins/ical/src/index.ts"),
     },
   },
   server: {

@@ -1,6 +1,6 @@
 /**
- * Declarative description of app-wide connector settings (e.g. OAuth client IDs,
- * API keys stored in env or a future `app_connector_settings` table).
+ * Declarative description of app-wide plugin settings (e.g. OAuth client IDs,
+ * API keys stored in env or a future `app_plugin_settings` table).
  * The web shell can render forms from this metadata later.
  */
 export type GlobalSettingField =
@@ -24,18 +24,18 @@ export type GlobalSettingsDeclaration = {
 };
 
 /**
- * Per-journal settings (stored in `journal_connectors.config` or dedicated tables).
+ * Per-journal settings (stored in `journal_plugins.config` or dedicated tables).
  * UI registration stays in the app shell; this describes intent for docs and tooling.
  */
 export type JournalSettingsDeclaration = {
-  /** How the web app should mount connector-specific panels */
+  /** How the web app should mount plugin-specific panels */
   panel: "inline" | "modal";
   title?: string;
 };
 
 /**
  * Named extension points for web/mobile (e.g. photo suggestions for a trace).
- * Runtime: app registers handlers; connectors only declare names for discovery.
+ * Runtime: app registers handlers; plugins only declare names for discovery.
  */
 export type AppHookDeclaration = {
   /** Dot-separated namespaced id, e.g. `photos.suggestionsForTrace` */
@@ -44,7 +44,7 @@ export type AppHookDeclaration = {
 };
 
 /**
- * Edge Function deployed via Supabase (source under connector package;
+ * Edge Function deployed via Supabase (source under plugin package;
  * synced into repo-root `supabase/functions/`).
  */
 export type EdgeFunctionDeclaration = {
@@ -53,9 +53,16 @@ export type EdgeFunctionDeclaration = {
   description?: string;
 };
 
-export type ConnectorContributions = {
+/** OAuth metadata for Edge-initiated flows (no secrets in manifest). */
+export type PluginOAuthDeclaration = {
+  provider: "google" | string;
+  scopes: readonly string[];
+};
+
+export type PluginContributions = {
   globalSettings?: GlobalSettingsDeclaration;
   journalSettings?: JournalSettingsDeclaration;
   appHooks?: AppHookDeclaration[];
   edgeFunctions?: EdgeFunctionDeclaration[];
+  oauth?: PluginOAuthDeclaration[];
 };

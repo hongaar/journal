@@ -228,9 +228,9 @@ export function FloatingNav() {
                   <Settings2 className="size-4 opacity-80" />
                   Settings
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("/settings/connectors")}>
+                <DropdownMenuItem onClick={() => navigate("/settings/plugins")}>
                   <Plug className="size-4 opacity-80" />
-                  Connectors
+                  Plugins
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem variant="destructive" onClick={() => void signOut()}>

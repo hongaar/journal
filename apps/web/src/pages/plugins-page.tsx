@@ -2,27 +2,27 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Json } from "@/lib/database.types";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/auth-provider";
-import { getConnectorDefinition } from "@/connectors/registry";
+import { getPluginDefinition } from "@/plugins/registry";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import type { ConnectorType, UserConnector } from "@/types/database";
+import type { PluginType, UserPlugin } from "@/types/database";
 import { FloatingPanel } from "@/components/layout/floating-panel";
 import { PageBackButton } from "@/components/layout/page-back-button";
 
-function ConnectorRow({
+function PluginRow({
   ct,
-  uc,
+  up,
   onToggle,
   toggleDisabled,
 }: {
-  ct: ConnectorType;
-  uc: UserConnector | undefined;
+  ct: PluginType;
+  up: UserPlugin | undefined;
   onToggle: (enabled: boolean) => void;
   toggleDisabled: boolean;
 }) {
-  const def = getConnectorDefinition(ct.id);
+  const def = getPluginDefinition(ct.id);
   const implemented = def?.implemented ?? false;
-  const enabled = uc?.enabled ?? false;
+  const enabled = up?.enabled ?? false;
 
   return (
     <div className="flex flex-col gap-2 border-b border-border/60 py-4 last:border-0 sm:flex-row sm:items-center sm:justify-between">
@@ -51,47 +51,47 @@ function ConnectorRow({
   );
 }
 
-export function ConnectorsPage() {
+export function PluginsPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
 
   const typesQuery = useQuery({
-    queryKey: ["connector_types"],
+    queryKey: ["plugin_types"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("connector_types").select("*").order("display_name");
+      const { data, error } = await supabase.from("plugin_types").select("*").order("display_name");
       if (error) throw error;
-      return (data ?? []) as ConnectorType[];
+      return (data ?? []) as PluginType[];
     },
   });
 
-  const userConnectorsQuery = useQuery({
-    queryKey: ["user_connectors", user?.id],
+  const userPluginsQuery = useQuery({
+    queryKey: ["user_plugins", user?.id],
     queryFn: async () => {
       if (!user) return [];
-      const { data, error } = await supabase.from("user_connectors").select("*").eq("user_id", user.id);
+      const { data, error } = await supabase.from("user_plugins").select("*").eq("user_id", user.id);
       if (error) throw error;
-      return (data ?? []) as UserConnector[];
+      return (data ?? []) as UserPlugin[];
     },
     enabled: Boolean(user),
   });
 
-  async function toggle(connectorTypeId: string, enabled: boolean) {
+  async function toggle(pluginTypeId: string, enabled: boolean) {
     if (!user) return;
-    const uc = userConnectorsQuery.data?.find((c) => c.connector_type_id === connectorTypeId);
-    const existingConfig = (uc?.config ?? {}) as Record<string, unknown>;
+    const up = userPluginsQuery.data?.find((c) => c.plugin_type_id === pluginTypeId);
+    const existingConfig = (up?.config ?? {}) as Record<string, unknown>;
     const config = existingConfig as Json;
-    const { error } = await supabase.from("user_connectors").upsert(
+    const { error } = await supabase.from("user_plugins").upsert(
       {
         user_id: user.id,
-        connector_type_id: connectorTypeId,
+        plugin_type_id: pluginTypeId,
         enabled,
         config,
         status: enabled ? "connected" : "disabled",
       },
-      { onConflict: "user_id,connector_type_id" },
+      { onConflict: "user_id,plugin_type_id" },
     );
     if (!error) {
-      await qc.invalidateQueries({ queryKey: ["user_connectors", user.id] });
+      await qc.invalidateQueries({ queryKey: ["user_plugins", user.id] });
     }
   }
 
@@ -101,7 +101,7 @@ export function ConnectorsPage() {
         <PageBackButton />
         <FloatingPanel className="p-5 sm:p-6">
           <div className="mb-4">
-            <h1 className="font-display text-foreground text-2xl font-semibold tracking-tight">Connectors</h1>
+            <h1 className="font-display text-foreground text-2xl font-semibold tracking-tight">Plugins</h1>
             <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
               Choose which integrations are available for your account (for example signing in to Google Photos).
               Journal-specific options—such as publishing an iCalendar feed—are configured in each journal&apos;s settings.
@@ -109,14 +109,14 @@ export function ConnectorsPage() {
           </div>
           <div>
             {(typesQuery.data ?? []).map((ct) => {
-              const uc = userConnectorsQuery.data?.find((c) => c.connector_type_id === ct.id);
+              const up = userPluginsQuery.data?.find((c) => c.plugin_type_id === ct.id);
               return (
-                <ConnectorRow
+                <PluginRow
                   key={ct.id}
                   ct={ct}
-                  uc={uc}
+                  up={up}
                   onToggle={(en) => void toggle(ct.id, en)}
-                  toggleDisabled={!user || userConnectorsQuery.isLoading}
+                  toggleDisabled={!user || userPluginsQuery.isLoading}
                 />
               );
             })}

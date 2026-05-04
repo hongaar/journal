@@ -5,7 +5,7 @@
   "workspaces": [
     "apps/*",
     "packages/*",
-    "packages/connectors/*"
+    "packages/plugins/*"
   ],
   "scripts": {
     "build": "turbo run build",
@@ -19,7 +19,7 @@
     "db:reset": "supabase db reset",
     "db:migrate": "supabase migration up",
     "db:types": "supabase gen types typescript --local > apps/web/src/lib/database.types.ts",
-    "functions:sync": "node scripts/sync-connector-supabase.mjs",
+    "functions:sync": "node scripts/sync-plugin-supabase.mjs",
     "functions:start": "supabase functions serve",
     "functions:stop": "pkill -f 'supabase functions serve' || true"
   },

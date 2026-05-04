@@ -2,9 +2,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Json } from "@/lib/database.types";
 import { supabase } from "@/lib/supabase";
 import { icalFeedPublicUrl } from "@/lib/ical-feed-url";
-import { journalConnectorConfigRecord, mergeJournalConnectorConfig } from "@curolia/connector-contract";
-import { ICAL_CONNECTOR_ID, parseIcalJournalConfig } from "@curolia/connector-ical";
-import type { JournalConnector } from "@/types/database";
+import { journalPluginConfigRecord, mergeJournalPluginConfig } from "@curolia/plugin-contract";
+import { ICAL_PLUGIN_ID, parseIcalJournalConfig } from "@curolia/plugin-ical";
+import type { JournalPlugin } from "@/types/database";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -27,19 +27,19 @@ async function ensureIcalFeedToken(journalId: string): Promise<string> {
   return again.data.token;
 }
 
-export function IcalConnectorJournalSettings({
+export function IcalPluginJournalSettings({
   journalId,
-  jc,
-  connectorGloballyEnabled,
+  jp,
+  pluginGloballyEnabled,
   readOnly = false,
 }: {
   journalId: string;
-  jc: JournalConnector | undefined;
-  connectorGloballyEnabled: boolean;
+  jp: JournalPlugin | undefined;
+  pluginGloballyEnabled: boolean;
   readOnly?: boolean;
 }) {
   const qc = useQueryClient();
-  const parsed = parseIcalJournalConfig(journalConnectorConfigRecord(jc));
+  const parsed = parseIcalJournalConfig(journalPluginConfigRecord(jp));
 
   const tokenQuery = useQuery({
     queryKey: ["journal_ical_feed_token", journalId],
@@ -52,7 +52,7 @@ export function IcalConnectorJournalSettings({
       if (error) throw error;
       return data?.token ?? null;
     },
-    enabled: Boolean(journalId) && connectorGloballyEnabled && parsed.publishFeed,
+    enabled: Boolean(journalId) && pluginGloballyEnabled && parsed.publishFeed,
   });
 
   const saveConfig = useMutation({
@@ -61,25 +61,25 @@ export function IcalConnectorJournalSettings({
       if (next.publishFeed) {
         token = await ensureIcalFeedToken(journalId);
       }
-      const config = mergeJournalConnectorConfig(ICAL_CONNECTOR_ID, journalConnectorConfigRecord(jc), {
+      const config = mergeJournalPluginConfig(ICAL_PLUGIN_ID, journalPluginConfigRecord(jp), {
         publishFeed: next.publishFeed,
       }) as Json;
-      const { error } = await supabase.from("journal_connectors").upsert(
+      const { error } = await supabase.from("journal_plugins").upsert(
         {
           journal_id: journalId,
-          connector_type_id: ICAL_CONNECTOR_ID,
+          plugin_type_id: ICAL_PLUGIN_ID,
           enabled: true,
           config,
           status: "connected",
           updated_at: new Date().toISOString(),
         },
-        { onConflict: "journal_id,connector_type_id" },
+        { onConflict: "journal_id,plugin_type_id" },
       );
       if (error) throw error;
       return { token: next.publishFeed ? token : null };
     },
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["journal_connectors", journalId] });
+      await qc.invalidateQueries({ queryKey: ["journal_plugins", journalId] });
       await qc.invalidateQueries({ queryKey: ["journal_ical_feed_token", journalId] });
     },
     onError: (e) => {
@@ -106,16 +106,16 @@ export function IcalConnectorJournalSettings({
         <Switch
           id="ical-publish"
           checked={parsed.publishFeed}
-          disabled={readOnly || saveConfig.isPending || !connectorGloballyEnabled}
+          disabled={readOnly || saveConfig.isPending || !pluginGloballyEnabled}
           onCheckedChange={(c) => void saveConfig.mutateAsync({ publishFeed: c === true })}
         />
       </div>
-      {!connectorGloballyEnabled ? (
+      {!pluginGloballyEnabled ? (
         <p className="text-muted-foreground text-xs">
-          Turn on iCalendar in Connectors (user menu) to publish a feed for this journal.
+          Turn on iCalendar under Plugins (user menu) to publish a feed for this journal.
         </p>
       ) : null}
-      {parsed.publishFeed && connectorGloballyEnabled ? (
+      {parsed.publishFeed && pluginGloballyEnabled ? (
         <div className="space-y-2">
           {tokenQuery.isLoading ? (
             <p className="text-muted-foreground text-xs">Preparing feed URL…</p>

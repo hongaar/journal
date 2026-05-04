@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * Copies Edge Function folders from connector packages into repo-root
+ * Copies Edge Function folders from plugin packages into repo-root
  * `supabase/functions/` so the Supabase CLI can serve and deploy them.
  * Invoked via `npm run functions:sync`.
  *
- * Layout: packages/connectors/<id>/supabase/functions/<slug>/**
+ * Layout: packages/plugins/<id>/supabase/functions/<slug>/**
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
-const connectorsRoot = path.join(root, "packages", "connectors");
+const pluginsRoot = path.join(root, "packages", "plugins");
 const destRoot = path.join(root, "supabase", "functions");
 
 function rmrf(dir) {
@@ -29,15 +29,15 @@ function copyDir(src, dest) {
   }
 }
 
-if (!fs.existsSync(connectorsRoot)) {
-  console.warn("sync-connector-supabase: no packages/connectors directory");
+if (!fs.existsSync(pluginsRoot)) {
+  console.warn("sync-plugin-supabase: no packages/plugins directory");
   process.exit(0);
 }
 
 let count = 0;
-for (const pkg of fs.readdirSync(connectorsRoot, { withFileTypes: true })) {
+for (const pkg of fs.readdirSync(pluginsRoot, { withFileTypes: true })) {
   if (!pkg.isDirectory()) continue;
-  const fnRoot = path.join(connectorsRoot, pkg.name, "supabase", "functions");
+  const fnRoot = path.join(pluginsRoot, pkg.name, "supabase", "functions");
   if (!fs.existsSync(fnRoot)) continue;
 
   for (const slug of fs.readdirSync(fnRoot, { withFileTypes: true })) {
@@ -51,5 +51,5 @@ for (const pkg of fs.readdirSync(connectorsRoot, { withFileTypes: true })) {
   }
 }
 
-if (count === 0) console.log("sync-connector-supabase: no connector functions found");
-else console.log(`sync-connector-supabase: ${count} function(s) synced`);
+if (count === 0) console.log("sync-plugin-supabase: no plugin functions found");
+else console.log(`sync-plugin-supabase: ${count} function(s) synced`);

@@ -1,6 +1,6 @@
-import type { ConnectorPackageManifest } from "@curolia/connector-contract";
+import type { PluginPackageManifest } from "@curolia/plugin-contract";
 
-export const icalConnectorManifest: ConnectorPackageManifest = {
+export const icalPluginManifest: PluginPackageManifest = {
   id: "ical",
   displayName: "iCalendar",
   capabilities: ["export_ics"] as const,

@@ -135,10 +135,10 @@ Deno.serve(async (req) => {
   }
 
   const { data: uc, error: ucErr } = await admin
-    .from("user_connectors")
+    .from("user_plugins")
     .select("enabled")
     .eq("user_id", ownerRow.user_id as string)
-    .eq("connector_type_id", "ical")
+    .eq("plugin_type_id", "ical")
     .maybeSingle();
 
   if (ucErr || !uc?.enabled) {
@@ -146,10 +146,10 @@ Deno.serve(async (req) => {
   }
 
   const { data: jc, error: jcErr } = await admin
-    .from("journal_connectors")
+    .from("journal_plugins")
     .select("config")
     .eq("journal_id", journalId)
-    .eq("connector_type_id", "ical")
+    .eq("plugin_type_id", "ical")
     .maybeSingle();
 
   if (jcErr || !jc) {

@@ -1,7 +1,7 @@
 export type JournalMemberRole = "owner" | "editor" | "viewer";
 export type JournalInvitationStatus = "pending" | "accepted" | "declined" | "cancelled";
 export type NotificationType = "journal_invitation" | "journal_invitation_accepted" | "journal_ownership_received";
-export type ConnectorLinkStatus = "disabled" | "pending" | "error" | "connected";
+export type PluginLinkStatus = "disabled" | "pending" | "error" | "connected";
 
 export type Profile = {
   id: string;
@@ -82,33 +82,36 @@ export type Photo = {
   storage_path: string | null;
   sort_order: number;
   created_at: string;
+  source_plugin_id: string | null;
+  external_ref: Record<string, unknown> | null;
+  captured_at: string | null;
 };
 
-export type ConnectorType = {
+export type PluginType = {
   id: string;
   display_name: string;
   description: string | null;
 };
 
-export type JournalConnector = {
+export type JournalPlugin = {
   id: string;
   journal_id: string;
-  connector_type_id: string;
+  plugin_type_id: string;
   enabled: boolean;
   config: Record<string, unknown>;
-  status: ConnectorLinkStatus;
+  status: PluginLinkStatus;
   created_at: string;
   updated_at: string;
 };
 
-/** Account-wide connector toggle and credentials (`user_connectors`). */
-export type UserConnector = {
+/** Account-wide plugin toggle and credentials (`user_plugins`). */
+export type UserPlugin = {
   id: string;
   user_id: string;
-  connector_type_id: string;
+  plugin_type_id: string;
   enabled: boolean;
   config: Record<string, unknown>;
-  status: ConnectorLinkStatus;
+  status: PluginLinkStatus;
   created_at: string;
   updated_at: string;
 };
@@ -168,16 +171,16 @@ export type Database = {
         Insert: Omit<Photo, "id" | "created_at"> & { id?: string };
         Update: Partial<Photo>;
       };
-      connector_types: { Row: ConnectorType; Insert: never; Update: never };
-      journal_connectors: {
-        Row: JournalConnector;
-        Insert: Omit<JournalConnector, "id" | "created_at" | "updated_at"> & { id?: string };
-        Update: Partial<JournalConnector>;
+      plugin_types: { Row: PluginType; Insert: never; Update: never };
+      journal_plugins: {
+        Row: JournalPlugin;
+        Insert: Omit<JournalPlugin, "id" | "created_at" | "updated_at"> & { id?: string };
+        Update: Partial<JournalPlugin>;
       };
-      user_connectors: {
-        Row: UserConnector;
-        Insert: Omit<UserConnector, "id" | "created_at" | "updated_at"> & { id?: string };
-        Update: Partial<UserConnector>;
+      user_plugins: {
+        Row: UserPlugin;
+        Insert: Omit<UserPlugin, "id" | "created_at" | "updated_at"> & { id?: string };
+        Update: Partial<UserPlugin>;
       };
       journal_ical_feed_tokens: {
         Row: JournalIcalFeedToken;
@@ -201,7 +204,7 @@ export type Database = {
       journal_member_role: JournalMemberRole;
       journal_invitation_status: JournalInvitationStatus;
       notification_type: NotificationType;
-      connector_link_status: ConnectorLinkStatus;
+      plugin_link_status: PluginLinkStatus;
     };
   };
 };

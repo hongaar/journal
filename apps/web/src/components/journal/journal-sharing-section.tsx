@@ -164,7 +164,7 @@ export function JournalSharingSection({
     setTransferTo("");
     void qc.invalidateQueries({ queryKey: ["journal_members_detail", journalId] });
     void qc.invalidateQueries({ queryKey: ["journal_member_role", journalId, user?.id] });
-    void qc.invalidateQueries({ queryKey: ["journal_connectors", journalId] });
+    void qc.invalidateQueries({ queryKey: ["journal_plugins", journalId] });
     void qc.invalidateQueries({ queryKey: ["journal_ical_feed_token", journalId] });
     void qc.invalidateQueries({ queryKey: ["journals", user?.id] });
     void qc.invalidateQueries({ queryKey: ["notifications", transferTo] });
@@ -177,7 +177,7 @@ export function JournalSharingSection({
         <h2 className="text-foreground text-sm font-semibold tracking-tight">Sharing</h2>
         <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
           Invite others by email. They must sign in with that email to accept. Connectors stay with each owner;
-          transferring ownership clears all connectors for this journal.
+          transferring ownership clears all plugins for this journal.
         </p>
       </div>
 
@@ -306,7 +306,7 @@ export function JournalSharingSection({
           <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-4">
             <h3 className="text-foreground text-sm font-medium">Transfer ownership</h3>
             <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
-              Choose an existing member. You will become a contributor. All journal connectors and calendar feed links
+              Choose an existing member. You will become a contributor. All journal plugins and calendar feed links
               for &quot;{journalName}&quot; will be removed.
             </p>
             <Button
