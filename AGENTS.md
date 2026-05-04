@@ -2,14 +2,16 @@
 
 ## Database TypeScript types
 
-- **Do not hand-edit** `apps/web/src/lib/database.types.ts`. It is generated from the Supabase schema.
-- Regenerate after migration or schema changes (run locally):
+- **Do not hand-edit** `apps/web/src/lib/database.types.ts`. It is generated from the Supabase schema. Do **not** paste or invent table definitions here to “fix” TypeScript when codegen has not run yet—doing so drifts from the real DB, duplicates partial edits (other tables/columns change too), and violates this repo’s single source of truth.
+- After adding or changing migrations, apply them to the **local** database, then regenerate types. Prefer migrating without wiping data:
 
   ```bash
+  npx supabase migration up --local
   npm run db:types
   ```
 
-  (`supabase gen types typescript --local > apps/web/src/lib/database.types.ts`)
+  (`npm run db:types` runs `supabase gen types typescript --local > apps/web/src/lib/database.types.ts` and requires local Supabase to be running with migrations applied.)
+- Use `npm run db:reset` only when you intentionally want a full local reset, not as the default after routine schema changes.
 
 ## Connector packages
 
