@@ -30,11 +30,14 @@ import {
   applyFilterTagIdsToSearchParams,
   applyMapCameraToSearchParams,
   applySelectedTraceToSearchParams,
+  bboxToSyncKey,
   cameraToSyncKey,
   normalizeCameraForUrl,
   parseFilterTagIdsFromSearchParams,
+  parseMapBboxFromSearchParams,
   parseMapCameraFromSearchParams,
   parseSelectedTraceIdFromSearchParams,
+  stripMapBboxFromSearchParams,
   type MapCamera,
 } from "@/lib/map-view-params";
 import { readStoredMapCamera, writeStoredMapCamera } from "@/lib/map-camera-storage";
@@ -44,18 +47,27 @@ export function MapPage() {
   const qc = useQueryClient();
   const mapRef = useRef<TraceMapHandle>(null);
   const [searchParams, setSearchParams] = useSearchParams();
+  const bboxFromUrl = useMemo(() => parseMapBboxFromSearchParams(searchParams), [searchParams]);
   const cameraFromUrl = useMemo(() => parseMapCameraFromSearchParams(searchParams), [searchParams]);
   const { activeJournalId, loading: journalLoading } = useJournal();
   const resolvedInitialCamera = useMemo((): MapCamera | null => {
     if (cameraFromUrl) return cameraFromUrl;
+    if (bboxFromUrl) {
+      return normalizeCameraForUrl({
+        lat: (bboxFromUrl.south + bboxFromUrl.north) / 2,
+        lng: (bboxFromUrl.west + bboxFromUrl.east) / 2,
+        zoom: 10,
+      });
+    }
     return readStoredMapCamera(activeJournalId);
-  }, [cameraFromUrl, activeJournalId]);
+  }, [cameraFromUrl, bboxFromUrl, activeJournalId]);
   const sidebarTraceId = useMemo(() => parseSelectedTraceIdFromSearchParams(searchParams), [searchParams]);
   const cameraSyncKey = useMemo(() => {
+    if (bboxFromUrl) return `url:bbox:${bboxToSyncKey(bboxFromUrl)}`;
     if (cameraFromUrl) return `url:${cameraToSyncKey(cameraFromUrl)}`;
     if (resolvedInitialCamera) return `init:${cameraToSyncKey(resolvedInitialCamera)}`;
     return "";
-  }, [cameraFromUrl, resolvedInitialCamera]);
+  }, [bboxFromUrl, cameraFromUrl, resolvedInitialCamera]);
   const cameraIdleTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [formOpen, setFormOpen] = useState(false);
   const [placementActive, setPlacementActive] = useState(false);
@@ -101,9 +113,10 @@ export function MapPage() {
         writeStoredMapCamera(activeJournalId, normalized);
         setSearchParams(
           (prev) => {
-            const parsed = parseMapCameraFromSearchParams(prev);
-            if (parsed && cameraToSyncKey(parsed) === cameraToSyncKey(normalized)) return prev;
-            return applyMapCameraToSearchParams(prev, normalized);
+            const prevNoBbox = stripMapBboxFromSearchParams(prev);
+            const parsed = parseMapCameraFromSearchParams(prevNoBbox);
+            if (parsed && cameraToSyncKey(parsed) === cameraToSyncKey(normalized)) return prevNoBbox;
+            return applyMapCameraToSearchParams(prevNoBbox, normalized);
           },
           { replace: true },
         );
@@ -124,7 +137,7 @@ export function MapPage() {
           photos ( id, storage_path, sort_order )`,
         )
         .eq("journal_id", activeJournalId)
-        .order("date", { ascending: false });
+        .order("date", { ascending: false, nullsFirst: false });
       if (error) throw error;
       return (data ?? []) as TraceWithTags[];
     },
@@ -182,10 +195,14 @@ export function MapPage() {
   const traces = useMemo(() => tracesQuery.data ?? [], [tracesQuery.data]);
 
   useEffect(() => {
-    if (!sidebarTraceId || traces.length === 0) return;
+    if (!sidebarTraceId) return;
+    // While the active journal's traces are still loading, do not strip ?trace= — the id may
+    // belong to the new journal (e.g. global search) and is not in the previous list yet.
+    if (tracesQuery.isPending) return;
+    if (traces.length === 0) return;
     if (traces.some((t) => t.id === sidebarTraceId)) return;
     setSearchParams((prev) => applySelectedTraceToSearchParams(prev, null), { replace: true });
-  }, [sidebarTraceId, traces, setSearchParams]);
+  }, [sidebarTraceId, traces, tracesQuery.isPending, setSearchParams]);
 
   const formDefaults = useMemo(() => {
     if (placedCoords) return placedCoords;
@@ -302,6 +319,7 @@ export function MapPage() {
           placementMode={placementActive}
           onPlacementClick={onPlacementClick}
           initialCamera={resolvedInitialCamera}
+          initialBbox={bboxFromUrl}
           cameraSyncKey={cameraSyncKey}
           onCameraIdle={onCameraIdle}
           className="absolute inset-0 z-0 min-h-0"

@@ -7,7 +7,13 @@ import { autoUpdate, computePosition } from "@floating-ui/dom";
 import maplibregl from "maplibre-gl";
 import { useQuery } from "@tanstack/react-query";
 import { filterTracesByTags, type TraceWithTags } from "@/lib/trace-with-tags";
-import type { MapCamera } from "@/lib/map-view-params";
+import {
+  cameraToSyncKey,
+  isValidMapBbox,
+  normalizeCameraForUrl,
+  type MapBbox,
+  type MapCamera,
+} from "@/lib/map-view-params";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useTheme } from "next-themes";
 import {
@@ -84,6 +90,8 @@ type TraceMapProps = {
   className?: string;
   /** When set (from URL or localStorage fallback), map uses this view. */
   initialCamera?: MapCamera | null;
+  /** When set (from URL), map fits this extent with padding instead of center/zoom fly. */
+  initialBbox?: MapBbox | null;
   /** Stable key for the active camera source (`url:…` | `init:…`); when it changes, the map jumps to `initialCamera`. */
   cameraSyncKey?: string;
   /** Fired after pan/zoom settles (moveend); used to persist camera in the address bar. */
@@ -175,6 +183,7 @@ export const TraceMap = forwardRef<TraceMapHandle, TraceMapProps>(function Trace
     onPlacementClick,
     className,
     initialCamera = null,
+    initialBbox = null,
     cameraSyncKey = "",
     onCameraIdle,
   },
@@ -206,7 +215,15 @@ export const TraceMap = forwardRef<TraceMapHandle, TraceMapProps>(function Trace
   const previewMarkerRef = useRef<maplibregl.Marker | null>(null);
   const onPlacementClickRef = useRef(onPlacementClick);
   const onCameraIdleRef = useRef(onCameraIdle);
+  /** Last `cameraSyncKey` we applied from props (URL / deep link), not user idle echo. */
   const lastAppliedSyncKeyRef = useRef<string>("");
+  /** `cameraToSyncKey(normalizeCameraForUrl(…))` last sent to parent via onCameraIdle — detects idle→URL→props echo. */
+  const lastEmittedCameraKeyRef = useRef<string | null>(null);
+  const cameraSyncKeyRef = useRef(cameraSyncKey);
+  const initialBboxRef = useRef(initialBbox);
+  const initialCameraRef = useRef(initialCamera);
+  /** Invalidate deferred URL-apply callbacks when a newer sync generation starts. */
+  const urlApplyGenerationRef = useRef(0);
 
   const filtered = useMemo(() => filterTracesByTags(traces, selectedTagIds), [traces, selectedTagIds]);
   const filteredRef = useRef(filtered);
@@ -429,8 +446,6 @@ export const TraceMap = forwardRef<TraceMapHandle, TraceMapProps>(function Trace
     });
     map.addControl(geolocate, "bottom-left");
 
-    if (cameraSyncKey) lastAppliedSyncKeyRef.current = cameraSyncKey;
-
     mapRef.current = map;
     return () => {
       map.remove();
@@ -448,14 +463,79 @@ export const TraceMap = forwardRef<TraceMapHandle, TraceMapProps>(function Trace
     map.setStyle(url);
   }, [resolvedTheme]);
 
+  /**
+   * Apply camera/bbox from URL when it represents external navigation (search, shared link),
+   * not an echo of moveend→URL. While MapLibre is mid-gesture or animation, defer until `idle`.
+   */
   useEffect(() => {
+    cameraSyncKeyRef.current = cameraSyncKey;
+    initialBboxRef.current = initialBbox;
+    initialCameraRef.current = initialCamera;
+
     const map = mapRef.current;
-    if (!map || !cameraSyncKey || !initialCamera) return;
-    if (lastAppliedSyncKeyRef.current === cameraSyncKey) return;
-    lastAppliedSyncKeyRef.current = cameraSyncKey;
-    if (cameraCloseEnough(map, initialCamera)) return;
-    map.jumpTo({ center: [initialCamera.lng, initialCamera.lat], zoom: initialCamera.zoom });
-  }, [cameraSyncKey, initialCamera]);
+    if (!map || !cameraSyncKey) return;
+
+    urlApplyGenerationRef.current += 1;
+    const gen = urlApplyGenerationRef.current;
+
+    const tryApplyFromUrl = () => {
+      if (gen !== urlApplyGenerationRef.current) return;
+      const m = mapRef.current;
+      if (!m) return;
+
+      const syncKey = cameraSyncKeyRef.current;
+      if (!syncKey || lastAppliedSyncKeyRef.current === syncKey) return;
+
+      const bbox = initialBboxRef.current;
+      const cam = initialCameraRef.current;
+
+      // Point camera in URL matches what we already reported → parent echoed our idle update; do not fly.
+      if (!bbox && cam) {
+        const urlCamKey = cameraToSyncKey(normalizeCameraForUrl(cam));
+        if (lastEmittedCameraKeyRef.current === urlCamKey) {
+          lastAppliedSyncKeyRef.current = syncKey;
+          return;
+        }
+      }
+
+      // Bbox URL: compare bbox key to last emitted point key would never match — no echo skip.
+
+      if (m.isMoving()) {
+        m.once("idle", tryApplyFromUrl);
+        return;
+      }
+
+      if (gen !== urlApplyGenerationRef.current) return;
+      if (lastAppliedSyncKeyRef.current === syncKey) return;
+
+      if (bbox && isValidMapBbox(bbox)) {
+        lastAppliedSyncKeyRef.current = syncKey;
+        m.fitBounds(new maplibregl.LngLatBounds([bbox.west, bbox.south], [bbox.east, bbox.north]), {
+          padding: CAMERA_PADDING,
+          maxZoom: CAMERA_MAX_ZOOM,
+          duration: CAMERA_DURATION_MS,
+        });
+        return;
+      }
+
+      if (!cam) return;
+
+      if (cameraCloseEnough(m, cam)) {
+        lastAppliedSyncKeyRef.current = syncKey;
+        return;
+      }
+
+      lastAppliedSyncKeyRef.current = syncKey;
+      m.flyTo({
+        center: [cam.lng, cam.lat],
+        zoom: cam.zoom,
+        duration: CAMERA_DURATION_MS,
+        essential: true,
+      });
+    };
+
+    tryApplyFromUrl();
+  }, [cameraSyncKey, initialBbox, initialCamera]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -491,10 +571,15 @@ export const TraceMap = forwardRef<TraceMapHandle, TraceMapProps>(function Trace
     const map = mapRef.current;
     if (!map) return;
     const idle = () => {
-      const fn = onCameraIdleRef.current;
-      if (!fn) return;
       const c = map.getCenter();
-      fn({ lng: c.lng, lat: c.lat, zoom: map.getZoom() });
+      const normalized = normalizeCameraForUrl({
+        lng: c.lng,
+        lat: c.lat,
+        zoom: map.getZoom(),
+      });
+      lastEmittedCameraKeyRef.current = cameraToSyncKey(normalized);
+      const fn = onCameraIdleRef.current;
+      if (fn) fn(normalized);
     };
     map.on("moveend", idle);
     return () => {
@@ -611,7 +696,7 @@ export const TraceMap = forwardRef<TraceMapHandle, TraceMapProps>(function Trace
         className={cn("h-full min-h-0 w-full min-w-0", placementMode && "ring-2 ring-primary/50", className)}
       />
       {traceHover ? (
-        <div ref={hoverFloatingRef} className="pointer-events-none z-[60] w-max min-w-0">
+        <div ref={hoverFloatingRef} className="pointer-events-none z-[45] w-max min-w-0">
           <div
             className="pointer-events-auto relative"
             onMouseEnter={cancelHidePreview}

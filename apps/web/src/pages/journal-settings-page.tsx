@@ -13,6 +13,7 @@ import { EmojiPicker } from "@/components/traces/emoji-picker";
 import { defaultJournalIcon, normalizeJournalIconForPersist } from "@/lib/journal-display-icon";
 import { cn } from "@/lib/utils";
 import { JournalSharingSection } from "@/components/journal/journal-sharing-section";
+import { JournalConnectorsSection } from "@/components/journal/journal-connectors-section";
 
 export function JournalSettingsPage() {
   const { journalId } = useParams<{ journalId: string }>();
@@ -152,6 +153,8 @@ export function JournalSettingsPage() {
             </div>
           </div>
         </FloatingPanel>
+
+        <JournalConnectorsSection journalId={journalId} isOwner={isOwner} roleLoading={roleQuery.isLoading} />
 
         <FloatingPanel className="p-5 sm:p-6">
           <JournalSharingSection journalId={journalId} journalName={journal.name} isOwner={isOwner} />

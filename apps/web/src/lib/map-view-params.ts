@@ -4,11 +4,16 @@ export const MAP_VIEW_PARAM = {
   lat: "lat",
   lng: "lng",
   zoom: "zoom",
+  /** West,south,east,north (WGS84), optional — fit map to this extent. */
+  bbox: "bbox",
   /** Open map sidebar for this trace (UUID). */
   trace: "trace",
   /** Comma-separated tag UUIDs (OR filter). */
   tags: "tags",
 } as const;
+
+/** Zoom used when focusing the map on a single trace (deep links / search). */
+export const TRACE_FOCUS_ZOOM = 10;
 
 export const TRACE_ID_PARAM_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -61,6 +66,59 @@ export function applySelectedTraceToSearchParams(
 }
 
 export type MapCamera = { lat: number; lng: number; zoom: number };
+
+/** Geographic bounding box (west/south/east/north in degrees). */
+export type MapBbox = { west: number; south: number; east: number; north: number };
+
+export function isValidMapBbox(b: MapBbox): boolean {
+  const { west, south, east, north } = b;
+  if (![west, south, east, north].every((x) => Number.isFinite(x))) return false;
+  if (west >= east || south >= north) return false;
+  if (south < -90 || north > 90 || west < -180 || east > 180) return false;
+  return true;
+}
+
+export function normalizeBboxForUrl(b: MapBbox): MapBbox {
+  return {
+    west: Number(b.west.toFixed(5)),
+    south: Number(b.south.toFixed(5)),
+    east: Number(b.east.toFixed(5)),
+    north: Number(b.north.toFixed(5)),
+  };
+}
+
+export function bboxToSyncKey(b: MapBbox): string {
+  const n = normalizeBboxForUrl(b);
+  return `${n.west},${n.south},${n.east},${n.north}`;
+}
+
+export function parseMapBboxFromSearchParams(searchParams: URLSearchParams): MapBbox | null {
+  const raw = searchParams.get(MAP_VIEW_PARAM.bbox)?.trim();
+  if (!raw) return null;
+  const parts = raw.split(",").map((s) => Number(s.trim()));
+  if (parts.length !== 4 || parts.some((x) => !Number.isFinite(x))) return null;
+  const [west, south, east, north] = parts;
+  const b = { west, south, east, north };
+  return isValidMapBbox(b) ? b : null;
+}
+
+/** Set or remove `bbox` (comma-separated west,south,east,north). */
+export function applyMapBboxToSearchParams(searchParams: URLSearchParams, bbox: MapBbox | null): URLSearchParams {
+  const next = new URLSearchParams(searchParams);
+  if (bbox == null || !isValidMapBbox(bbox)) {
+    next.delete(MAP_VIEW_PARAM.bbox);
+    return next;
+  }
+  const n = normalizeBboxForUrl(bbox);
+  next.set(MAP_VIEW_PARAM.bbox, `${n.west},${n.south},${n.east},${n.north}`);
+  return next;
+}
+
+export function stripMapBboxFromSearchParams(searchParams: URLSearchParams): URLSearchParams {
+  const next = new URLSearchParams(searchParams);
+  next.delete(MAP_VIEW_PARAM.bbox);
+  return next;
+}
 
 export function parseMapCameraFromSearchParams(searchParams: URLSearchParams): MapCamera | null {
   const latRaw = searchParams.get(MAP_VIEW_PARAM.lat);

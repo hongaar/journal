@@ -68,7 +68,7 @@ export function BlogPage() {
           trace_tags ( tag_id, tags ( id, name, color, icon_emoji ) )`,
         )
         .eq("journal_id", activeJournalId)
-        .order("date", { ascending: true });
+        .order("date", { ascending: true, nullsFirst: false });
       if (error) throw error;
       return (data ?? []) as TraceWithTags[];
     },
@@ -214,13 +214,17 @@ export function BlogPage() {
                 return (
                   <li key={t.id}>
                     <article>
-                      <time
-                        className="text-muted-foreground font-display text-sm font-medium tracking-wide"
-                        dateTime={t.date}
+                      {t.date ? (
+                        <time
+                          className="text-muted-foreground font-display text-sm font-medium tracking-wide"
+                          dateTime={t.date}
+                        >
+                          {formatTraceDateRange(t.date, t.end_date)}
+                        </time>
+                      ) : null}
+                      <h2
+                        className={`font-display text-2xl font-semibold tracking-tight sm:text-[1.75rem] ${t.date ? "mt-2" : ""}`}
                       >
-                        {formatTraceDateRange(t.date, t.end_date)}
-                      </time>
-                      <h2 className="font-display mt-2 text-2xl font-semibold tracking-tight sm:text-[1.75rem]">
                         <Link
                           to={`/traces/${t.id}`}
                           className="hover:text-primary decoration-border/60 underline-offset-4 transition-colors hover:underline"

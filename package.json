@@ -19,7 +19,9 @@
     "db:reset": "supabase db reset",
     "db:migrate": "supabase migration up",
     "db:types": "supabase gen types typescript --local > apps/web/src/lib/database.types.ts",
-    "connectors:sync-supabase": "node scripts/sync-connector-supabase.mjs"
+    "functions:sync": "node scripts/sync-connector-supabase.mjs",
+    "functions:start": "supabase functions serve",
+    "functions:stop": "pkill -f 'supabase functions serve' || true"
   },
   "devDependencies": {
     "supabase": "^2.98.0",

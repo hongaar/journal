@@ -2,32 +2,27 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Json } from "@/lib/database.types";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/auth-provider";
-import { useJournal } from "@/providers/journal-provider";
 import { getConnectorDefinition } from "@/connectors/registry";
-import { journalConnectorConfigRecord, mergeJournalConnectorConfig } from "@curolia/connector-contract";
-import { ConnectorJournalSettings } from "@/connectors/journal-settings/connector-journal-settings";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import type { ConnectorType, JournalConnector } from "@/types/database";
+import type { ConnectorType, UserConnector } from "@/types/database";
 import { FloatingPanel } from "@/components/layout/floating-panel";
 import { PageBackButton } from "@/components/layout/page-back-button";
 
 function ConnectorRow({
   ct,
-  jc,
-  journalId,
+  uc,
   onToggle,
   toggleDisabled,
 }: {
   ct: ConnectorType;
-  jc: JournalConnector | undefined;
-  journalId: string;
+  uc: UserConnector | undefined;
   onToggle: (enabled: boolean) => void;
   toggleDisabled: boolean;
 }) {
   const def = getConnectorDefinition(ct.id);
   const implemented = def?.implemented ?? false;
-  const enabled = jc?.enabled ?? false;
+  const enabled = uc?.enabled ?? false;
 
   return (
     <div className="flex flex-col gap-2 border-b border-border/60 py-4 last:border-0 sm:flex-row sm:items-center sm:justify-between">
@@ -45,7 +40,7 @@ function ConnectorRow({
         <Switch
           id={`sw-${ct.id}`}
           checked={enabled}
-          disabled={!journalId || !implemented || toggleDisabled}
+          disabled={!implemented || toggleDisabled}
           onCheckedChange={(c) => {
             if (!implemented) return;
             onToggle(c === true);
@@ -58,26 +53,7 @@ function ConnectorRow({
 
 export function ConnectorsPage() {
   const { user } = useAuth();
-  const { activeJournalId } = useJournal();
   const qc = useQueryClient();
-
-  const ownerQuery = useQuery({
-    queryKey: ["journal_member_role", activeJournalId, user?.id],
-    queryFn: async () => {
-      if (!activeJournalId || !user) return null;
-      const { data, error } = await supabase
-        .from("journal_members")
-        .select("role")
-        .eq("journal_id", activeJournalId)
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data?.role ?? null;
-    },
-    enabled: Boolean(activeJournalId && user),
-  });
-
-  const isOwner = ownerQuery.data === "owner";
 
   const typesQuery = useQuery({
     queryKey: ["connector_types"],
@@ -88,40 +64,34 @@ export function ConnectorsPage() {
     },
   });
 
-  const connectorsQuery = useQuery({
-    queryKey: ["journal_connectors", activeJournalId],
+  const userConnectorsQuery = useQuery({
+    queryKey: ["user_connectors", user?.id],
     queryFn: async () => {
-      if (!activeJournalId) return [];
-      const { data, error } = await supabase
-        .from("journal_connectors")
-        .select("*")
-        .eq("journal_id", activeJournalId);
+      if (!user) return [];
+      const { data, error } = await supabase.from("user_connectors").select("*").eq("user_id", user.id);
       if (error) throw error;
-      return (data ?? []) as JournalConnector[];
+      return (data ?? []) as UserConnector[];
     },
-    enabled: Boolean(activeJournalId),
+    enabled: Boolean(user),
   });
 
   async function toggle(connectorTypeId: string, enabled: boolean) {
-    if (!activeJournalId || !isOwner) return;
-    const jc = connectorsQuery.data?.find((c) => c.connector_type_id === connectorTypeId);
-    const config = mergeJournalConnectorConfig(
-      connectorTypeId,
-      journalConnectorConfigRecord(jc),
-      {},
-    ) as Json;
-    const { error } = await supabase.from("journal_connectors").upsert(
+    if (!user) return;
+    const uc = userConnectorsQuery.data?.find((c) => c.connector_type_id === connectorTypeId);
+    const existingConfig = (uc?.config ?? {}) as Record<string, unknown>;
+    const config = existingConfig as Json;
+    const { error } = await supabase.from("user_connectors").upsert(
       {
-        journal_id: activeJournalId,
+        user_id: user.id,
         connector_type_id: connectorTypeId,
         enabled,
         config,
         status: enabled ? "connected" : "disabled",
       },
-      { onConflict: "journal_id,connector_type_id" },
+      { onConflict: "user_id,connector_type_id" },
     );
     if (!error) {
-      await qc.invalidateQueries({ queryKey: ["journal_connectors", activeJournalId] });
+      await qc.invalidateQueries({ queryKey: ["user_connectors", user.id] });
     }
   }
 
@@ -133,35 +103,21 @@ export function ConnectorsPage() {
           <div className="mb-4">
             <h1 className="font-display text-foreground text-2xl font-semibold tracking-tight">Connectors</h1>
             <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
-              Enable integrations for this journal. iCalendar publishing is available; other connectors will ship later.
+              Choose which integrations are available for your account (for example signing in to Google Photos).
+              Journal-specific options—such as publishing an iCalendar feed—are configured in each journal&apos;s settings.
             </p>
-            {!ownerQuery.isLoading && !isOwner ? (
-              <p className="text-muted-foreground mt-3 text-xs leading-relaxed">
-                Only the journal owner can change connectors (they use your personal integrations).
-              </p>
-            ) : null}
           </div>
           <div>
             {(typesQuery.data ?? []).map((ct) => {
-              const jc = connectorsQuery.data?.find((c) => c.connector_type_id === ct.id);
+              const uc = userConnectorsQuery.data?.find((c) => c.connector_type_id === ct.id);
               return (
-                <div key={ct.id}>
-                  <ConnectorRow
-                    ct={ct}
-                    journalId={activeJournalId ?? ""}
-                    jc={jc}
-                    onToggle={(en) => void toggle(ct.id, en)}
-                    toggleDisabled={!isOwner || ownerQuery.isLoading}
-                  />
-                  {getConnectorDefinition(ct.id)?.implemented && jc?.enabled ? (
-                    <ConnectorJournalSettings
-                      connectorTypeId={ct.id}
-                      journalId={activeJournalId ?? ""}
-                      jc={jc}
-                      readOnly={!isOwner}
-                    />
-                  ) : null}
-                </div>
+                <ConnectorRow
+                  key={ct.id}
+                  ct={ct}
+                  uc={uc}
+                  onToggle={(en) => void toggle(ct.id, en)}
+                  toggleDisabled={!user || userConnectorsQuery.isLoading}
+                />
               );
             })}
           </div>

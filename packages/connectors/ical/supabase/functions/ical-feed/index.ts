@@ -7,7 +7,7 @@ type TraceRow = {
   description: string | null;
   lat: number;
   lng: number;
-  date: string;
+  date: string | null;
   end_date: string | null;
 };
 
@@ -62,6 +62,7 @@ function buildCalendar(params: { journalName: string; journalId: string; traces:
   ];
   const dtstamp = formatUtcDtStamp(new Date());
   for (const t of params.traces) {
+    if (!t.date) continue;
     const summary = (t.title?.trim() || "Trace").slice(0, 200);
     const desc = t.description?.trim() ?? "";
     const start = ymdToIcsDate(t.date);
@@ -122,9 +123,31 @@ Deno.serve(async (req) => {
 
   const journalId = feedRow.journal_id as string;
 
+  const { data: ownerRow, error: ownerErr } = await admin
+    .from("journal_members")
+    .select("user_id")
+    .eq("journal_id", journalId)
+    .eq("role", "owner")
+    .maybeSingle();
+
+  if (ownerErr || !ownerRow?.user_id) {
+    return new Response("Not found", { status: 404, headers: { "Access-Control-Allow-Origin": "*" } });
+  }
+
+  const { data: uc, error: ucErr } = await admin
+    .from("user_connectors")
+    .select("enabled")
+    .eq("user_id", ownerRow.user_id as string)
+    .eq("connector_type_id", "ical")
+    .maybeSingle();
+
+  if (ucErr || !uc?.enabled) {
+    return new Response("Not found", { status: 404, headers: { "Access-Control-Allow-Origin": "*" } });
+  }
+
   const { data: jc, error: jcErr } = await admin
     .from("journal_connectors")
-    .select("enabled, config")
+    .select("config")
     .eq("journal_id", journalId)
     .eq("connector_type_id", "ical")
     .maybeSingle();
@@ -135,7 +158,7 @@ Deno.serve(async (req) => {
 
   const cfg = jc.config as Record<string, unknown> | null;
   const publish = cfg?.publishFeed === true;
-  if (!jc.enabled || !publish) {
+  if (!publish) {
     return new Response("Not found", { status: 404, headers: { "Access-Control-Allow-Origin": "*" } });
   }
 
@@ -148,7 +171,7 @@ Deno.serve(async (req) => {
     .from("traces")
     .select("id, title, description, lat, lng, date, end_date")
     .eq("journal_id", journalId)
-    .order("date", { ascending: true });
+    .order("date", { ascending: true, nullsFirst: false });
 
   if (tErr) {
     return new Response("Error", { status: 500, headers: { "Access-Control-Allow-Origin": "*" } });

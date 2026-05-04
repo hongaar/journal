@@ -7,7 +7,7 @@ Travel / place journal: private **traces** (visits) per **journal**, with maps, 
 - `apps/web` — SPA (`name: web` for `turbo --filter=web`)
 - `supabase/migrations` — schema, RLS, storage policies, auth bootstrap trigger
 - `packages/connector-contract` — shared connector manifest / contribution types (`@curolia/connector-contract`)
-- `packages/connectors/*` — optional connector packages (e.g. `@curolia/connector-ical`); Edge sources sync into `supabase/functions/` via `npm run connectors:sync-supabase`
+- `packages/connectors/*` — optional connector packages (e.g. `@curolia/connector-ical`); Edge sources sync into `supabase/functions/` via `npm run functions:sync`
 
 See [`AGENTS.md`](AGENTS.md) for codegen rules (including **never hand-editing** `database.types.ts`).
 
@@ -43,6 +43,8 @@ Then run `npm run dev` and open the app. [Studio](http://127.0.0.1:54323) lists 
 
 Stop the stack when finished: `npm run db:stop`.
 
+**Edge Functions (local):** after `npm run db:start`, run `npm run functions:sync` when you change code under `packages/connectors/*/supabase/functions/`, then `npm run functions:start` in another terminal to serve all functions (e.g. iCal at `/functions/v1/ical-feed`). `npm run functions:stop` sends `pkill` to the `supabase functions serve` process (Linux/macOS); you can also stop with Ctrl+C in that terminal.
+
 On first signup, a **profile**, personal **journal**, and **owner** membership are created automatically (via the migration trigger).
 
 ### Hosted Supabase later
@@ -62,7 +64,7 @@ Use `supabase link` against your cloud project, then `supabase db push` for migr
 
 Connect the repo to Vercel so **pushes to `main` build production** via Vercel’s native GitHub integration (same `vercel.json` install/build/output as above).
 
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml) also runs, after CI: **`npm run connectors:sync-supabase`** (copies connector packages’ `supabase/functions/*` into the repo-root functions tree), **`supabase db push`**, and **`supabase functions deploy --use-api`** for every function. Run `connectors:sync-supabase` here so deployed Edge code always matches `packages/connectors/*`, not only whatever was last committed under `supabase/functions/`.
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) also runs, after CI: **`npm run functions:sync`** (copies connector packages’ `supabase/functions/*` into the repo-root functions tree), **`supabase db push`**, and **`supabase functions deploy --use-api`** for every function. Run `functions:sync` here so deployed Edge code always matches `packages/connectors/*`, not only whatever was last committed under `supabase/functions/`.
 
 That job and Vercel both start on the same push; they can finish in either order. Prefer backward-compatible migrations and function APIs when the app might go live before this job completes.
 

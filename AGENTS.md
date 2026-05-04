@@ -21,9 +21,9 @@
 - **Supabase Edge Functions** for a connector live under `packages/connectors/<id>/supabase/functions/<slug>/`. The Supabase CLI only loads `supabase/functions/` at the repo root, so after changing connector-owned functions run:
 
   ```bash
-  npm run connectors:sync-supabase
+  npm run functions:sync
   ```
 
-  before `supabase functions serve` / `supabase functions deploy`.
+  before `npm run functions:start` / `supabase functions deploy`.
 
 - **Web UI** may stay in `apps/web` initially; packages should still export **manifest + config parsers** so behavior and declarations stay with the connector. Prefer moving React panels into the connector package when they stabilize (with `react` as a `peerDependency`).

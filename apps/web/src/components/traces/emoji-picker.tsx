@@ -53,7 +53,7 @@ export function EmojiPicker({ id, label, value, onChange, className, disabled = 
           <PopoverContent
             align="start"
             sideOffset={6}
-            className="z-[100] w-[min(calc(100vw-2rem),17rem)] p-0"
+            className="w-[min(calc(100vw-2rem),17rem)] p-0"
           >
             <EmojiPickerRoot
               className="h-[min(360px,50vh)] w-full max-w-full rounded-md border-0 bg-transparent shadow-none"

@@ -2,6 +2,7 @@
 /**
  * Copies Edge Function folders from connector packages into repo-root
  * `supabase/functions/` so the Supabase CLI can serve and deploy them.
+ * Invoked via `npm run functions:sync`.
  *
  * Layout: packages/connectors/<id>/supabase/functions/<slug>/**
  */

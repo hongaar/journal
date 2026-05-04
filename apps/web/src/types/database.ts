@@ -38,12 +38,18 @@ export type Trace = {
   journal_id: string;
   title: string | null;
   description: string | null;
+  /** Friendly place text from reverse geocoding (optional). */
+  location_label: string | null;
   lat: number;
   lng: number;
-  /** Start calendar day (YYYY-MM-DD). */
-  date: string;
-  /** Inclusive end day, optional; must be >= date when set. */
+  /** Start calendar day (YYYY-MM-DD), optional. */
+  date: string | null;
+  /** Inclusive end day, optional; must be >= date when both are set. */
   end_date: string | null;
+  /** User who created this trace (insert). */
+  created_by_user_id: string | null;
+  /** User who last updated this trace. */
+  modified_by_user_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -95,6 +101,18 @@ export type JournalConnector = {
   updated_at: string;
 };
 
+/** Account-wide connector toggle and credentials (`user_connectors`). */
+export type UserConnector = {
+  id: string;
+  user_id: string;
+  connector_type_id: string;
+  enabled: boolean;
+  config: Record<string, unknown>;
+  status: ConnectorLinkStatus;
+  created_at: string;
+  updated_at: string;
+};
+
 export type JournalInvitation = {
   id: string;
   journal_id: string;
@@ -132,7 +150,11 @@ export type Database = {
       };
       traces: {
         Row: Trace;
-        Insert: Omit<Trace, "id" | "created_at" | "updated_at"> & { id?: string };
+        Insert: Omit<Trace, "id" | "created_at" | "updated_at" | "created_by_user_id" | "modified_by_user_id"> & {
+          id?: string;
+          created_by_user_id?: string | null;
+          modified_by_user_id?: string | null;
+        };
         Update: Partial<Trace>;
       };
       tags: {
@@ -151,6 +173,11 @@ export type Database = {
         Row: JournalConnector;
         Insert: Omit<JournalConnector, "id" | "created_at" | "updated_at"> & { id?: string };
         Update: Partial<JournalConnector>;
+      };
+      user_connectors: {
+        Row: UserConnector;
+        Insert: Omit<UserConnector, "id" | "created_at" | "updated_at"> & { id?: string };
+        Update: Partial<UserConnector>;
       };
       journal_ical_feed_tokens: {
         Row: JournalIcalFeedToken;

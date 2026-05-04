@@ -1,9 +1,6 @@
-import { autoUpdate, computePosition } from "@floating-ui/dom";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
-import type { Tag, Trace } from "@/types/database";
+import { FloatingPanel } from "@/components/layout/floating-panel";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -14,10 +11,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
-import { FloatingPanel } from "@/components/layout/floating-panel";
 import { mapAnchorPanelMiddleware } from "@/lib/map-anchor-floating-ui";
-import { localTodayYmd } from "@/lib/trace-dates";
+import { reversePhotonLocationLabel } from "@/lib/photon-geocode";
+import { supabase } from "@/lib/supabase";
+import type { Tag, Trace } from "@/types/database";
+import { autoUpdate, computePosition } from "@floating-ui/dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 type TraceFormDialogProps = {
   open: boolean;
@@ -50,6 +50,8 @@ export function TraceFormDialog({
   const [lat, setLat] = useState(String(defaultLat));
   const [lng, setLng] = useState(String(defaultLng));
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
+  const [locationLabel, setLocationLabel] = useState("");
+  const [locationLookupPending, setLocationLookupPending] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const floatingRef = useRef<HTMLDivElement>(null);
@@ -131,10 +133,11 @@ export function TraceFormDialog({
     if (trace) {
       setTitle(trace.title ?? "");
       setDescription(trace.description ?? "");
-      setDateYmd(trace.date);
+      setDateYmd(trace.date ?? "");
       setEndDateYmd(trace.end_date ?? "");
       setLat(String(trace.lat));
       setLng(String(trace.lng));
+      setLocationLabel(trace.location_label ?? "");
       void (async () => {
         const { data } = await supabase.from("trace_tags").select("tag_id").eq("trace_id", trace.id);
         setSelectedTags(new Set((data ?? []).map((r) => r.tag_id)));
@@ -142,13 +145,43 @@ export function TraceFormDialog({
     } else {
       setTitle("");
       setDescription("");
-      setDateYmd(localTodayYmd());
+      setDateYmd("");
       setEndDateYmd("");
       setLat(String(defaultLat));
       setLng(String(defaultLng));
+      setLocationLabel("");
       setSelectedTags(new Set());
     }
   }, [open, trace, defaultLat, defaultLng]);
+
+  useEffect(() => {
+    if (!open) return;
+    const latN = Number(lat);
+    const lngN = Number(lng);
+    if (Number.isNaN(latN) || Number.isNaN(lngN)) return;
+
+    let cancelled = false;
+    const t = window.setTimeout(() => {
+      if (cancelled) return;
+      setLocationLookupPending(true);
+      void (async () => {
+        try {
+          const label = await reversePhotonLocationLabel(latN, lngN);
+          if (!cancelled) setLocationLabel(label ?? "");
+        } catch {
+          if (!cancelled) setLocationLabel("");
+        } finally {
+          if (!cancelled) setLocationLookupPending(false);
+        }
+      })();
+    }, 450);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+      setLocationLookupPending(false);
+    };
+  }, [open, lat, lng]);
 
   useEffect(() => {
     if (!open || trace) return;
@@ -166,9 +199,14 @@ export function TraceFormDialog({
       return;
     }
 
-    const start = dateYmd || localTodayYmd();
+    const start = dateYmd.trim() || null;
     const end = endDateYmd.trim() || null;
-    if (end && end < start) {
+    if (end && !start) {
+      setError("Clear the end date or set a start date.");
+      setSaving(false);
+      return;
+    }
+    if (start && end && end < start) {
       setError("End date must be on or after the start date.");
       setSaving(false);
       return;
@@ -182,6 +220,7 @@ export function TraceFormDialog({
           .update({
             title: title || null,
             description: description || null,
+            location_label: locationLabel.trim() || null,
             lat: latN,
             lng: lngN,
             date: start,
@@ -197,6 +236,7 @@ export function TraceFormDialog({
             journal_id: journalId,
             title: title || null,
             description: description || null,
+            location_label: locationLabel.trim() || null,
             lat: latN,
             lng: lngN,
             date: start,
@@ -248,7 +288,7 @@ export function TraceFormDialog({
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor={`t-date-${idSuffix}`}>Date</Label>
+        <Label htmlFor={`t-date-${idSuffix}`}>Date (optional)</Label>
         <Input
           id={`t-date-${idSuffix}`}
           type="date"
@@ -280,6 +320,18 @@ export function TraceFormDialog({
           </div>
         </div>
       ) : null}
+      <div className="space-y-2">
+        <Label>Place</Label>
+        <p className="text-muted-foreground min-h-[1.35rem] text-sm leading-snug">
+          {locationLookupPending ? (
+            <span className="opacity-70">Looking up address…</span>
+          ) : locationLabel ? (
+            locationLabel
+          ) : (
+            <span className="opacity-70">No place name yet…</span>
+          )}
+        </p>
+      </div>
       <div className="space-y-2">
         <Label>Tags</Label>
         <div className="max-h-40 space-y-2 overflow-y-auto rounded-lg border border-border/80 p-2">
@@ -322,7 +374,7 @@ export function TraceFormDialog({
 
   if (floatingNew && anchorScreen) {
     return (
-      <div ref={floatingRef} className="pointer-events-none z-[60] w-max min-w-0">
+      <div ref={floatingRef} className="pointer-events-none z-[45] w-max min-w-0">
         <div className="pointer-events-auto relative">
           <FloatingPanel className="max-h-[inherit] min-w-[288px] max-w-sm overflow-y-auto p-4 shadow-2xl">
             <h2 className="font-display text-foreground mb-1 text-xl font-semibold tracking-tight">New trace</h2>

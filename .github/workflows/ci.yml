@@ -46,7 +46,7 @@ jobs:
         run: npm ci
 
       - name: Sync connector Edge Functions into supabase/functions
-        run: npm run connectors:sync-supabase
+        run: npm run functions:sync
 
       - name: Link project, push migrations, deploy Edge Functions
         env:

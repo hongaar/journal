@@ -13,11 +13,14 @@ import { PageBackButton } from "@/components/layout/page-back-button";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { formatTraceDateRange } from "@/lib/trace-dates";
+import { formatTraceLocationLine } from "@/lib/trace-dates";
+import { TraceMetadataFooter } from "@/components/traces/trace-metadata-footer";
 import { contrastingForeground } from "@/lib/utils";
 
 type TraceRow = Trace & {
   trace_tags?: { tag_id: string; tags: { id: string; name: string; color: string; icon_emoji: string } | null }[];
+  creator?: { display_name: string | null } | null;
+  modifier?: { display_name: string | null } | null;
 };
 
 export function TraceDetailPage() {
@@ -36,7 +39,9 @@ export function TraceDetailPage() {
         .from("traces")
         .select(
           `*,
-          trace_tags ( tag_id, tags ( id, name, color, icon_emoji ) )`,
+          trace_tags ( tag_id, tags ( id, name, color, icon_emoji ) ),
+          creator:profiles!traces_created_by_user_id_fkey ( display_name ),
+          modifier:profiles!traces_modified_by_user_id_fkey ( display_name )`,
         )
         .eq("id", traceId)
         .maybeSingle();
@@ -120,8 +125,11 @@ export function TraceDetailPage() {
               {trace.title || "Untitled place"}
             </CardTitle>
             <p className="text-muted-foreground mt-1 text-sm">
-              {formatTraceDateRange(trace.date, trace.end_date)} · {trace.lat.toFixed(5)}, {trace.lng.toFixed(5)}
+              {formatTraceLocationLine(trace.date, trace.end_date, trace.lat, trace.lng, 5)}
             </p>
+            {trace.location_label ? (
+              <p className="text-muted-foreground mt-1 text-sm leading-snug">{trace.location_label}</p>
+            ) : null}
             <div className="mt-2 flex flex-wrap gap-1">
               {tagBadges.map((t) => (
                 <Badge
@@ -175,6 +183,12 @@ export function TraceDetailPage() {
               </label>
             </div>
           </div>
+          <TraceMetadataFooter
+            createdAt={trace.created_at}
+            updatedAt={trace.updated_at}
+            creatorDisplayName={trace.creator?.display_name}
+            modifierDisplayName={trace.modifier?.display_name}
+          />
           </CardContent>
         </Card>
       <TraceFormDialog

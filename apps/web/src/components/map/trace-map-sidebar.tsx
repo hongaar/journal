@@ -6,12 +6,18 @@ import { supabase } from "@/lib/supabase";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { FloatingPanel } from "@/components/layout/floating-panel";
-import { formatTraceDateRange } from "@/lib/trace-dates";
+import { formatTraceLocationLine } from "@/lib/trace-dates";
+import { TraceMetadataFooter } from "@/components/traces/trace-metadata-footer";
 import { contrastingForeground } from "@/lib/utils";
 import type { TraceWithTags } from "@/lib/trace-with-tags";
 import { useTracePhotosSignedUrls } from "@/lib/use-trace-photos";
 import { TracePhotoLightbox, TracePhotoThumb } from "@/components/traces/trace-photo-lightbox";
 import { photosToLightboxItems } from "@/lib/trace-photo-lightbox-items";
+
+type TraceSidebarRow = TraceWithTags & {
+  creator?: { display_name: string | null } | null;
+  modifier?: { display_name: string | null } | null;
+};
 
 type TraceMapSidebarProps = {
   traceId: string;
@@ -29,12 +35,14 @@ export function TraceMapSidebar({ traceId, journalId, onClose }: TraceMapSidebar
         .from("traces")
         .select(
           `*,
-          trace_tags ( tag_id, tags ( id, name, color, icon_emoji ) )`,
+          trace_tags ( tag_id, tags ( id, name, color, icon_emoji ) ),
+          creator:profiles!traces_created_by_user_id_fkey ( display_name ),
+          modifier:profiles!traces_modified_by_user_id_fkey ( display_name )`,
         )
         .eq("id", traceId)
         .maybeSingle();
       if (error) throw error;
-      return data as TraceWithTags | null;
+      return data as TraceSidebarRow | null;
     },
     enabled: Boolean(traceId),
   });
@@ -51,7 +59,7 @@ export function TraceMapSidebar({ traceId, journalId, onClose }: TraceMapSidebar
   }, [trace]);
 
   return (
-    <FloatingPanel className="pointer-events-auto fixed top-[4.5rem] right-3 bottom-4 z-[55] flex w-[min(calc(100vw-1.5rem),22rem)] max-w-full flex-col gap-3 overflow-hidden p-4 shadow-2xl sm:top-[5.25rem] sm:right-4">
+    <FloatingPanel className="pointer-events-auto fixed top-[4.5rem] right-3 bottom-4 z-40 flex w-[min(calc(100vw-1.5rem),22rem)] max-w-full flex-col gap-3 overflow-hidden p-4 shadow-2xl sm:top-[5.25rem] sm:right-4">
       <div className="flex items-start justify-between gap-2">
         <h2 className="font-display text-foreground text-lg leading-tight font-semibold tracking-tight">
           {traceQuery.isLoading ? "Loading…" : trace?.title || "Untitled place"}
@@ -68,8 +76,11 @@ export function TraceMapSidebar({ traceId, journalId, onClose }: TraceMapSidebar
       ) : (
         <>
           <p className="text-muted-foreground text-sm">
-            {formatTraceDateRange(trace.date, trace.end_date)} · {trace.lat.toFixed(4)}, {trace.lng.toFixed(4)}
+            {formatTraceLocationLine(trace.date, trace.end_date, trace.lat, trace.lng, 4)}
           </p>
+          {trace.location_label ? (
+            <p className="text-muted-foreground text-sm leading-snug">{trace.location_label}</p>
+          ) : null}
           {tagBadges.length > 0 ? (
             <div className="flex flex-wrap gap-1">
               {tagBadges.map((t) => (
@@ -107,13 +118,21 @@ export function TraceMapSidebar({ traceId, journalId, onClose }: TraceMapSidebar
               </div>
             </div>
           ) : null}
-          <Link
-            to={`/traces/${trace.id}`}
-            className={buttonVariants({ variant: "secondary", size: "sm", className: "mt-auto inline-flex gap-2 rounded-xl" })}
-          >
-            <ExternalLink className="size-4" />
-            Open full page
-          </Link>
+          <div className="mt-auto flex flex-col gap-3">
+            <Link
+              to={`/traces/${trace.id}`}
+              className={buttonVariants({ variant: "secondary", size: "sm", className: "inline-flex gap-2 rounded-xl" })}
+            >
+              <ExternalLink className="size-4" />
+              Open full page
+            </Link>
+            <TraceMetadataFooter
+              createdAt={trace.created_at}
+              updatedAt={trace.updated_at}
+              creatorDisplayName={trace.creator?.display_name}
+              modifierDisplayName={trace.modifier?.display_name}
+            />
+          </div>
           <TracePhotoLightbox
             open={photoLightbox !== null}
             onOpenChange={(o) => {

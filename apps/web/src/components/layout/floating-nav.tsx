@@ -25,6 +25,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FloatingPanel } from "@/components/layout/floating-panel";
+import { GlobalSearch } from "@/components/layout/global-search";
 import { supabase } from "@/lib/supabase";
 import type { Profile } from "@/types/database";
 import { UserAvatar } from "@/components/user-avatar";
@@ -175,6 +176,7 @@ export function FloatingNav() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          <GlobalSearch />
         </FloatingPanel>
 
         <FloatingPanel className="pointer-events-auto flex flex-wrap items-center gap-1 py-1.5 pr-1.5 pl-2 shadow-lg">

@@ -30,10 +30,12 @@ async function ensureIcalFeedToken(journalId: string): Promise<string> {
 export function IcalConnectorJournalSettings({
   journalId,
   jc,
+  connectorGloballyEnabled,
   readOnly = false,
 }: {
   journalId: string;
-  jc: JournalConnector;
+  jc: JournalConnector | undefined;
+  connectorGloballyEnabled: boolean;
   readOnly?: boolean;
 }) {
   const qc = useQueryClient();
@@ -50,7 +52,7 @@ export function IcalConnectorJournalSettings({
       if (error) throw error;
       return data?.token ?? null;
     },
-    enabled: Boolean(journalId) && jc.enabled && parsed.publishFeed,
+    enabled: Boolean(journalId) && connectorGloballyEnabled && parsed.publishFeed,
   });
 
   const saveConfig = useMutation({
@@ -62,14 +64,17 @@ export function IcalConnectorJournalSettings({
       const config = mergeJournalConnectorConfig(ICAL_CONNECTOR_ID, journalConnectorConfigRecord(jc), {
         publishFeed: next.publishFeed,
       }) as Json;
-      const { error } = await supabase
-        .from("journal_connectors")
-        .update({
+      const { error } = await supabase.from("journal_connectors").upsert(
+        {
+          journal_id: journalId,
+          connector_type_id: ICAL_CONNECTOR_ID,
+          enabled: true,
           config,
+          status: "connected",
           updated_at: new Date().toISOString(),
-        })
-        .eq("journal_id", journalId)
-        .eq("connector_type_id", ICAL_CONNECTOR_ID);
+        },
+        { onConflict: "journal_id,connector_type_id" },
+      );
       if (error) throw error;
       return { token: next.publishFeed ? token : null };
     },
@@ -101,14 +106,16 @@ export function IcalConnectorJournalSettings({
         <Switch
           id="ical-publish"
           checked={parsed.publishFeed}
-          disabled={readOnly || saveConfig.isPending || !jc.enabled}
+          disabled={readOnly || saveConfig.isPending || !connectorGloballyEnabled}
           onCheckedChange={(c) => void saveConfig.mutateAsync({ publishFeed: c === true })}
         />
       </div>
-      {!jc.enabled ? (
-        <p className="text-muted-foreground text-xs">Turn on the connector above to publish a feed.</p>
+      {!connectorGloballyEnabled ? (
+        <p className="text-muted-foreground text-xs">
+          Turn on iCalendar in Connectors (user menu) to publish a feed for this journal.
+        </p>
       ) : null}
-      {parsed.publishFeed && jc.enabled ? (
+      {parsed.publishFeed && connectorGloballyEnabled ? (
         <div className="space-y-2">
           {tokenQuery.isLoading ? (
             <p className="text-muted-foreground text-xs">Preparing feed URL…</p>

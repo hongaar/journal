@@ -46,7 +46,7 @@ export function PresetColorPicker({ id, label, value, onChange, className }: Pre
           <PopoverContent
             align="start"
             sideOffset={6}
-            className="z-[100] w-[min(calc(100vw-2rem),18rem)] gap-2 p-3"
+            className="w-[min(calc(100vw-2rem),18rem)] gap-2 p-3"
           >
             <p className="text-muted-foreground text-xs font-medium">Preset colors</p>
             <div className="grid grid-cols-8 gap-1.5" role="listbox" aria-label="Color presets">
