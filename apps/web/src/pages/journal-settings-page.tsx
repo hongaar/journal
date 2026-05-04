@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { EmojiPicker } from "@/components/traces/emoji-picker";
 import { defaultJournalIcon, normalizeJournalIconForPersist } from "@/lib/journal-display-icon";
 import { cn } from "@/lib/utils";
+import { JournalSharingSection } from "@/components/journal/journal-sharing-section";
 
 export function JournalSettingsPage() {
   const { journalId } = useParams<{ journalId: string }>();
@@ -52,7 +53,7 @@ export function JournalSettingsPage() {
   }, [journal]);
 
   async function save() {
-    if (!journalId || !name.trim()) return;
+    if (!journalId || !journal || !name.trim()) return;
     setSaving(true);
     setError(null);
     const { error: err } = await supabase
@@ -150,6 +151,10 @@ export function JournalSettingsPage() {
               ) : null}
             </div>
           </div>
+        </FloatingPanel>
+
+        <FloatingPanel className="p-5 sm:p-6">
+          <JournalSharingSection journalId={journalId} journalName={journal.name} isOwner={isOwner} />
         </FloatingPanel>
       </div>
     </div>

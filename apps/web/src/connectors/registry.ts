@@ -1,38 +1,50 @@
-import type { ConnectorDefinition, ConnectorRegistry } from "./types";
+import type { ConnectorDefinition, ConnectorRegistry } from "@curolia/connector-contract";
+import { icalConnectorManifest } from "@curolia/connector-ical";
 
-const stub: Omit<ConnectorDefinition, "id" | "displayName"> = {
-  capabilities: ["export_trace", "import_media"],
+const mapsStub = {
+  capabilities: ["export_trace", "import_media"] as const,
   implemented: false,
-};
+} satisfies Omit<ConnectorDefinition, "id" | "displayName">;
 
-export const connectorRegistry: ConnectorRegistry = {
-  google_maps: { id: "google_maps", displayName: "Google Maps", ...stub },
-  osmand: { id: "osmand", displayName: "OsmAnd", ...stub },
+const mediaStub = {
+  capabilities: ["import_media"] as const,
+  implemented: false,
+} satisfies Omit<ConnectorDefinition, "id" | "displayName">;
+
+const calendarStub = {
+  capabilities: ["calendar_traces"] as const,
+  implemented: false,
+} satisfies Omit<ConnectorDefinition, "id" | "displayName">;
+
+export const connectorRegistry = {
+  google_maps: { id: "google_maps", displayName: "Google Maps", ...mapsStub },
+  osmand: { id: "osmand", displayName: "OsmAnd", ...mapsStub },
   google_photos: {
     id: "google_photos",
     displayName: "Google Photos",
-    capabilities: ["import_media"],
-    implemented: false,
+    ...mediaStub,
+    contributions: {
+      appHooks: [
+        {
+          name: "photos.suggestionsForTrace",
+          description:
+            "Future: suggest library photos using trace coordinates and date range (web/mobile shell will subscribe).",
+        },
+      ],
+    },
   },
   immich: {
     id: "immich",
     displayName: "Immich",
-    capabilities: ["import_media"],
-    implemented: false,
+    ...mediaStub,
   },
   google_calendar: {
     id: "google_calendar",
     displayName: "Google Calendar",
-    capabilities: ["calendar_traces"],
-    implemented: false,
+    ...calendarStub,
   },
-  ical: {
-    id: "ical",
-    displayName: "iCalendar",
-    capabilities: ["export_ics"],
-    implemented: true,
-  },
-};
+  [icalConnectorManifest.id]: icalConnectorManifest,
+} satisfies ConnectorRegistry;
 
 export function getConnectorDefinition(id: string): ConnectorDefinition | undefined {
   return connectorRegistry[id];

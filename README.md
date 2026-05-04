@@ -1,4 +1,4 @@
-# Journal
+# Curolia
 
 Travel / place journal: private **traces** (visits) per **journal**, with maps, tags, photos, and connector stubs. Stack: **npm workspaces**, **Turborepo**, **Vite + React + TypeScript**, **shadcn/ui**, **Supabase** (Auth, Postgres, Storage), **MapLibre**.
 
@@ -6,7 +6,10 @@ Travel / place journal: private **traces** (visits) per **journal**, with maps, 
 
 - `apps/web` — SPA (`name: web` for `turbo --filter=web`)
 - `supabase/migrations` — schema, RLS, storage policies, auth bootstrap trigger
-- `packages/` — reserved for shared libraries
+- `packages/connector-contract` — shared connector manifest / contribution types (`@curolia/connector-contract`)
+- `packages/connectors/*` — optional connector packages (e.g. `@curolia/connector-ical`); Edge sources sync into `supabase/functions/` via `npm run connectors:sync-supabase`
+
+See [`AGENTS.md`](AGENTS.md) for codegen rules (including **never hand-editing** `database.types.ts`).
 
 Common commands (from repo root):
 
@@ -54,6 +57,16 @@ Use `supabase link` against your cloud project, then `supabase db push` for migr
 - **Output**: `apps/web/dist`
 
 `vercel.json` in this repo matches the above. Set the same Supabase env vars for Production (and Preview): `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`.
+
+### Production: Supabase (GitHub Actions) + web (Vercel Git)
+
+Connect the repo to Vercel so **pushes to `main` build production** via Vercel’s native GitHub integration (same `vercel.json` install/build/output as above).
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) also runs, after CI: **`npm run connectors:sync-supabase`** (copies connector packages’ `supabase/functions/*` into the repo-root functions tree), **`supabase db push`**, and **`supabase functions deploy --use-api`** for every function. Run `connectors:sync-supabase` here so deployed Edge code always matches `packages/connectors/*`, not only whatever was last committed under `supabase/functions/`.
+
+That job and Vercel both start on the same push; they can finish in either order. Prefer backward-compatible migrations and function APIs when the app might go live before this job completes.
+
+GitHub [secrets](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions) for the `production` environment (or repository): `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD`. The database password is the Supabase project **Database** password (Settings → Database).
 
 ## Roadmap (not in this repo yet)
 

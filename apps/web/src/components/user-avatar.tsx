@@ -16,6 +16,8 @@ export type UserAvatarProps = {
   imgClassName?: string;
   /** Accessible label when showing the photo. */
   label?: string;
+  /** Unread notifications indicator (dot only, no count). */
+  showUnreadDot?: boolean;
 };
 
 export function UserAvatar({
@@ -25,6 +27,7 @@ export function UserAvatar({
   className,
   imgClassName,
   label = "",
+  showUnreadDot = false,
 }: UserAvatarProps) {
   const stored = storedAvatarUrl?.trim() || null;
   const [attempt, setAttempt] = useState<Attempt>(() => (stored ? 0 : 1));
@@ -54,15 +57,11 @@ export function UserAvatar({
   const tryGravatar = attempt === 1;
   const src = tryStored && stored ? stored : tryGravatar && gravatar ? gravatar : null;
 
-  if (!src) {
-    return (
-      <span className={cn("text-muted-foreground inline-flex", className)} aria-hidden>
-        <UserCircle className={cn("size-7", imgClassName)} />
-      </span>
-    );
-  }
-
-  return (
+  const inner = !src ? (
+    <span className={cn("text-muted-foreground inline-flex", className)} aria-hidden>
+      <UserCircle className={cn("size-7", imgClassName)} />
+    </span>
+  ) : (
     <span className={cn("inline-flex shrink-0", className)}>
       <img
         src={src}
@@ -72,6 +71,20 @@ export function UserAvatar({
         onError={() => {
           setAttempt((a) => (a < 2 ? ((a + 1) as Attempt) : 2));
         }}
+      />
+    </span>
+  );
+
+  if (!showUnreadDot) {
+    return inner;
+  }
+
+  return (
+    <span className="relative inline-flex shrink-0">
+      {inner}
+      <span
+        className="bg-primary absolute top-0 right-0 size-2 rounded-full ring-2 ring-[var(--panel-bg)]"
+        aria-hidden
       />
     </span>
   );

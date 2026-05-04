@@ -9,6 +9,8 @@ import { ConnectorsPage } from "@/pages/connectors-page";
 import { ProfilePage } from "@/pages/profile-page";
 import { AppSettingsPage } from "@/pages/app-settings-page";
 import { JournalSettingsPage } from "@/pages/journal-settings-page";
+import { InvitationsPage } from "@/pages/invitations-page";
+import { NotificationsPage } from "@/pages/notifications-page";
 
 export default function App() {
   return (
@@ -22,6 +24,8 @@ export default function App() {
           <Route path="profile" element={<ProfilePage />} />
           <Route path="settings" element={<AppSettingsPage />} />
           <Route path="settings/connectors" element={<ConnectorsPage />} />
+          <Route path="notifications" element={<NotificationsPage />} />
+          <Route path="invitations" element={<InvitationsPage />} />
           <Route path="journals/:journalId/settings" element={<JournalSettingsPage />} />
         </Route>
       </Route>

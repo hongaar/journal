@@ -22,3 +22,39 @@ jobs:
 
       - name: Lint, typecheck, test, build
         run: npx turbo run lint typecheck test build
+
+  # After CI: sync connector-owned functions into supabase/functions, push migrations, deploy
+  # all Edge Functions. Production frontend uses Vercel’s GitHub integration (parallel with this
+  # job); keep migrations/functions backward-compatible when the web app can ship first.
+  supabase:
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: production-supabase
+      cancel-in-progress: false
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Sync connector Edge Functions into supabase/functions
+        run: npm run connectors:sync-supabase
+
+      - name: Link project, push migrations, deploy Edge Functions
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          npx supabase login --token "$SUPABASE_ACCESS_TOKEN"
+          npx supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" --password "$SUPABASE_DB_PASSWORD" --yes
+          npx supabase db push --yes
+          npx supabase functions deploy --use-api --yes

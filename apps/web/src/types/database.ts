@@ -1,4 +1,6 @@
 export type JournalMemberRole = "owner" | "editor" | "viewer";
+export type JournalInvitationStatus = "pending" | "accepted" | "declined" | "cancelled";
+export type NotificationType = "journal_invitation" | "journal_invitation_accepted" | "journal_ownership_received";
 export type ConnectorLinkStatus = "disabled" | "pending" | "error" | "connected";
 
 export type Profile = {
@@ -6,6 +8,8 @@ export type Profile = {
   display_name: string | null;
   avatar_url: string | null;
   default_journal_id: string | null;
+  notification_email_enabled: boolean;
+  notification_push_enabled: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -91,6 +95,30 @@ export type JournalConnector = {
   updated_at: string;
 };
 
+export type JournalInvitation = {
+  id: string;
+  journal_id: string;
+  invitee_email: string;
+  invited_role: JournalMemberRole;
+  invited_by_user_id: string;
+  token: string;
+  status: JournalInvitationStatus;
+  created_at: string;
+  expires_at: string;
+};
+
+export type AppNotification = {
+  id: string;
+  user_id: string;
+  type: NotificationType;
+  title: string;
+  body: string | null;
+  payload: Record<string, unknown>;
+  action_path: string | null;
+  read_at: string | null;
+  created_at: string;
+};
+
 /** Minimal Database typing for Supabase client generics */
 export type Database = {
   public: {
@@ -129,11 +157,23 @@ export type Database = {
         Insert: { journal_id: string; token?: string };
         Update: Partial<Pick<JournalIcalFeedToken, "token">>;
       };
+      journal_invitations: {
+        Row: JournalInvitation;
+        Insert: never;
+        Update: Partial<Pick<JournalInvitation, "status">>;
+      };
+      notifications: {
+        Row: AppNotification;
+        Insert: never;
+        Update: Partial<Pick<AppNotification, "read_at">>;
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
     Enums: {
       journal_member_role: JournalMemberRole;
+      journal_invitation_status: JournalInvitationStatus;
+      notification_type: NotificationType;
       connector_link_status: ConnectorLinkStatus;
     };
   };

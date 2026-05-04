@@ -126,6 +126,50 @@ export type Database = {
           },
         ]
       }
+      journal_invitations: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          invitee_email: string
+          invited_by_user_id: string
+          invited_role: Database["public"]["Enums"]["journal_member_role"]
+          journal_id: string
+          status: Database["public"]["Enums"]["journal_invitation_status"]
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          invitee_email: string
+          invited_by_user_id: string
+          invited_role: Database["public"]["Enums"]["journal_member_role"]
+          journal_id: string
+          status?: Database["public"]["Enums"]["journal_invitation_status"]
+          token?: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          invitee_email?: string
+          invited_by_user_id?: string
+          invited_role?: Database["public"]["Enums"]["journal_member_role"]
+          journal_id?: string
+          status?: Database["public"]["Enums"]["journal_invitation_status"]
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_invitations_journal_id_fkey"
+            columns: ["journal_id"]
+            isOneToOne: false
+            referencedRelation: "journals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       journal_members: {
         Row: {
           created_at: string
@@ -188,6 +232,42 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          action_path: string | null
+          body: string | null
+          created_at: string
+          id: string
+          payload: Json
+          read_at: string | null
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+          user_id: string
+        }
+        Insert: {
+          action_path?: string | null
+          body?: string | null
+          created_at?: string
+          id?: string
+          payload?: Json
+          read_at?: string | null
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+          user_id: string
+        }
+        Update: {
+          action_path?: string | null
+          body?: string | null
+          created_at?: string
+          id?: string
+          payload?: Json
+          read_at?: string | null
+          title?: string
+          type?: Database["public"]["Enums"]["notification_type"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       photos: {
         Row: {
           created_at: string
@@ -237,6 +317,8 @@ export type Database = {
           default_journal_id: string | null
           display_name: string | null
           id: string
+          notification_email_enabled: boolean
+          notification_push_enabled: boolean
           updated_at: string
         }
         Insert: {
@@ -245,6 +327,8 @@ export type Database = {
           default_journal_id?: string | null
           display_name?: string | null
           id: string
+          notification_email_enabled?: boolean
+          notification_push_enabled?: boolean
           updated_at?: string
         }
         Update: {
@@ -253,6 +337,8 @@ export type Database = {
           default_journal_id?: string | null
           display_name?: string | null
           id?: string
+          notification_email_enabled?: boolean
+          notification_push_enabled?: boolean
           updated_at?: string
         }
         Relationships: [
@@ -385,12 +471,39 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_journal_invitation: { Args: { p_token: string }; Returns: string }
+      cancel_journal_invitation: { Args: { p_invitation_id: string }; Returns: undefined }
+      decline_journal_invitation: { Args: { p_token: string }; Returns: undefined }
+      invite_journal_member: {
+        Args: {
+          p_invitee_email: string
+          p_invited_role: Database["public"]["Enums"]["journal_member_role"]
+          p_journal_id: string
+        }
+        Returns: string
+      }
       is_journal_member: { Args: { p_journal_id: string }; Returns: boolean }
+      is_journal_owner: { Args: { p_journal_id: string }; Returns: boolean }
+      journal_member_can_edit: { Args: { p_journal_id: string }; Returns: boolean }
+      mark_notification_read: { Args: { p_notification_id: string }; Returns: undefined }
+      mark_notification_read_by_token: { Args: { p_invitation_token: string }; Returns: undefined }
+      remove_journal_member: { Args: { p_journal_id: string; p_user_id: string }; Returns: undefined }
       trace_journal_id: { Args: { p_trace_id: string }; Returns: string }
+      transfer_journal_ownership: { Args: { p_journal_id: string; p_new_owner_user_id: string }; Returns: undefined }
+      update_journal_member_role: {
+        Args: {
+          p_journal_id: string
+          p_role: Database["public"]["Enums"]["journal_member_role"]
+          p_user_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       connector_link_status: "disabled" | "pending" | "error" | "connected"
+      journal_invitation_status: "pending" | "accepted" | "declined" | "cancelled"
       journal_member_role: "owner" | "editor" | "viewer"
+      notification_type: "journal_invitation" | "journal_invitation_accepted" | "journal_ownership_received"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -522,7 +635,9 @@ export const Constants = {
   public: {
     Enums: {
       connector_link_status: ["disabled", "pending", "error", "connected"],
+      journal_invitation_status: ["pending", "accepted", "declined", "cancelled"],
       journal_member_role: ["owner", "editor", "viewer"],
+      notification_type: ["journal_invitation", "journal_invitation_accepted", "journal_ownership_received"],
     },
   },
 } as const

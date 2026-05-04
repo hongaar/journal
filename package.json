@@ -1,10 +1,11 @@
 {
-  "name": "journal",
+  "name": "curolia",
   "private": true,
   "packageManager": "npm@10.9.2",
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages/*",
+    "packages/connectors/*"
   ],
   "scripts": {
     "build": "turbo run build",
@@ -17,7 +18,8 @@
     "db:status": "supabase status",
     "db:reset": "supabase db reset",
     "db:migrate": "supabase migration up",
-    "db:types": "supabase gen types typescript --local > apps/web/src/lib/database.types.ts"
+    "db:types": "supabase gen types typescript --local > apps/web/src/lib/database.types.ts",
+    "connectors:sync-supabase": "node scripts/sync-connector-supabase.mjs"
   },
   "devDependencies": {
     "supabase": "^2.98.0",

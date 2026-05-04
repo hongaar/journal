@@ -1,9 +1,10 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Json } from "@/lib/database.types";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/providers/auth-provider";
 import { useJournal } from "@/providers/journal-provider";
 import { getConnectorDefinition } from "@/connectors/registry";
-import { journalConnectorConfigObject, mergeJournalConnectorConfig } from "@/connectors/journal-config";
+import { journalConnectorConfigRecord, mergeJournalConnectorConfig } from "@curolia/connector-contract";
 import { ConnectorJournalSettings } from "@/connectors/journal-settings/connector-journal-settings";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -16,11 +17,13 @@ function ConnectorRow({
   jc,
   journalId,
   onToggle,
+  toggleDisabled,
 }: {
   ct: ConnectorType;
   jc: JournalConnector | undefined;
   journalId: string;
   onToggle: (enabled: boolean) => void;
+  toggleDisabled: boolean;
 }) {
   const def = getConnectorDefinition(ct.id);
   const implemented = def?.implemented ?? false;
@@ -42,7 +45,7 @@ function ConnectorRow({
         <Switch
           id={`sw-${ct.id}`}
           checked={enabled}
-          disabled={!journalId || !implemented}
+          disabled={!journalId || !implemented || toggleDisabled}
           onCheckedChange={(c) => {
             if (!implemented) return;
             onToggle(c === true);
@@ -54,8 +57,27 @@ function ConnectorRow({
 }
 
 export function ConnectorsPage() {
+  const { user } = useAuth();
   const { activeJournalId } = useJournal();
   const qc = useQueryClient();
+
+  const ownerQuery = useQuery({
+    queryKey: ["journal_member_role", activeJournalId, user?.id],
+    queryFn: async () => {
+      if (!activeJournalId || !user) return null;
+      const { data, error } = await supabase
+        .from("journal_members")
+        .select("role")
+        .eq("journal_id", activeJournalId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.role ?? null;
+    },
+    enabled: Boolean(activeJournalId && user),
+  });
+
+  const isOwner = ownerQuery.data === "owner";
 
   const typesQuery = useQuery({
     queryKey: ["connector_types"],
@@ -81,11 +103,11 @@ export function ConnectorsPage() {
   });
 
   async function toggle(connectorTypeId: string, enabled: boolean) {
-    if (!activeJournalId) return;
+    if (!activeJournalId || !isOwner) return;
     const jc = connectorsQuery.data?.find((c) => c.connector_type_id === connectorTypeId);
     const config = mergeJournalConnectorConfig(
       connectorTypeId,
-      journalConnectorConfigObject(jc),
+      journalConnectorConfigRecord(jc),
       {},
     ) as Json;
     const { error } = await supabase.from("journal_connectors").upsert(
@@ -113,6 +135,11 @@ export function ConnectorsPage() {
             <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
               Enable integrations for this journal. iCalendar publishing is available; other connectors will ship later.
             </p>
+            {!ownerQuery.isLoading && !isOwner ? (
+              <p className="text-muted-foreground mt-3 text-xs leading-relaxed">
+                Only the journal owner can change connectors (they use your personal integrations).
+              </p>
+            ) : null}
           </div>
           <div>
             {(typesQuery.data ?? []).map((ct) => {
@@ -124,9 +151,15 @@ export function ConnectorsPage() {
                     journalId={activeJournalId ?? ""}
                     jc={jc}
                     onToggle={(en) => void toggle(ct.id, en)}
+                    toggleDisabled={!isOwner || ownerQuery.isLoading}
                   />
                   {getConnectorDefinition(ct.id)?.implemented && jc?.enabled ? (
-                    <ConnectorJournalSettings connectorTypeId={ct.id} journalId={activeJournalId ?? ""} jc={jc} />
+                    <ConnectorJournalSettings
+                      connectorTypeId={ct.id}
+                      journalId={activeJournalId ?? ""}
+                      jc={jc}
+                      readOnly={!isOwner}
+                    />
                   ) : null}
                 </div>
               );

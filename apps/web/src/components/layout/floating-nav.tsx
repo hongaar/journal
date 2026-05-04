@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { NavLink, useNavigate } from "react-router-dom";
-import { BookOpen, Check, ChevronDown, Map, Plug, Plus, Settings2, User } from "lucide-react";
+import { Bell, BookOpen, Check, ChevronDown, Map, Plug, Plus, Settings2, User } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -28,6 +28,7 @@ import { FloatingPanel } from "@/components/layout/floating-panel";
 import { supabase } from "@/lib/supabase";
 import type { Profile } from "@/types/database";
 import { UserAvatar } from "@/components/user-avatar";
+import { NotificationsPopover } from "@/components/layout/notifications-popover";
 import { DROPDOWN_PANEL_WIDE_CLASS } from "@/lib/dropdown-panel";
 import type { Journal } from "@/types/database";
 import { defaultJournalIcon } from "@/lib/journal-display-icon";
@@ -64,6 +65,24 @@ export function FloatingNav() {
     enabled: Boolean(user),
   });
 
+  const unreadNotificationsQuery = useQuery({
+    queryKey: ["notifications_unread", user?.id],
+    queryFn: async () => {
+      if (!user) return false;
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("id")
+        .eq("user_id", user.id)
+        .is("read_at", null)
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data != null;
+    },
+    enabled: Boolean(user),
+    refetchInterval: 60_000,
+  });
+
   async function handleCreateJournal() {
     if (!newJournalName.trim()) return;
     setCreating(true);
@@ -83,7 +102,7 @@ export function FloatingNav() {
       >
         <FloatingPanel className="pointer-events-auto flex min-w-0 max-w-full flex-wrap items-center gap-2 py-2 pr-3 pl-4 shadow-lg sm:gap-3">
           <span className="font-display text-foreground shrink-0 text-lg font-semibold tracking-tight italic">
-            Journal
+            Curolia
           </span>
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -168,6 +187,8 @@ export function FloatingNav() {
             <span className="hidden sm:inline">Blog</span>
           </NavLink>
 
+          {user ? <NotificationsPopover userId={user.id} /> : null}
+
           <DropdownMenu>
             <DropdownMenuTrigger
               className={cn(
@@ -183,6 +204,7 @@ export function FloatingNav() {
                 gravatarSize={128}
                 className="flex items-center justify-center"
                 imgClassName="size-8"
+                showUnreadDot={unreadNotificationsQuery.data === true}
               />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52">
@@ -195,6 +217,10 @@ export function FloatingNav() {
                 <DropdownMenuItem onClick={() => navigate("/profile")}>
                   <User className="size-4 opacity-80" />
                   Profile
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/notifications")}>
+                  <Bell className="size-4 opacity-80" />
+                  Notifications
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate("/settings")}>
                   <Settings2 className="size-4 opacity-80" />

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,15 +7,22 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FloatingPanel } from "@/components/layout/floating-panel";
 
+function safeInternalPath(raw: string | null): string | null {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return null;
+  return raw;
+}
+
 export function LoginPage() {
   const { user, loading, signIn, signUp } = useAuth();
+  const [params] = useSearchParams();
+  const nextPath = safeInternalPath(params.get("next"));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   if (!loading && user) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={nextPath ?? "/"} replace />;
   }
 
   async function onSignIn() {
@@ -50,7 +57,7 @@ export function LoginPage() {
       />
       <FloatingPanel className="relative z-10 w-full max-w-md p-6 sm:p-8">
         <div className="mb-6 text-center">
-          <h1 className="font-display text-foreground text-3xl font-semibold tracking-tight italic">Journal</h1>
+          <h1 className="font-display text-foreground text-3xl font-semibold tracking-tight italic">Curolia</h1>
           <p className="text-muted-foreground mt-2 text-sm">Sign in to your travel journal.</p>
         </div>
         <Tabs defaultValue="signin">

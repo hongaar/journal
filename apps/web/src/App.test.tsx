@@ -21,6 +21,6 @@ describe("LoginPage", () => {
         </AuthProvider>
       </QueryClientProvider>,
     );
-    expect(screen.getByText("Journal")).toBeInTheDocument();
+    expect(screen.getByText("Curolia")).toBeInTheDocument();
   });
 });

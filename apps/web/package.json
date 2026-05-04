@@ -12,6 +12,8 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@curolia/connector-contract": "file:../../packages/connector-contract",
+    "@curolia/connector-ical": "file:../../packages/connectors/ical",
     "@base-ui/react": "^1.4.1",
     "@floating-ui/dom": "^1.7.6",
     "@fontsource-variable/geist": "^5.2.8",

@@ -2,11 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Json } from "@/lib/database.types";
 import { supabase } from "@/lib/supabase";
 import { icalFeedPublicUrl } from "@/lib/ical-feed-url";
-import {
-  journalConnectorConfigObject,
-  mergeJournalConnectorConfig,
-  parseIcalJournalConfig,
-} from "@/connectors/journal-config";
+import { journalConnectorConfigRecord, mergeJournalConnectorConfig } from "@curolia/connector-contract";
+import { ICAL_CONNECTOR_ID, parseIcalJournalConfig } from "@curolia/connector-ical";
 import type { JournalConnector } from "@/types/database";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -33,12 +30,14 @@ async function ensureIcalFeedToken(journalId: string): Promise<string> {
 export function IcalConnectorJournalSettings({
   journalId,
   jc,
+  readOnly = false,
 }: {
   journalId: string;
   jc: JournalConnector;
+  readOnly?: boolean;
 }) {
   const qc = useQueryClient();
-  const parsed = parseIcalJournalConfig(journalConnectorConfigObject(jc));
+  const parsed = parseIcalJournalConfig(journalConnectorConfigRecord(jc));
 
   const tokenQuery = useQuery({
     queryKey: ["journal_ical_feed_token", journalId],
@@ -60,7 +59,7 @@ export function IcalConnectorJournalSettings({
       if (next.publishFeed) {
         token = await ensureIcalFeedToken(journalId);
       }
-      const config = mergeJournalConnectorConfig("ical", journalConnectorConfigObject(jc), {
+      const config = mergeJournalConnectorConfig(ICAL_CONNECTOR_ID, journalConnectorConfigRecord(jc), {
         publishFeed: next.publishFeed,
       }) as Json;
       const { error } = await supabase
@@ -70,7 +69,7 @@ export function IcalConnectorJournalSettings({
           updated_at: new Date().toISOString(),
         })
         .eq("journal_id", journalId)
-        .eq("connector_type_id", "ical");
+        .eq("connector_type_id", ICAL_CONNECTOR_ID);
       if (error) throw error;
       return { token: next.publishFeed ? token : null };
     },
@@ -102,7 +101,7 @@ export function IcalConnectorJournalSettings({
         <Switch
           id="ical-publish"
           checked={parsed.publishFeed}
-          disabled={saveConfig.isPending || !jc.enabled}
+          disabled={readOnly || saveConfig.isPending || !jc.enabled}
           onCheckedChange={(c) => void saveConfig.mutateAsync({ publishFeed: c === true })}
         />
       </div>
