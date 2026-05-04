@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { photosToLightboxItems, type TracePhotoLightboxItem } from "@/lib/trace-photo-lightbox-items";
 import { useTracePhotosSignedUrls } from "@/lib/use-trace-photos";
-import { Button } from "@/components/ui/button";
+import { Button } from "@curolia/ui/button";
 import { cn } from "@/lib/utils";
 
 type TracePhotoLightboxProps = {

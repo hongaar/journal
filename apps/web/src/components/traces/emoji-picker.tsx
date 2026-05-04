@@ -1,12 +1,12 @@
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@curolia/ui/button";
 import {
   EmojiPickerContent,
   EmojiPickerFooter,
   EmojiPicker as EmojiPickerRoot,
   EmojiPickerSearch,
-} from "@/components/ui/emoji-picker";
-import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+} from "@curolia/ui/emoji-picker";
+import { Label } from "@curolia/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@curolia/ui/popover";
 import { cn } from "@/lib/utils";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";

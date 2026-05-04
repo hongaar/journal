@@ -3,14 +3,14 @@ import { Loader2, Map as MapIcon, MapPin, Notebook, Search } from "lucide-react"
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { useMatch, useNavigate } from "react-router-dom";
-import { buttonVariants } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { buttonVariants } from "@curolia/ui/button";
+import { Input } from "@curolia/ui/input";
 import {
   Popover,
   PopoverContent,
   PopoverTitle,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@curolia/ui/popover";
 import { cn } from "@/lib/utils";
 import {
   applyMapBboxToSearchParams,

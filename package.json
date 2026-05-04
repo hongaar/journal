@@ -20,6 +20,8 @@
     "db:migrate": "supabase migration up",
     "db:types": "supabase gen types typescript --local > apps/web/src/lib/database.types.ts",
     "functions:sync": "node scripts/sync-plugin-supabase.mjs",
+    "storybook": "npm run storybook -w @curolia/ui",
+    "build-storybook": "npm run build-storybook -w @curolia/ui",
     "functions:start": "supabase functions serve",
     "functions:stop": "pkill -f 'supabase functions serve' || true"
   },

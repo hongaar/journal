@@ -12,16 +12,16 @@ import {
 import type { TraceWithTags } from "@/lib/trace-with-tags";
 import { TraceMapSidebar } from "@/components/map/trace-map-sidebar";
 import { TraceFormDialog } from "@/components/traces/trace-form-dialog";
-import { Button } from "@/components/ui/button";
+import { Button } from "@curolia/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from "@curolia/ui/dialog";
+import { Input } from "@curolia/ui/input";
+import { Label } from "@curolia/ui/label";
 import { PresetColorPicker } from "@/components/traces/preset-color-picker";
 import { EmojiPicker } from "@/components/traces/emoji-picker";
 import { DEFAULT_TRACE_TAG_COLOR } from "@/lib/preset-trace-tag-colors";

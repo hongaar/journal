@@ -3,8 +3,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Bell } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { buttonVariants } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { buttonVariants } from "@curolia/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@curolia/ui/popover";
 import { cn } from "@/lib/utils";
 import type { AppNotification } from "@/types/database";
 

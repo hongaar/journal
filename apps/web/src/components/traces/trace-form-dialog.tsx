@@ -1,16 +1,16 @@
 import { FloatingPanel } from "@/components/layout/floating-panel";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@curolia/ui/button";
+import { Checkbox } from "@curolia/ui/checkbox";
 import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+} from "@curolia/ui/dialog";
+import { Input } from "@curolia/ui/input";
+import { Label } from "@curolia/ui/label";
+import { Textarea } from "@curolia/ui/textarea";
 import { mapAnchorPanelMiddleware } from "@/lib/map-anchor-floating-ui";
 import { reversePhotonLocationLabel } from "@/lib/photon-geocode";
 import { supabase } from "@/lib/supabase";

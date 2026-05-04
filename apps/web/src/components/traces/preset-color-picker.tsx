@@ -1,7 +1,7 @@
 import { ChevronDown } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { buttonVariants } from "@curolia/ui/button";
+import { Label } from "@curolia/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@curolia/ui/popover";
 import { cn } from "@/lib/utils";
 import { PRESET_TRACE_TAG_COLOR_GRID } from "@/lib/preset-trace-tag-colors";
 

@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/auth-provider";
 import { FloatingPanel } from "@/components/layout/floating-panel";
 import { PageBackButton } from "@/components/layout/page-back-button";
-import { Button } from "@/components/ui/button";
+import { Button } from "@curolia/ui/button";
 
 export function InvitationsPage() {
   const [params] = useSearchParams();

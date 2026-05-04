@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { Navigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/providers/auth-provider";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@curolia/ui/button";
+import { Input } from "@curolia/ui/input";
+import { Label } from "@curolia/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@curolia/ui/tabs";
 import { FloatingPanel } from "@/components/layout/floating-panel";
 
 function safeInternalPath(raw: string | null): string | null {

@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@curolia/ui/button";
 import { cn } from "@/lib/utils";
 
 type PageBackButtonProps = {

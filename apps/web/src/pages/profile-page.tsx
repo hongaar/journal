@@ -5,9 +5,9 @@ import { useAuth } from "@/providers/auth-provider";
 import type { Profile } from "@/types/database";
 import { FloatingPanel } from "@/components/layout/floating-panel";
 import { PageBackButton } from "@/components/layout/page-back-button";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button } from "@curolia/ui/button";
+import { Input } from "@curolia/ui/input";
+import { Label } from "@curolia/ui/label";
 import { UserAvatar } from "@/components/user-avatar";
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024;

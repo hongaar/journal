@@ -3,16 +3,16 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/auth-provider";
 import type { JournalInvitation, JournalMemberRole, Profile } from "@/types/database";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button } from "@curolia/ui/button";
+import { Input } from "@curolia/ui/input";
+import { Label } from "@curolia/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@curolia/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +20,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@curolia/ui/dialog";
 import { journalRoleLabel, type InviteJournalRole } from "@/lib/journal-member-roles";
 
 type MemberRow = { user_id: string; role: JournalMemberRole; profile: Profile | null };

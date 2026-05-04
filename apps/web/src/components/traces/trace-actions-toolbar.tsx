@@ -7,7 +7,7 @@ import {
   MAP_TOOLBAR_LABEL_CELL,
   MAP_TOOLBAR_TRIGGER_CLASS,
 } from "@/components/map/map-toolbar";
-import { Button } from "@/components/ui/button";
+import { Button } from "@curolia/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,7 +16,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@curolia/ui/dropdown-menu";
 import type { Tag } from "@/types/database";
 import { DROPDOWN_PANEL_WIDE_CLASS } from "@/lib/dropdown-panel";
 import { cn } from "@/lib/utils";

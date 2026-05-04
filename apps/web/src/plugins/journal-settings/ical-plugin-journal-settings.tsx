@@ -5,9 +5,9 @@ import { icalFeedPublicUrl } from "@/lib/ical-feed-url";
 import { journalPluginConfigRecord, mergeJournalPluginConfig } from "@curolia/plugin-contract";
 import { ICAL_PLUGIN_ID, parseIcalJournalConfig } from "@curolia/plugin-ical";
 import type { JournalPlugin } from "@/types/database";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import { Button } from "@curolia/ui/button";
+import { Label } from "@curolia/ui/label";
+import { Switch } from "@curolia/ui/switch";
 import { Copy } from "lucide-react";
 import { toast } from "sonner";
 

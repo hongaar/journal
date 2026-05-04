@@ -4,7 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/providers/auth-provider";
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "@curolia/ui/sonner";
 import App from "./App.tsx";
 import "./index.css";
 

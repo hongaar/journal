@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { NavLink, useNavigate } from "react-router-dom";
 import { Bell, BookOpen, Check, ChevronDown, Map, Plug, Plus, Settings2, User } from "lucide-react";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@curolia/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,7 +10,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@curolia/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import { useJournal } from "@/providers/journal-provider";
@@ -21,9 +21,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from "@curolia/ui/dialog";
+import { Input } from "@curolia/ui/input";
+import { Label } from "@curolia/ui/label";
 import { FloatingPanel } from "@/components/layout/floating-panel";
 import { GlobalSearch } from "@/components/layout/global-search";
 import { supabase } from "@/lib/supabase";
