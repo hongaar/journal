@@ -17,10 +17,11 @@ type EmojiPickerProps = {
   value: string;
   onChange: (emoji: string) => void;
   className?: string;
+  disabled?: boolean;
 };
 
 /** Tag icon field: popover + Frimousse (liveblocks/frimousse), installed via shadcn registry emoji-picker block. */
-export function EmojiPicker({ id, label, value, onChange, className }: EmojiPickerProps) {
+export function EmojiPicker({ id, label, value, onChange, className, disabled = false }: EmojiPickerProps) {
   const [open, setOpen] = useState(false);
   const displayChar = value || "📍";
 
@@ -31,10 +32,11 @@ export function EmojiPicker({ id, label, value, onChange, className }: EmojiPick
       </Label>
       {/* Wrapper: open popover injects focus-guard siblings next to the trigger; keep them off the label-spacing flex axis */}
       <div className="min-w-0">
-        <Popover open={open} onOpenChange={setOpen}>
+        <Popover open={disabled ? false : open} onOpenChange={(o) => !disabled && setOpen(o)}>
           <PopoverTrigger
             id={id}
             type="button"
+            disabled={disabled}
             className={cn(
               buttonVariants({ variant: "outline", size: "lg" }),
               "h-10 w-full justify-between gap-2 rounded-lg px-3 font-normal",

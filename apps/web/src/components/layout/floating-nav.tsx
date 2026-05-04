@@ -30,6 +30,8 @@ import type { Profile } from "@/types/database";
 import { UserAvatar } from "@/components/user-avatar";
 import { DROPDOWN_PANEL_WIDE_CLASS } from "@/lib/dropdown-panel";
 import type { Journal } from "@/types/database";
+import { defaultJournalIcon } from "@/lib/journal-display-icon";
+import { EmojiPicker } from "@/components/traces/emoji-picker";
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   cn(
@@ -39,7 +41,7 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   );
 
 function journalEmoji(journal: Journal) {
-  return journal.is_personal ? "🔒" : "📓";
+  return journal.icon_emoji ?? defaultJournalIcon(journal.is_personal);
 }
 
 export function FloatingNav() {
@@ -48,6 +50,7 @@ export function FloatingNav() {
   const { journals, activeJournal, setActiveJournalId, createJournal } = useJournal();
   const [newJournalOpen, setNewJournalOpen] = useState(false);
   const [newJournalName, setNewJournalName] = useState("");
+  const [newJournalIcon, setNewJournalIcon] = useState(() => defaultJournalIcon(false));
   const [creating, setCreating] = useState(false);
 
   const profileQuery = useQuery({
@@ -64,10 +67,9 @@ export function FloatingNav() {
   async function handleCreateJournal() {
     if (!newJournalName.trim()) return;
     setCreating(true);
-    const { error } = await createJournal(newJournalName.trim());
+    const { error } = await createJournal(newJournalName.trim(), newJournalIcon);
     setCreating(false);
     if (!error) {
-      setNewJournalName("");
       setNewJournalOpen(false);
     }
   }
@@ -212,18 +214,35 @@ export function FloatingNav() {
         </FloatingPanel>
       </header>
 
-      <Dialog open={newJournalOpen} onOpenChange={setNewJournalOpen}>
+      <Dialog
+        open={newJournalOpen}
+        onOpenChange={(open) => {
+          setNewJournalOpen(open);
+          if (!open) {
+            setNewJournalName("");
+            setNewJournalIcon(defaultJournalIcon(false));
+          }
+        }}
+      >
         <DialogContent className="border-[var(--panel-border)] bg-[var(--panel-bg)] backdrop-blur-xl">
           <DialogHeader>
             <DialogTitle className="font-display text-xl font-semibold">New journal</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-2 py-2">
-            <Label htmlFor="jn">Name</Label>
-            <Input
-              id="jn"
-              value={newJournalName}
-              onChange={(e) => setNewJournalName(e.target.value)}
-              placeholder="Family trips"
+          <div className="grid gap-4 py-2">
+            <div className="grid gap-2">
+              <Label htmlFor="jn">Name</Label>
+              <Input
+                id="jn"
+                value={newJournalName}
+                onChange={(e) => setNewJournalName(e.target.value)}
+                placeholder="Family trips"
+              />
+            </div>
+            <EmojiPicker
+              id="jn-icon"
+              label="Icon"
+              value={newJournalIcon}
+              onChange={setNewJournalIcon}
             />
           </div>
           <DialogFooter>

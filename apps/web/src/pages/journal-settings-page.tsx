@@ -9,6 +9,8 @@ import { PageBackButton } from "@/components/layout/page-back-button";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { EmojiPicker } from "@/components/traces/emoji-picker";
+import { defaultJournalIcon, normalizeJournalIconForPersist } from "@/lib/journal-display-icon";
 import { cn } from "@/lib/utils";
 
 export function JournalSettingsPage() {
@@ -18,6 +20,7 @@ export function JournalSettingsPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [name, setName] = useState("");
+  const [iconEmoji, setIconEmoji] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,6 +48,7 @@ export function JournalSettingsPage() {
     if (!journal) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset field when switching journal
     setName(journal.name);
+    setIconEmoji(journal.icon_emoji ?? defaultJournalIcon(journal.is_personal));
   }, [journal]);
 
   async function save() {
@@ -53,7 +57,11 @@ export function JournalSettingsPage() {
     setError(null);
     const { error: err } = await supabase
       .from("journals")
-      .update({ name: name.trim(), updated_at: new Date().toISOString() })
+      .update({
+        name: name.trim(),
+        icon_emoji: normalizeJournalIconForPersist(iconEmoji, journal.is_personal),
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", journalId);
     setSaving(false);
     if (err) {
@@ -87,6 +95,11 @@ export function JournalSettingsPage() {
     );
   }
 
+  const nameDirty = name.trim() !== journal.name;
+  const iconToSave = normalizeJournalIconForPersist(iconEmoji, journal.is_personal);
+  const iconDirty = iconToSave !== (journal.icon_emoji ?? null);
+  const canSave = isOwner && Boolean(name.trim()) && (nameDirty || iconDirty) && !saving;
+
   return (
     <div className="h-full overflow-y-auto px-3 pt-[4.75rem] pb-10 sm:px-6 sm:pt-[5.25rem]">
       <div className="mx-auto max-w-lg space-y-4">
@@ -98,6 +111,9 @@ export function JournalSettingsPage() {
           </div>
 
           <div className="mt-8 space-y-4">
+            {!isOwner && !roleQuery.isLoading ? (
+              <p className="text-muted-foreground text-xs">Only owners can change the journal name or icon.</p>
+            ) : null}
             <div className="space-y-2">
               <Label htmlFor="jn-name">Journal name</Label>
               <Input
@@ -106,17 +122,17 @@ export function JournalSettingsPage() {
                 onChange={(e) => setName(e.target.value)}
                 disabled={!isOwner || roleQuery.isLoading}
               />
-              {!isOwner && !roleQuery.isLoading ? (
-                <p className="text-muted-foreground text-xs">Only owners can rename a journal.</p>
-              ) : null}
             </div>
+            <EmojiPicker
+              id="jn-settings-icon"
+              label="Icon"
+              value={iconEmoji}
+              onChange={setIconEmoji}
+              disabled={!isOwner || roleQuery.isLoading}
+            />
             {error ? <p className="text-destructive text-sm">{error}</p> : null}
             <div className="flex flex-wrap gap-2">
-              <Button
-                className="rounded-xl"
-                disabled={saving || !isOwner || !name.trim() || name.trim() === journal.name}
-                onClick={() => void save()}
-              >
+              <Button className="rounded-xl" disabled={!canSave} onClick={() => void save()}>
                 Save
               </Button>
               {activeJournalId !== journalId ? (

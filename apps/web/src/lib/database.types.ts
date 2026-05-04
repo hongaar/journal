@@ -159,6 +159,7 @@ export type Database = {
         Row: {
           created_at: string
           created_by_user_id: string
+          icon_emoji: string | null
           id: string
           is_personal: boolean
           name: string
@@ -168,6 +169,7 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by_user_id: string
+          icon_emoji?: string | null
           id?: string
           is_personal?: boolean
           name: string
@@ -177,6 +179,7 @@ export type Database = {
         Update: {
           created_at?: string
           created_by_user_id?: string
+          icon_emoji?: string | null
           id?: string
           is_personal?: boolean
           name?: string

@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { defaultJournalIcon, normalizeJournalIconForPersist } from "@/lib/journal-display-icon";
 import { supabase } from "@/lib/supabase";
 import type { Journal } from "@/types/database";
 import { useAuth, getStoredActiveJournalId, setStoredActiveJournalId } from "./auth-provider";
@@ -19,7 +20,7 @@ type JournalContextValue = {
   setActiveJournalId: (id: string) => void;
   loading: boolean;
   refetch: () => Promise<void>;
-  createJournal: (name: string) => Promise<{ journal: Journal | null; error: Error | null }>;
+  createJournal: (name: string, iconEmoji?: string | null) => Promise<{ journal: Journal | null; error: Error | null }>;
 };
 
 const JournalContext = createContext<JournalContextValue | null>(null);
@@ -104,11 +105,12 @@ export function JournalProvider({ children }: { children: ReactNode }) {
   );
 
   const createJournal = useCallback(
-    async (name: string) => {
+    async (name: string, iconEmoji?: string | null) => {
       if (!user) return { journal: null, error: new Error("Not signed in") };
+      const icon_emoji = normalizeJournalIconForPersist(iconEmoji ?? defaultJournalIcon(false), false);
       const { data: journal, error: jErr } = await supabase
         .from("journals")
-        .insert({ name, created_by_user_id: user.id, is_personal: false })
+        .insert({ name, created_by_user_id: user.id, is_personal: false, icon_emoji })
         .select()
         .single();
       if (jErr || !journal) return { journal: null, error: jErr as Error };

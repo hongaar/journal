@@ -15,6 +15,8 @@ export type Journal = {
   name: string;
   slug: string | null;
   is_personal: boolean;
+  /** When null, UI uses defaultJournalIcon(is_personal). */
+  icon_emoji: string | null;
   created_by_user_id: string;
   created_at: string;
   updated_at: string;
