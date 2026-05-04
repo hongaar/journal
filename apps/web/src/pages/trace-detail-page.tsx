@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Pencil, Upload } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -9,6 +9,7 @@ import { TraceFormDialog } from "@/components/traces/trace-form-dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { contrastingForeground } from "@/lib/utils";
 
 type TraceRow = Trace & {
   trace_tags?: { tag_id: string; tags: { id: string; name: string; color: string; icon_emoji: string } | null }[];
@@ -16,6 +17,7 @@ type TraceRow = Trace & {
 
 export function TraceDetailPage() {
   const { traceId } = useParams<{ traceId: string }>();
+  const navigate = useNavigate();
   const { activeJournalId } = useJournal();
   const qc = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
@@ -114,9 +116,13 @@ export function TraceDetailPage() {
     return (
       <div className="flex h-full flex-col items-start gap-4 px-4 pt-[4.75rem] pb-8 sm:px-6 sm:pt-[5.25rem]">
         <p className="text-muted-foreground text-sm">Trace not found or not in this journal.</p>
-        <Link to="/" className={buttonVariants({ variant: "outline", className: "inline-flex gap-1 rounded-xl" })}>
-          Back to map
-        </Link>
+        <button
+          type="button"
+          className={buttonVariants({ variant: "outline", className: "inline-flex gap-1 rounded-xl" })}
+          onClick={() => navigate("/")}
+        >
+          Home
+        </button>
       </div>
     );
   }
@@ -124,17 +130,18 @@ export function TraceDetailPage() {
   return (
     <div className="h-full overflow-y-auto px-3 pt-[4.75rem] pb-10 sm:px-6 sm:pt-[5.25rem]">
       <div className="mx-auto max-w-2xl space-y-4">
-        <Link
-          to="/"
+        <button
+          type="button"
           className={buttonVariants({
             variant: "secondary",
             size: "sm",
             className: "inline-flex gap-1.5 rounded-xl border-0 bg-foreground/5 shadow-sm hover:bg-foreground/10",
           })}
+          onClick={() => navigate(-1)}
         >
           <ArrowLeft className="size-4" />
-          Map
-        </Link>
+          Back
+        </button>
         <Card className="border-[var(--panel-border)] bg-[var(--panel-bg)] shadow-[var(--panel-shadow)] backdrop-blur-xl">
           <CardHeader className="flex flex-row items-start justify-between gap-2">
           <div>
@@ -146,7 +153,12 @@ export function TraceDetailPage() {
             </p>
             <div className="mt-2 flex flex-wrap gap-1">
               {tagBadges.map((t) => (
-                <Badge key={t.id} variant="secondary" style={{ borderColor: t.color }}>
+                <Badge
+                  key={t.id}
+                  variant="secondary"
+                  className="border-0"
+                  style={{ backgroundColor: t.color, color: contrastingForeground(t.color) }}
+                >
                   {t.icon_emoji} {t.name}
                 </Badge>
               ))}

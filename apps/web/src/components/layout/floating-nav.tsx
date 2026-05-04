@@ -1,5 +1,15 @@
-import { NavLink } from "react-router-dom";
-import { ChevronDown, Map, Plug, Plus } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { NavLink, useNavigate } from "react-router-dom";
+import {
+  BookOpen,
+  ChevronDown,
+  Map,
+  Plug,
+  Plus,
+  Settings2,
+  User,
+  UserCircle,
+} from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -24,6 +34,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FloatingPanel } from "@/components/layout/floating-panel";
+import { supabase } from "@/lib/supabase";
+import type { Profile } from "@/types/database";
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   cn(
@@ -33,11 +45,25 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   );
 
 export function FloatingNav() {
-  const { signOut } = useAuth();
+  const navigate = useNavigate();
+  const { signOut, user } = useAuth();
   const { journals, activeJournal, setActiveJournalId, createJournal } = useJournal();
   const [newJournalOpen, setNewJournalOpen] = useState(false);
   const [newJournalName, setNewJournalName] = useState("");
   const [creating, setCreating] = useState(false);
+
+  const profileQuery = useQuery({
+    queryKey: ["profile", user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data, error } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
+      if (error) throw error;
+      return data as Profile | null;
+    },
+    enabled: Boolean(user),
+  });
+
+  const avatarUrl = profileQuery.data?.avatar_url?.trim();
 
   async function handleCreateJournal() {
     if (!newJournalName.trim()) return;
@@ -71,20 +97,42 @@ export function FloatingNav() {
               <span className="truncate">{activeJournal?.name ?? "Select journal"}</span>
               <ChevronDown className="size-4 shrink-0 opacity-60" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-56">
+            <DropdownMenuContent align="start" className="w-[min(calc(100vw-2rem),18rem)]">
               <DropdownMenuGroup>
                 <DropdownMenuLabel>Journals</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {journals.map((j) => (
                   <DropdownMenuItem
                     key={j.id}
-                    onClick={() => setActiveJournalId(j.id)}
-                    className={cn(j.id === activeJournal?.id && "bg-accent")}
+                    className="flex cursor-pointer items-center gap-1.5 pr-1"
+                    onClick={(e) => {
+                      const el = e.target as HTMLElement;
+                      if (el.closest("[data-journal-settings-trigger]")) return;
+                      setActiveJournalId(j.id);
+                    }}
                   >
-                    {j.name}
-                    {j.is_personal ? (
-                      <span className="text-muted-foreground ml-1 text-xs">(personal)</span>
-                    ) : null}
+                    <span className={cn("min-w-0 flex-1 truncate", j.id === activeJournal?.id && "font-medium")}>
+                      {j.name}
+                      {j.is_personal ? (
+                        <span className="text-muted-foreground ml-1 text-xs font-normal">(personal)</span>
+                      ) : null}
+                    </span>
+                    <button
+                      type="button"
+                      data-journal-settings-trigger
+                      title="Journal settings"
+                      className={cn(
+                        buttonVariants({ variant: "ghost", size: "icon" }),
+                        "text-muted-foreground hover:text-foreground size-8 shrink-0 rounded-md",
+                      )}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        navigate(`/journals/${j.id}/settings`);
+                      }}
+                    >
+                      <Settings2 className="size-4" />
+                    </button>
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuGroup>
@@ -102,18 +150,57 @@ export function FloatingNav() {
             <Map className="size-4 opacity-80" />
             <span className="hidden sm:inline">Map</span>
           </NavLink>
-          <NavLink to="/settings/connectors" className={navLinkClass} title="Connectors">
-            <Plug className="size-4 opacity-80" />
-            <span className="hidden sm:inline">Connectors</span>
+          <NavLink to="/blog" className={navLinkClass} title="Blog">
+            <BookOpen className="size-4 opacity-80" />
+            <span className="hidden sm:inline">Blog</span>
           </NavLink>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-9 rounded-xl px-3 text-muted-foreground hover:text-foreground"
-            onClick={() => void signOut()}
-          >
-            Sign out
-          </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className={cn(
+                buttonVariants({ variant: "ghost", size: "icon" }),
+                "size-9 shrink-0 rounded-xl",
+              )}
+              title="Account"
+              aria-label="Account menu"
+            >
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt=""
+                  className="size-8 rounded-full object-cover ring-1 ring-foreground/15"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <UserCircle className="text-muted-foreground size-7" />
+              )}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="font-normal">
+                  <span className="text-muted-foreground text-xs">Signed in</span>
+                  <span className="block truncate text-sm font-medium">{user?.email ?? "—"}</span>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate("/profile")}>
+                  <User className="size-4 opacity-80" />
+                  Profile
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/settings")}>
+                  <Settings2 className="size-4 opacity-80" />
+                  Settings
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/settings/connectors")}>
+                  <Plug className="size-4 opacity-80" />
+                  Connectors
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem variant="destructive" onClick={() => void signOut()}>
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </FloatingPanel>
       </header>
 

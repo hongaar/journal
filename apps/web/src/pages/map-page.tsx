@@ -1,29 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ListFilter, Plus, Tag } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useJournal } from "@/providers/journal-provider";
+import { TraceActionsToolbar } from "@/components/traces/trace-actions-toolbar";
 import {
-  MapToolbarGroup,
-  MapToolbarIconButton,
-  MAP_TOOLBAR_ICON_CELL,
-  MAP_TOOLBAR_LABEL_CELL,
-  MAP_TOOLBAR_TRIGGER_CLASS,
-} from "@/components/map/map-toolbar";
-import { TraceMap, type TraceMapHandle, type TraceWithTags } from "@/components/map/trace-map";
+  TraceMap,
+  type TraceMapHandle,
+  type TraceMapPreviewPin,
+} from "@/components/map/trace-map";
+import type { TraceWithTags } from "@/lib/trace-with-tags";
 import { TraceMapSidebar } from "@/components/map/trace-map-sidebar";
 import { TraceFormDialog } from "@/components/traces/trace-form-dialog";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -34,25 +23,89 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FloatingPanel } from "@/components/layout/floating-panel";
-import { cn } from "@/lib/utils";
+import {
+  applyFilterTagIdsToSearchParams,
+  applyMapCameraToSearchParams,
+  applySelectedTraceToSearchParams,
+  cameraToSyncKey,
+  normalizeCameraForUrl,
+  parseFilterTagIdsFromSearchParams,
+  parseMapCameraFromSearchParams,
+  parseSelectedTraceIdFromSearchParams,
+  type MapCamera,
+} from "@/lib/map-view-params";
+import { readStoredMapCamera, writeStoredMapCamera } from "@/lib/map-camera-storage";
 
 export function MapPage() {
   const qc = useQueryClient();
   const mapRef = useRef<TraceMapHandle>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const cameraFromUrl = useMemo(() => parseMapCameraFromSearchParams(searchParams), [searchParams]);
   const { activeJournalId, loading: journalLoading } = useJournal();
+  const resolvedInitialCamera = useMemo((): MapCamera | null => {
+    if (cameraFromUrl) return cameraFromUrl;
+    return readStoredMapCamera(activeJournalId);
+  }, [cameraFromUrl, activeJournalId]);
+  const sidebarTraceId = useMemo(() => parseSelectedTraceIdFromSearchParams(searchParams), [searchParams]);
+  const cameraSyncKey = useMemo(() => {
+    if (cameraFromUrl) return `url:${cameraToSyncKey(cameraFromUrl)}`;
+    if (resolvedInitialCamera) return `init:${cameraToSyncKey(resolvedInitialCamera)}`;
+    return "";
+  }, [cameraFromUrl, resolvedInitialCamera]);
+  const cameraIdleTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [formOpen, setFormOpen] = useState(false);
   const [placementActive, setPlacementActive] = useState(false);
   const [placedCoords, setPlacedCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [anchorScreen, setAnchorScreen] = useState<{ x: number; y: number } | null>(null);
-  const [sidebarTraceId, setSidebarTraceId] = useState<string | null>(null);
   const [tagDialogOpen, setTagDialogOpen] = useState(false);
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState("#2d6a5d");
   const [newTagEmoji, setNewTagEmoji] = useState("📍");
-  const [filterTagIds, setFilterTagIdsState] = useState<Set<string>>(() => new Set());
-  const setFilterTagIds = useCallback((action: SetStateAction<Set<string>>) => {
-    setFilterTagIdsState((prev) => (typeof action === "function" ? action(prev) : action));
+  const [newTraceTagIds, setNewTraceTagIds] = useState<string[]>([]);
+  const filterTagIds = useMemo(() => parseFilterTagIdsFromSearchParams(searchParams), [searchParams]);
+  const setFilterTagIds = useCallback(
+    (action: SetStateAction<Set<string>>) => {
+      setSearchParams(
+        (prev) => {
+          const current = parseFilterTagIdsFromSearchParams(prev);
+          const next = typeof action === "function" ? action(current) : action;
+          return applyFilterTagIdsToSearchParams(prev, next);
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  const onNewTraceTagIdsChange = useCallback((ids: string[]) => {
+    setNewTraceTagIds(ids);
   }, []);
+
+  const onFitVisibleTraces = useCallback(() => {
+    mapRef.current?.fitVisibleTraces();
+  }, []);
+
+  useEffect(() => {
+    return () => clearTimeout(cameraIdleTimerRef.current);
+  }, []);
+
+  const onCameraIdle = useCallback(
+    (c: MapCamera) => {
+      clearTimeout(cameraIdleTimerRef.current);
+      cameraIdleTimerRef.current = setTimeout(() => {
+        const normalized = normalizeCameraForUrl(c);
+        writeStoredMapCamera(activeJournalId, normalized);
+        setSearchParams(
+          (prev) => {
+            const parsed = parseMapCameraFromSearchParams(prev);
+            if (parsed && cameraToSyncKey(parsed) === cameraToSyncKey(normalized)) return prev;
+            return applyMapCameraToSearchParams(prev, normalized);
+          },
+          { replace: true },
+        );
+      }, 280);
+    },
+    [activeJournalId, setSearchParams],
+  );
 
   const tracesQuery = useQuery({
     queryKey: ["traces", activeJournalId],
@@ -87,23 +140,46 @@ export function MapPage() {
     enabled: Boolean(activeJournalId) && !journalLoading,
   });
 
-  const onSelectTrace = useCallback((id: string) => {
-    setFormOpen(false);
-    setPlacedCoords(null);
-    setAnchorScreen(null);
-    setSidebarTraceId(id);
-  }, []);
+  const previewPin = useMemo((): TraceMapPreviewPin | null => {
+    if (!formOpen || !placedCoords) return null;
+    const tags = tagsQuery.data ?? [];
+    const ordered = newTraceTagIds.map((id) => tags.find((t) => t.id === id)).filter(Boolean);
+    const first = ordered[0];
+    return {
+      lat: placedCoords.lat,
+      lng: placedCoords.lng,
+      color: first?.color ?? null,
+      icon: first?.icon_emoji ?? "📍",
+    };
+  }, [formOpen, placedCoords, newTraceTagIds, tagsQuery.data]);
+
+  const onSelectTrace = useCallback(
+    (id: string) => {
+      setFormOpen(false);
+      setPlacedCoords(null);
+      setAnchorScreen(null);
+      setNewTraceTagIds([]);
+      setSearchParams((prev) => applySelectedTraceToSearchParams(prev, id), { replace: true });
+    },
+    [setSearchParams],
+  );
 
   const onPlacementClick = useCallback((lng: number, lat: number) => {
     setPlacementActive(false);
     setPlacedCoords({ lat, lng });
-    setSidebarTraceId(null);
+    setSearchParams((prev) => applySelectedTraceToSearchParams(prev, null), { replace: true });
     const p = mapRef.current?.lngLatToScreen(lng, lat);
     setAnchorScreen(p ?? null);
     setFormOpen(true);
-  }, []);
+  }, [setSearchParams]);
 
   const traces = useMemo(() => tracesQuery.data ?? [], [tracesQuery.data]);
+
+  useEffect(() => {
+    if (!sidebarTraceId || traces.length === 0) return;
+    if (traces.some((t) => t.id === sidebarTraceId)) return;
+    setSearchParams((prev) => applySelectedTraceToSearchParams(prev, null), { replace: true });
+  }, [sidebarTraceId, traces, setSearchParams]);
 
   const formDefaults = useMemo(() => {
     if (placedCoords) return placedCoords;
@@ -119,8 +195,16 @@ export function MapPage() {
       const p = map.lngLatToScreen(placedCoords.lng, placedCoords.lat);
       if (p) setAnchorScreen(p);
     };
-    return map.subscribeCamera(upd);
-  }, [formOpen, placedCoords?.lat, placedCoords?.lng]);
+    upd();
+    const raf = requestAnimationFrame(upd);
+    const unsub = map.subscribeCamera(upd);
+    window.addEventListener("resize", upd);
+    return () => {
+      cancelAnimationFrame(raf);
+      unsub();
+      window.removeEventListener("resize", upd);
+    };
+  }, [formOpen, placedCoords]);
 
   useEffect(() => {
     if (!placementActive) return;
@@ -134,11 +218,13 @@ export function MapPage() {
   useEffect(() => {
     if (!sidebarTraceId) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setSidebarTraceId(null);
+      if (e.key === "Escape") {
+        setSearchParams((prev) => applySelectedTraceToSearchParams(prev, null), { replace: true });
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [sidebarTraceId]);
+  }, [sidebarTraceId, setSearchParams]);
 
   async function createTag() {
     if (!activeJournalId || !newTagName.trim()) return;
@@ -158,7 +244,7 @@ export function MapPage() {
   function toggleAddTracePlacement() {
     setPlacementActive((prev) => {
       if (prev) return false;
-      setSidebarTraceId(null);
+      setSearchParams((p) => applySelectedTraceToSearchParams(p, null), { replace: true });
       return true;
     });
   }
@@ -186,9 +272,14 @@ export function MapPage() {
           ref={mapRef}
           traces={traces}
           selectedTagIds={filterTagIds}
+          selectedTraceId={sidebarTraceId}
+          previewPin={previewPin}
           onSelectTrace={onSelectTrace}
           placementMode={placementActive}
           onPlacementClick={onPlacementClick}
+          initialCamera={resolvedInitialCamera}
+          cameraSyncKey={cameraSyncKey}
+          onCameraIdle={onCameraIdle}
           className="absolute inset-0 z-0 min-h-0"
         />
       </div>
@@ -206,80 +297,24 @@ export function MapPage() {
       ) : null}
 
       <div className="pointer-events-none absolute inset-0 z-10 p-3 pt-[4.75rem] sm:p-4 sm:pt-[5.25rem]">
-        <MapToolbarGroup>
-          <MapToolbarIconButton
-            icon={<Plus className="size-4" />}
-            label={placementActive ? "Placing pin…" : "Add trace"}
-            active={placementActive}
-            onClick={toggleAddTracePlacement}
-          />
-          <MapToolbarIconButton
-            icon={<Tag className="size-4" />}
-            label="New tag"
-            onClick={() => setTagDialogOpen(true)}
-            className="bg-muted/20 hover:bg-muted/40"
-          />
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              className={cn(
-                MAP_TOOLBAR_TRIGGER_CLASS,
-                filterTagIds.size > 0 && "bg-primary/8 ring-1 ring-inset ring-primary/15",
-              )}
-            >
-              <span className={cn(MAP_TOOLBAR_ICON_CELL, "relative")}>
-                <ListFilter className="size-4" />
-                {filterTagIds.size > 0 ? (
-                  <span className="bg-primary ring-background absolute top-1.5 right-1.5 size-1.5 rounded-full ring-2" />
-                ) : null}
-              </span>
-              <span className={MAP_TOOLBAR_LABEL_CELL}>Filter</span>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent side="right" sideOffset={8} align="start" className="w-56">
-              <DropdownMenuGroup>
-                <DropdownMenuLabel>Filter by tag</DropdownMenuLabel>
-                {(tagsQuery.data ?? []).length === 0 ? (
-                  <DropdownMenuItem disabled className="text-muted-foreground">
-                    No tags yet
-                  </DropdownMenuItem>
-                ) : (
-                  (tagsQuery.data ?? []).map((tag) => (
-                    <DropdownMenuCheckboxItem
-                      key={tag.id}
-                      checked={filterTagIds.has(tag.id)}
-                      onCheckedChange={(c) => {
-                        setFilterTagIds((prev) => {
-                          const next = new Set(prev);
-                          if (c === true) next.add(tag.id);
-                          else next.delete(tag.id);
-                          return next;
-                        });
-                      }}
-                    >
-                      <span className="text-base">{tag.icon_emoji}</span>
-                      {tag.name}
-                    </DropdownMenuCheckboxItem>
-                  ))
-                )}
-              </DropdownMenuGroup>
-              {filterTagIds.size > 0 ? (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setFilterTagIds(new Set());
-                    }}
-                  >
-                    Clear filters
-                  </DropdownMenuItem>
-                </>
-              ) : null}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </MapToolbarGroup>
+        <TraceActionsToolbar
+          mode="map"
+          placementActive={placementActive}
+          onAddTrace={toggleAddTracePlacement}
+          onNewTag={() => setTagDialogOpen(true)}
+          onFitVisible={onFitVisibleTraces}
+          tags={tagsQuery.data ?? []}
+          filterTagIds={filterTagIds}
+          setFilterTagIds={setFilterTagIds}
+        />
       </div>
 
       {sidebarTraceId ? (
-        <TraceMapSidebar traceId={sidebarTraceId} journalId={activeJournalId} onClose={() => setSidebarTraceId(null)} />
+        <TraceMapSidebar
+          traceId={sidebarTraceId}
+          journalId={activeJournalId}
+          onClose={() => setSearchParams((prev) => applySelectedTraceToSearchParams(prev, null), { replace: true })}
+        />
       ) : null}
 
       <TraceFormDialog
@@ -290,6 +325,7 @@ export function MapPage() {
             setPlacedCoords(null);
             setAnchorScreen(null);
             setPlacementActive(false);
+            setNewTraceTagIds([]);
           }
         }}
         journalId={activeJournalId}
@@ -297,6 +333,7 @@ export function MapPage() {
         defaultLat={formDefaults.lat}
         defaultLng={formDefaults.lng}
         anchorScreen={formOpen && placedCoords ? anchorScreen : null}
+        onNewTraceTagIdsChange={onNewTraceTagIdsChange}
       />
       <Dialog open={tagDialogOpen} onOpenChange={setTagDialogOpen}>
         <DialogContent className="border-[var(--panel-border)] bg-[var(--panel-bg)] backdrop-blur-xl sm:max-w-md">

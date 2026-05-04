@@ -6,7 +6,8 @@ import { supabase } from "@/lib/supabase";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { FloatingPanel } from "@/components/layout/floating-panel";
-import type { TraceWithTags } from "./trace-map";
+import { contrastingForeground } from "@/lib/utils";
+import type { TraceWithTags } from "@/lib/trace-with-tags";
 
 type TraceMapSidebarProps = {
   traceId: string;
@@ -63,7 +64,12 @@ export function TraceMapSidebar({ traceId, journalId, onClose }: TraceMapSidebar
           {tagBadges.length > 0 ? (
             <div className="flex flex-wrap gap-1">
               {tagBadges.map((t) => (
-                <Badge key={t.id} variant="secondary" style={{ borderColor: t.color }}>
+                <Badge
+                  key={t.id}
+                  variant="secondary"
+                  className="border-0"
+                  style={{ backgroundColor: t.color, color: contrastingForeground(t.color) }}
+                >
                   {t.icon_emoji} {t.name}
                 </Badge>
               ))}

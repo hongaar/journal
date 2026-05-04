@@ -1,5 +1,5 @@
-import { arrow, computePosition, flip, offset, shift, size } from "@floating-ui/dom";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { autoUpdate, computePosition, flip, offset, shift, size } from "@floating-ui/dom";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import type { Tag, Trace } from "@/types/database";
@@ -24,19 +24,14 @@ type TraceFormDialogProps = {
   trace: Trace | null;
   defaultLat?: number;
   defaultLng?: number;
-  /** For new traces: screen anchor → floating panel + arrow (no modal blur). */
+  /** For new traces: screen anchor → floating panel (no modal blur). */
   anchorScreen?: { x: number; y: number } | null;
+  /** Fires while creating a trace when tag selection changes (for map preview). */
+  onNewTraceTagIdsChange?: (tagIds: string[]) => void;
 };
 
-const ARROW_PX = 10;
-
-function staticSideForPlacement(placement: string): "top" | "right" | "bottom" | "left" {
-  const side = placement.split("-")[0] ?? "bottom";
-  if (side === "top") return "bottom";
-  if (side === "bottom") return "top";
-  if (side === "left") return "right";
-  return "left";
-}
+/** Space from map anchor (marker center) to the panel along the placement axis (~half marker + air). */
+const ANCHOR_PANEL_GAP_PX = 28;
 
 export function TraceFormDialog({
   open,
@@ -46,6 +41,7 @@ export function TraceFormDialog({
   defaultLat = 0,
   defaultLng = 0,
   anchorScreen = null,
+  onNewTraceTagIdsChange,
 }: TraceFormDialogProps) {
   const qc = useQueryClient();
   const [title, setTitle] = useState("");
@@ -56,90 +52,72 @@ export function TraceFormDialog({
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [layoutTick, setLayoutTick] = useState(0);
   const floatingRef = useRef<HTMLDivElement>(null);
-  const arrowRef = useRef<HTMLDivElement>(null);
+  const anchorRef = useRef<{ x: number; y: number } | null>(null);
 
   const floatingNew = Boolean(open && !trace && anchorScreen);
 
+  const virtualReference = useMemo(
+    () => ({
+      getBoundingClientRect() {
+        const a = anchorRef.current;
+        if (!a) return new DOMRect(0, 0, 0, 0);
+        return new DOMRect(a.x, a.y, 0, 0);
+      },
+    }),
+    [],
+  );
+
   useLayoutEffect(() => {
-    if (!floatingNew || !anchorScreen) return;
-    const floating = floatingRef.current;
-    const arrowEl = arrowRef.current;
-    if (!floating || !arrowEl) return;
+    anchorRef.current = anchorScreen;
+  }, [anchorScreen]);
 
-    const virtualRef = {
-      getBoundingClientRect: () =>
-        new DOMRect(anchorScreen.x, anchorScreen.y, 0, 0),
-    };
-
-    void computePosition(virtualRef, floating, {
-      placement: "right",
-      strategy: "fixed",
-      middleware: [
-        offset(ARROW_PX + 4),
-        flip({
-          fallbackPlacements: ["left", "top", "bottom"],
-        }),
-        shift({ padding: 12, crossAxis: true }),
-        size({
-          padding: 12,
-          apply({ availableHeight, availableWidth, elements }) {
-            const maxH = Math.max(140, availableHeight);
-            const maxW = Math.min(400, Math.max(288, availableWidth));
-            Object.assign(elements.floating.style, {
-              maxHeight: `${maxH}px`,
-              maxWidth: `${maxW}px`,
-            });
-          },
-        }),
-        arrow({ element: arrowEl, padding: 8 }),
-      ],
-    }).then((data) => {
-      const el = floatingRef.current;
-      const arr = arrowRef.current;
-      if (!el || !arr) return;
-
-      Object.assign(el.style, {
-        position: "fixed",
-        left: `${data.x}px`,
-        top: `${data.y}px`,
-        right: "auto",
-        bottom: "auto",
-      });
-
-      const ad = data.middlewareData.arrow;
-      if (!ad) return;
-
-      const { x: ax, y: ay } = ad;
-      const staticSide = staticSideForPlacement(data.placement);
-      const overlap = 1;
-
-      Object.assign(arr.style, {
-        position: "absolute",
-        width: `${ARROW_PX}px`,
-        height: `${ARROW_PX}px`,
-        boxSizing: "border-box",
-        transform: "rotate(45deg)",
-        background: "var(--panel-bg)",
-        borderLeft: "1px solid var(--panel-border)",
-        borderTop: "1px solid var(--panel-border)",
-        zIndex: "0",
-        left: ax != null ? `${ax}px` : "",
-        top: ay != null ? `${ay}px` : "",
-        right: "auto",
-        bottom: "auto",
-        [staticSide]: `${-ARROW_PX / 2 - overlap}px`,
-      });
-    });
-  }, [floatingNew, anchorScreen, layoutTick]);
-
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!floatingNew) return;
-    const onResize = () => setLayoutTick((t) => t + 1);
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, [floatingNew]);
+    const floating = floatingRef.current;
+    if (!floating || !anchorRef.current) return;
+
+    const run = () =>
+      computePosition(virtualReference, floating, {
+        placement: "right",
+        strategy: "fixed",
+        middleware: [
+          offset(ANCHOR_PANEL_GAP_PX),
+          flip({
+            fallbackPlacements: ["left", "top", "bottom"],
+          }),
+          shift({ padding: 12, crossAxis: true }),
+          size({
+            padding: 12,
+            apply({ availableHeight, availableWidth, elements }) {
+              const maxH = Math.max(140, availableHeight);
+              const maxW = Math.min(400, Math.max(288, availableWidth));
+              Object.assign(elements.floating.style, {
+                maxHeight: `${maxH}px`,
+                maxWidth: `${maxW}px`,
+              });
+            },
+          }),
+        ],
+      }).then((data) => {
+        const el = floatingRef.current;
+        if (!el) return;
+
+        Object.assign(el.style, {
+          position: "fixed",
+          left: `${data.x}px`,
+          top: `${data.y}px`,
+          right: "auto",
+          bottom: "auto",
+        });
+      });
+
+    void run();
+    return autoUpdate(virtualReference, floating, run, {
+      animationFrame: true,
+      layoutShift: true,
+    });
+  }, [floatingNew, virtualReference]);
 
   useEffect(() => {
     if (!floatingNew) return;
@@ -186,6 +164,11 @@ export function TraceFormDialog({
       setSelectedTags(new Set());
     }
   }, [open, trace, defaultLat, defaultLng]);
+
+  useEffect(() => {
+    if (!open || trace) return;
+    onNewTraceTagIdsChange?.([...selectedTags]);
+  }, [open, trace, selectedTags, onNewTraceTagIdsChange]);
 
   async function save() {
     setSaving(true);
@@ -281,7 +264,7 @@ export function TraceFormDialog({
           className="rounded-lg"
         />
       </div>
-      {trace ? (
+      {trace || !anchorScreen ? (
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-2">
             <Label htmlFor={`t-lat-${idSuffix}`}>Latitude</Label>
@@ -314,7 +297,7 @@ export function TraceFormDialog({
             </label>
           ))}
           {tagsQuery.data?.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No tags yet — add one from the map tools.</p>
+            <p className="text-muted-foreground text-sm">No tags yet — add one from the toolbar.</p>
           ) : null}
         </div>
       </div>
@@ -336,8 +319,7 @@ export function TraceFormDialog({
   if (floatingNew && anchorScreen) {
     return (
       <div ref={floatingRef} className="pointer-events-none z-[60] w-max min-w-0">
-        <div ref={arrowRef} className="pointer-events-none" aria-hidden />
-        <div className="pointer-events-auto relative z-[1]">
+        <div className="pointer-events-auto relative">
           <FloatingPanel className="max-h-[inherit] min-w-[288px] max-w-sm overflow-y-auto p-4 shadow-2xl">
             <h2 className="font-display text-foreground mb-1 text-xl font-semibold tracking-tight">New trace</h2>
             {formFields}
