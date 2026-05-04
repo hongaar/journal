@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { NavLink, useNavigate } from "react-router-dom";
-import { BookOpen, ChevronDown, Map, Plug, Plus, Settings2, User } from "lucide-react";
+import { BookOpen, Check, ChevronDown, Map, Plug, Plus, Settings2, User } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -28,6 +28,8 @@ import { FloatingPanel } from "@/components/layout/floating-panel";
 import { supabase } from "@/lib/supabase";
 import type { Profile } from "@/types/database";
 import { UserAvatar } from "@/components/user-avatar";
+import { DROPDOWN_PANEL_WIDE_CLASS } from "@/lib/dropdown-panel";
+import type { Journal } from "@/types/database";
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   cn(
@@ -35,6 +37,10 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
     "h-9 gap-1.5 rounded-xl px-3 font-medium",
     isActive && "bg-foreground/10 text-foreground",
   );
+
+function journalEmoji(journal: Journal) {
+  return journal.is_personal ? "🔒" : "📓";
+}
 
 export function FloatingNav() {
   const navigate = useNavigate();
@@ -81,50 +87,65 @@ export function FloatingNav() {
             <DropdownMenuTrigger
               className={cn(
                 buttonVariants({ variant: "ghost", size: "sm" }),
-                "h-9 max-w-[12rem] shrink gap-1 rounded-xl px-2 font-normal sm:max-w-[16rem]",
+                "h-9 max-w-[12rem] shrink gap-1.5 rounded-xl px-2 font-normal sm:max-w-[16rem]",
               )}
             >
-              <span className="truncate">{activeJournal?.name ?? "Select journal"}</span>
+              {activeJournal ? (
+                <>
+                  <span className="text-base leading-none shrink-0" aria-hidden>
+                    {journalEmoji(activeJournal)}
+                  </span>
+                  <span className="truncate">{activeJournal.name}</span>
+                </>
+              ) : (
+                <span className="truncate">Select journal</span>
+              )}
               <ChevronDown className="size-4 shrink-0 opacity-60" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-[min(calc(100vw-2rem),18rem)]">
+            <DropdownMenuContent align="start" className={DROPDOWN_PANEL_WIDE_CLASS}>
               <DropdownMenuGroup>
                 <DropdownMenuLabel>Journals</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {journals.map((j) => (
-                  <DropdownMenuItem
-                    key={j.id}
-                    className="flex cursor-pointer items-center gap-1.5 pr-1"
-                    onClick={(e) => {
-                      const el = e.target as HTMLElement;
-                      if (el.closest("[data-journal-settings-trigger]")) return;
-                      setActiveJournalId(j.id);
-                    }}
-                  >
-                    <span className={cn("min-w-0 flex-1 truncate", j.id === activeJournal?.id && "font-medium")}>
-                      {j.name}
-                      {j.is_personal ? (
-                        <span className="text-muted-foreground ml-1 text-xs font-normal">(personal)</span>
-                      ) : null}
-                    </span>
-                    <button
-                      type="button"
-                      data-journal-settings-trigger
-                      title="Journal settings"
-                      className={cn(
-                        buttonVariants({ variant: "ghost", size: "icon" }),
-                        "text-muted-foreground hover:text-foreground size-8 shrink-0 rounded-md",
-                      )}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        navigate(`/journals/${j.id}/settings`);
-                      }}
-                    >
-                      <Settings2 className="size-4" />
-                    </button>
-                  </DropdownMenuItem>
-                ))}
+                {journals.map((j) => {
+                  const selected = j.id === activeJournal?.id;
+                  return (
+                    <div key={j.id} className="flex items-center gap-0.5 rounded-md">
+                      <DropdownMenuItem
+                        className="min-w-0 flex-1 gap-1.5 pr-2"
+                        onClick={() => setActiveJournalId(j.id)}
+                      >
+                        <span className="text-base shrink-0 leading-none" aria-hidden>
+                          {journalEmoji(j)}
+                        </span>
+                        <span className={cn("min-w-0 flex-1 truncate", selected && "font-medium")}>
+                          {j.name}
+                          {j.is_personal ? (
+                            <span className="text-muted-foreground ml-1 text-xs font-normal">(personal)</span>
+                          ) : null}
+                        </span>
+                        {selected ? (
+                          <Check className="text-foreground ml-auto size-4 shrink-0" aria-hidden />
+                        ) : (
+                          <span className="ml-auto size-4 shrink-0" aria-hidden />
+                        )}
+                      </DropdownMenuItem>
+                      <button
+                        type="button"
+                        title="Journal settings"
+                        className={cn(
+                          buttonVariants({ variant: "ghost", size: "icon" }),
+                          "text-muted-foreground hover:text-foreground size-8 shrink-0 rounded-md",
+                        )}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          navigate(`/journals/${j.id}/settings`);
+                        }}
+                      >
+                        <Settings2 className="size-4" />
+                      </button>
+                    </div>
+                  );
+                })}
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => setNewJournalOpen(true)}>

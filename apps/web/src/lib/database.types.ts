@@ -100,6 +100,32 @@ export type Database = {
           },
         ]
       }
+      journal_ical_feed_tokens: {
+        Row: {
+          created_at: string
+          journal_id: string
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          journal_id: string
+          token?: string
+        }
+        Update: {
+          created_at?: string
+          journal_id?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_ical_feed_tokens_journal_id_fkey"
+            columns: ["journal_id"]
+            isOneToOne: true
+            referencedRelation: "journals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       journal_members: {
         Row: {
           created_at: string
@@ -307,36 +333,39 @@ export type Database = {
       traces: {
         Row: {
           created_at: string
+          date: string
           description: string | null
+          end_date: string | null
           id: string
           journal_id: string
           lat: number
           lng: number
           title: string | null
           updated_at: string
-          visited_at: string
         }
         Insert: {
           created_at?: string
+          date?: string
           description?: string | null
+          end_date?: string | null
           id?: string
           journal_id: string
           lat: number
           lng: number
           title?: string | null
           updated_at?: string
-          visited_at?: string
         }
         Update: {
           created_at?: string
+          date?: string
           description?: string | null
+          end_date?: string | null
           id?: string
           journal_id?: string
           lat?: number
           lng?: number
           title?: string | null
           updated_at?: string
-          visited_at?: string
         }
         Relationships: [
           {

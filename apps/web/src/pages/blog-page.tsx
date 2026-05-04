@@ -1,11 +1,9 @@
-import { useCallback, useMemo, useState, type SetStateAction } from "react";
-import { Link, useSearchParams } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
-import { useJournal } from "@/providers/journal-provider";
-import { filterTracesByTags, type TraceWithTags } from "@/lib/trace-with-tags";
+import { FloatingPanel } from "@/components/layout/floating-panel";
+import { EmojiPicker } from "@/components/traces/emoji-picker";
+import { PresetColorPicker } from "@/components/traces/preset-color-picker";
 import { TraceActionsToolbar } from "@/components/traces/trace-actions-toolbar";
 import { TraceFormDialog } from "@/components/traces/trace-form-dialog";
+import { TracePhotoLightbox, TracePhotoThumb } from "@/components/traces/trace-photo-lightbox";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,23 +14,22 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PresetColorPicker } from "@/components/traces/preset-color-picker";
-import { EmojiPicker } from "@/components/traces/emoji-picker";
-import { DEFAULT_TRACE_TAG_COLOR } from "@/lib/preset-trace-tag-colors";
-import { FloatingPanel } from "@/components/layout/floating-panel";
-import { contrastingForeground } from "@/lib/utils";
 import {
   applyFilterTagIdsToSearchParams,
   parseFilterTagIdsFromSearchParams,
 } from "@/lib/map-view-params";
-import { useJournalTracesPhotosSignedUrls } from "@/lib/use-trace-photos";
-import { TracePhotoLightbox, TracePhotoThumb } from "@/components/traces/trace-photo-lightbox";
+import { formatTraceDateRange } from "@/lib/trace-dates";
+import { DEFAULT_TRACE_TAG_COLOR } from "@/lib/preset-trace-tag-colors";
+import { supabase } from "@/lib/supabase";
 import { photosToLightboxItems } from "@/lib/trace-photo-lightbox-items";
-
-function formatBlogDate(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
-}
+import { filterTracesByTags, type TraceWithTags } from "@/lib/trace-with-tags";
+import { useJournalTracesPhotosSignedUrls } from "@/lib/use-trace-photos";
+import { contrastingForeground } from "@/lib/utils";
+import { useJournal } from "@/providers/journal-provider";
+import type { Tag } from "@/types/database";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useMemo, useState, type SetStateAction } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 
 export function BlogPage() {
   const qc = useQueryClient();
@@ -41,6 +38,7 @@ export function BlogPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [photoLightbox, setPhotoLightbox] = useState<{ traceId: string; photoId: string } | null>(null);
   const [tagDialogOpen, setTagDialogOpen] = useState(false);
+  const [tagEditTarget, setTagEditTarget] = useState<Tag | null>(null);
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState(DEFAULT_TRACE_TAG_COLOR);
   const [newTagEmoji, setNewTagEmoji] = useState("📍");
@@ -70,7 +68,7 @@ export function BlogPage() {
           trace_tags ( tag_id, tags ( id, name, color, icon_emoji ) )`,
         )
         .eq("journal_id", activeJournalId)
-        .order("visited_at", { ascending: true });
+        .order("date", { ascending: true });
       if (error) throw error;
       return (data ?? []) as TraceWithTags[];
     },
@@ -118,8 +116,26 @@ export function BlogPage() {
     return { lat: last.lat, lng: last.lng };
   }, [traces]);
 
-  async function createTag() {
+  async function saveTag() {
     if (!activeJournalId || !newTagName.trim()) return;
+    if (tagEditTarget) {
+      const { error } = await supabase
+        .from("tags")
+        .update({
+          name: newTagName.trim(),
+          color: newTagColor,
+          icon_emoji: newTagEmoji || "📍",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", tagEditTarget.id);
+      if (!error) {
+        setTagDialogOpen(false);
+        setTagEditTarget(null);
+        await qc.invalidateQueries({ queryKey: ["tags", activeJournalId] });
+        await qc.invalidateQueries({ queryKey: ["traces", activeJournalId, "blog"] });
+      }
+      return;
+    }
     const { error } = await supabase.from("tags").insert({
       journal_id: activeJournalId,
       name: newTagName.trim(),
@@ -151,7 +167,14 @@ export function BlogPage() {
         <TraceActionsToolbar
           mode="blog"
           onAddTrace={() => setFormOpen(true)}
-          onNewTag={() => setTagDialogOpen(true)}
+          onNewTag={() => {
+            setTagEditTarget(null);
+            setTagDialogOpen(true);
+          }}
+          onEditTag={(tag) => {
+            setTagEditTarget(tag);
+            setTagDialogOpen(true);
+          }}
           tags={tagsQuery.data ?? []}
           filterTagIds={filterTagIds}
           setFilterTagIds={setFilterTagIds}
@@ -166,7 +189,7 @@ export function BlogPage() {
             </p>
             <h1 className="font-display mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Traces</h1>
             <p className="text-muted-foreground mt-3 max-w-lg text-sm leading-relaxed">
-              Entries in chronological order with photos. Open a trace for full detail and uploads.
+              Traces are listed in chronological order.
             </p>
           </header>
 
@@ -193,9 +216,9 @@ export function BlogPage() {
                     <article>
                       <time
                         className="text-muted-foreground font-display text-sm font-medium tracking-wide"
-                        dateTime={t.visited_at}
+                        dateTime={t.date}
                       >
-                        {formatBlogDate(t.visited_at)}
+                        {formatTraceDateRange(t.date, t.end_date)}
                       </time>
                       <h2 className="font-display mt-2 text-2xl font-semibold tracking-tight sm:text-[1.75rem]">
                         <Link
@@ -282,10 +305,18 @@ export function BlogPage() {
         anchorScreen={null}
       />
 
-      <Dialog open={tagDialogOpen} onOpenChange={setTagDialogOpen}>
+      <Dialog
+        open={tagDialogOpen}
+        onOpenChange={(open) => {
+          setTagDialogOpen(open);
+          if (!open) setTagEditTarget(null);
+        }}
+      >
         <DialogContent className="border-[var(--panel-border)] bg-[var(--panel-bg)] backdrop-blur-xl sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="font-display text-xl font-semibold">New tag</DialogTitle>
+            <DialogTitle className="font-display text-xl font-semibold">
+              {tagEditTarget ? "Edit tag" : "New tag"}
+            </DialogTitle>
           </DialogHeader>
           <div className="grid gap-3 py-2">
             <div className="space-y-2">
@@ -306,10 +337,16 @@ export function BlogPage() {
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setTagDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setTagDialogOpen(false);
+                setTagEditTarget(null);
+              }}
+            >
               Cancel
             </Button>
-            <Button onClick={() => void createTag()}>Create tag</Button>
+            <Button onClick={() => void saveTag()}>{tagEditTarget ? "Save tag" : "Create tag"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

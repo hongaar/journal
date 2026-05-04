@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FloatingPanel } from "@/components/layout/floating-panel";
 import { mapAnchorPanelMiddleware } from "@/lib/map-anchor-floating-ui";
+import { localTodayYmd } from "@/lib/trace-dates";
 
 type TraceFormDialogProps = {
   open: boolean;
@@ -44,7 +45,8 @@ export function TraceFormDialog({
   const qc = useQueryClient();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [visitedAt, setVisitedAt] = useState("");
+  const [dateYmd, setDateYmd] = useState("");
+  const [endDateYmd, setEndDateYmd] = useState("");
   const [lat, setLat] = useState(String(defaultLat));
   const [lng, setLng] = useState(String(defaultLng));
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
@@ -129,7 +131,8 @@ export function TraceFormDialog({
     if (trace) {
       setTitle(trace.title ?? "");
       setDescription(trace.description ?? "");
-      setVisitedAt(trace.visited_at.slice(0, 16));
+      setDateYmd(trace.date);
+      setEndDateYmd(trace.end_date ?? "");
       setLat(String(trace.lat));
       setLng(String(trace.lng));
       void (async () => {
@@ -139,7 +142,8 @@ export function TraceFormDialog({
     } else {
       setTitle("");
       setDescription("");
-      setVisitedAt(new Date().toISOString().slice(0, 16));
+      setDateYmd(localTodayYmd());
+      setEndDateYmd("");
       setLat(String(defaultLat));
       setLng(String(defaultLng));
       setSelectedTags(new Set());
@@ -162,7 +166,13 @@ export function TraceFormDialog({
       return;
     }
 
-    const visitedIso = new Date(visitedAt || Date.now()).toISOString();
+    const start = dateYmd || localTodayYmd();
+    const end = endDateYmd.trim() || null;
+    if (end && end < start) {
+      setError("End date must be on or after the start date.");
+      setSaving(false);
+      return;
+    }
 
     try {
       let traceId = trace?.id;
@@ -174,7 +184,8 @@ export function TraceFormDialog({
             description: description || null,
             lat: latN,
             lng: lngN,
-            visited_at: visitedIso,
+            date: start,
+            end_date: end,
             updated_at: new Date().toISOString(),
           })
           .eq("id", trace.id);
@@ -188,7 +199,8 @@ export function TraceFormDialog({
             description: description || null,
             lat: latN,
             lng: lngN,
-            visited_at: visitedIso,
+            date: start,
+            end_date: end,
           })
           .select("id")
           .single();
@@ -236,12 +248,23 @@ export function TraceFormDialog({
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor={`t-visited-${idSuffix}`}>Visited</Label>
+        <Label htmlFor={`t-date-${idSuffix}`}>Date</Label>
         <Input
-          id={`t-visited-${idSuffix}`}
-          type="datetime-local"
-          value={visitedAt}
-          onChange={(e) => setVisitedAt(e.target.value)}
+          id={`t-date-${idSuffix}`}
+          type="date"
+          value={dateYmd}
+          onChange={(e) => setDateYmd(e.target.value)}
+          className="rounded-lg"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor={`t-end-${idSuffix}`}>End date (optional)</Label>
+        <Input
+          id={`t-end-${idSuffix}`}
+          type="date"
+          value={endDateYmd}
+          min={dateYmd || undefined}
+          onChange={(e) => setEndDateYmd(e.target.value)}
           className="rounded-lg"
         />
       </div>
@@ -278,7 +301,7 @@ export function TraceFormDialog({
             </label>
           ))}
           {tagsQuery.data?.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No tags yet — add one from the toolbar.</p>
+            <p className="text-muted-foreground text-sm">No tags yet — add one from the Tags menu.</p>
           ) : null}
         </div>
       </div>

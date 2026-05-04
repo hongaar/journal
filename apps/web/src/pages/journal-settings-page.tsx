@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/auth-provider";
 import { useJournal } from "@/providers/journal-provider";
 import { FloatingPanel } from "@/components/layout/floating-panel";
+import { PageBackButton } from "@/components/layout/page-back-button";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -73,8 +74,9 @@ export function JournalSettingsPage() {
   if (!journal) {
     return (
       <div className="h-full overflow-y-auto px-3 pt-[4.75rem] pb-10 sm:px-6 sm:pt-[5.25rem]">
-        <div className="mx-auto max-w-lg">
-          <FloatingPanel className="p-6">
+      <div className="mx-auto max-w-lg space-y-4">
+        <PageBackButton />
+        <FloatingPanel className="p-6">
             <p className="text-muted-foreground text-sm">You do not have access to this journal or it does not exist.</p>
             <Link className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-4 inline-flex rounded-xl")} to="/">
               Back to map
@@ -87,16 +89,12 @@ export function JournalSettingsPage() {
 
   return (
     <div className="h-full overflow-y-auto px-3 pt-[4.75rem] pb-10 sm:px-6 sm:pt-[5.25rem]">
-      <div className="mx-auto max-w-lg">
+      <div className="mx-auto max-w-lg space-y-4">
+        <PageBackButton />
         <FloatingPanel className="p-5 sm:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h1 className="font-display text-foreground text-2xl font-semibold tracking-tight">Journal settings</h1>
-              <p className="text-muted-foreground mt-1 text-sm">More options will land here later.</p>
-            </div>
-            <Button variant="outline" size="sm" className="rounded-xl" onClick={() => navigate(-1)}>
-              Back
-            </Button>
+          <div>
+            <h1 className="font-display text-foreground text-2xl font-semibold tracking-tight">Journal settings</h1>
+            <p className="text-muted-foreground mt-1 text-sm">More options will land here later.</p>
           </div>
 
           <div className="mt-8 space-y-4">

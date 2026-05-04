@@ -1,5 +1,6 @@
 import { useTheme } from "next-themes";
 import { FloatingPanel } from "@/components/layout/floating-panel";
+import { PageBackButton } from "@/components/layout/page-back-button";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -16,7 +17,8 @@ export function AppSettingsPage() {
 
   return (
     <div className="h-full overflow-y-auto px-3 pt-[4.75rem] pb-10 sm:px-6 sm:pt-[5.25rem]">
-      <div className="mx-auto max-w-lg">
+      <div className="mx-auto max-w-lg space-y-4">
+        <PageBackButton />
         <FloatingPanel className="p-5 sm:p-6">
           <h1 className="font-display text-foreground text-2xl font-semibold tracking-tight">Settings</h1>
           <p className="text-muted-foreground mt-1 text-sm leading-relaxed">Appearance and other preferences.</p>

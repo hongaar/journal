@@ -38,6 +38,7 @@ import {
   type MapCamera,
 } from "@/lib/map-view-params";
 import { readStoredMapCamera, writeStoredMapCamera } from "@/lib/map-camera-storage";
+import type { Tag } from "@/types/database";
 
 export function MapPage() {
   const qc = useQueryClient();
@@ -61,6 +62,7 @@ export function MapPage() {
   const [placedCoords, setPlacedCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [anchorScreen, setAnchorScreen] = useState<{ x: number; y: number } | null>(null);
   const [tagDialogOpen, setTagDialogOpen] = useState(false);
+  const [tagEditTarget, setTagEditTarget] = useState<Tag | null>(null);
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState(DEFAULT_TRACE_TAG_COLOR);
   const [newTagEmoji, setNewTagEmoji] = useState("📍");
@@ -122,7 +124,7 @@ export function MapPage() {
           photos ( id, storage_path, sort_order )`,
         )
         .eq("journal_id", activeJournalId)
-        .order("visited_at", { ascending: false });
+        .order("date", { ascending: false });
       if (error) throw error;
       return (data ?? []) as TraceWithTags[];
     },
@@ -230,8 +232,26 @@ export function MapPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [sidebarTraceId, setSearchParams]);
 
-  async function createTag() {
+  async function saveTag() {
     if (!activeJournalId || !newTagName.trim()) return;
+    if (tagEditTarget) {
+      const { error } = await supabase
+        .from("tags")
+        .update({
+          name: newTagName.trim(),
+          color: newTagColor,
+          icon_emoji: newTagEmoji || "📍",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", tagEditTarget.id);
+      if (!error) {
+        setTagDialogOpen(false);
+        setTagEditTarget(null);
+        await qc.invalidateQueries({ queryKey: ["tags", activeJournalId] });
+        await qc.invalidateQueries({ queryKey: ["traces", activeJournalId] });
+      }
+      return;
+    }
     const { error } = await supabase.from("tags").insert({
       journal_id: activeJournalId,
       name: newTagName.trim(),
@@ -305,7 +325,20 @@ export function MapPage() {
           mode="map"
           placementActive={placementActive}
           onAddTrace={toggleAddTracePlacement}
-          onNewTag={() => setTagDialogOpen(true)}
+          onNewTag={() => {
+            setTagEditTarget(null);
+            setNewTagName("");
+            setNewTagColor(DEFAULT_TRACE_TAG_COLOR);
+            setNewTagEmoji("📍");
+            setTagDialogOpen(true);
+          }}
+          onEditTag={(tag) => {
+            setTagEditTarget(tag);
+            setNewTagName(tag.name);
+            setNewTagColor(tag.color);
+            setNewTagEmoji(tag.icon_emoji || "📍");
+            setTagDialogOpen(true);
+          }}
           onFitVisible={onFitVisibleTraces}
           tags={tagsQuery.data ?? []}
           filterTagIds={filterTagIds}
@@ -340,10 +373,18 @@ export function MapPage() {
         anchorScreen={formOpen && placedCoords ? anchorScreen : null}
         onNewTraceTagIdsChange={onNewTraceTagIdsChange}
       />
-      <Dialog open={tagDialogOpen} onOpenChange={setTagDialogOpen}>
+      <Dialog
+        open={tagDialogOpen}
+        onOpenChange={(open) => {
+          setTagDialogOpen(open);
+          if (!open) setTagEditTarget(null);
+        }}
+      >
         <DialogContent className="border-[var(--panel-border)] bg-[var(--panel-bg)] backdrop-blur-xl sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="font-display text-xl font-semibold">New tag</DialogTitle>
+            <DialogTitle className="font-display text-xl font-semibold">
+              {tagEditTarget ? "Edit tag" : "New tag"}
+            </DialogTitle>
           </DialogHeader>
           <div className="grid gap-3 py-2">
             <div className="space-y-2">
@@ -354,10 +395,16 @@ export function MapPage() {
             <EmojiPicker id="tag-emoji" label="Icon (emoji)" value={newTagEmoji} onChange={setNewTagEmoji} />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setTagDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setTagDialogOpen(false);
+                setTagEditTarget(null);
+              }}
+            >
               Cancel
             </Button>
-            <Button onClick={() => void createTag()}>Create tag</Button>
+            <Button onClick={() => void saveTag()}>{tagEditTarget ? "Save tag" : "Create tag"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

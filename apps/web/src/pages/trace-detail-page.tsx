@@ -3,15 +3,17 @@ import { TracePhotoLightbox, TracePhotoThumb } from "@/components/traces/trace-p
 import { photosToLightboxItems } from "@/lib/trace-photo-lightbox-items";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Pencil, Upload } from "lucide-react";
+import { Pencil, Upload } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useJournal } from "@/providers/journal-provider";
 import type { Trace } from "@/types/database";
 import { useTracePhotosSignedUrls } from "@/lib/use-trace-photos";
 import { TraceFormDialog } from "@/components/traces/trace-form-dialog";
+import { PageBackButton } from "@/components/layout/page-back-button";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { formatTraceDateRange } from "@/lib/trace-dates";
 import { contrastingForeground } from "@/lib/utils";
 
 type TraceRow = Trace & {
@@ -110,18 +112,7 @@ export function TraceDetailPage() {
   return (
     <div className="h-full overflow-y-auto px-3 pt-[4.75rem] pb-10 sm:px-6 sm:pt-[5.25rem]">
       <div className="mx-auto max-w-2xl space-y-4">
-        <button
-          type="button"
-          className={buttonVariants({
-            variant: "secondary",
-            size: "sm",
-            className: "inline-flex gap-1.5 rounded-xl border-0 bg-foreground/5 shadow-sm hover:bg-foreground/10",
-          })}
-          onClick={() => navigate(-1)}
-        >
-          <ArrowLeft className="size-4" />
-          Back
-        </button>
+        <PageBackButton />
         <Card className="border-[var(--panel-border)] bg-[var(--panel-bg)] shadow-[var(--panel-shadow)] backdrop-blur-xl">
           <CardHeader className="flex flex-row items-start justify-between gap-2">
           <div>
@@ -129,7 +120,7 @@ export function TraceDetailPage() {
               {trace.title || "Untitled place"}
             </CardTitle>
             <p className="text-muted-foreground mt-1 text-sm">
-              {new Date(trace.visited_at).toLocaleString()} · {trace.lat.toFixed(5)}, {trace.lng.toFixed(5)}
+              {formatTraceDateRange(trace.date, trace.end_date)} · {trace.lat.toFixed(5)}, {trace.lng.toFixed(5)}
             </p>
             <div className="mt-2 flex flex-wrap gap-1">
               {tagBadges.map((t) => (

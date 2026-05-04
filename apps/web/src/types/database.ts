@@ -34,9 +34,18 @@ export type Trace = {
   description: string | null;
   lat: number;
   lng: number;
-  visited_at: string;
+  /** Start calendar day (YYYY-MM-DD). */
+  date: string;
+  /** Inclusive end day, optional; must be >= date when set. */
+  end_date: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type JournalIcalFeedToken = {
+  journal_id: string;
+  token: string;
+  created_at: string;
 };
 
 export type Tag = {
@@ -112,6 +121,11 @@ export type Database = {
         Row: JournalConnector;
         Insert: Omit<JournalConnector, "id" | "created_at" | "updated_at"> & { id?: string };
         Update: Partial<JournalConnector>;
+      };
+      journal_ical_feed_tokens: {
+        Row: JournalIcalFeedToken;
+        Insert: { journal_id: string; token?: string };
+        Update: Partial<Pick<JournalIcalFeedToken, "token">>;
       };
     };
     Views: Record<string, never>;

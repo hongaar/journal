@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { FloatingPanel } from "@/components/layout/floating-panel";
+import { formatTraceDateRange } from "@/lib/trace-dates";
 import { contrastingForeground } from "@/lib/utils";
 import type { TraceWithTags } from "@/lib/trace-with-tags";
 import { useTracePhotosSignedUrls } from "@/lib/use-trace-photos";
@@ -67,7 +68,7 @@ export function TraceMapSidebar({ traceId, journalId, onClose }: TraceMapSidebar
       ) : (
         <>
           <p className="text-muted-foreground text-sm">
-            {new Date(trace.visited_at).toLocaleString()} · {trace.lat.toFixed(4)}, {trace.lng.toFixed(4)}
+            {formatTraceDateRange(trace.date, trace.end_date)} · {trace.lat.toFixed(4)}, {trace.lng.toFixed(4)}
           </p>
           {tagBadges.length > 0 ? (
             <div className="flex flex-wrap gap-1">

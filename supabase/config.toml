@@ -13,3 +13,7 @@ enabled = true
 # Local dev: sign up without confirming email in Mailpit (optional).
 [auth.email]
 enable_confirmations = false
+
+# Public iCalendar fetch (token in query); no Authorization header from calendar clients.
+[functions.ical-feed]
+verify_jwt = false

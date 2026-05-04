@@ -1,11 +1,15 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { Json } from "@/lib/database.types";
 import { supabase } from "@/lib/supabase";
 import { useJournal } from "@/providers/journal-provider";
 import { getConnectorDefinition } from "@/connectors/registry";
+import { journalConnectorConfigObject, mergeJournalConnectorConfig } from "@/connectors/journal-config";
+import { ConnectorJournalSettings } from "@/connectors/journal-settings/connector-journal-settings";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import type { ConnectorType, JournalConnector } from "@/types/database";
 import { FloatingPanel } from "@/components/layout/floating-panel";
+import { PageBackButton } from "@/components/layout/page-back-button";
 
 function ConnectorRow({
   ct,
@@ -38,8 +42,11 @@ function ConnectorRow({
         <Switch
           id={`sw-${ct.id}`}
           checked={enabled}
-          disabled={!journalId}
-          onCheckedChange={(c) => onToggle(c === true)}
+          disabled={!journalId || !implemented}
+          onCheckedChange={(c) => {
+            if (!implemented) return;
+            onToggle(c === true);
+          }}
         />
       </div>
     </div>
@@ -75,13 +82,19 @@ export function ConnectorsPage() {
 
   async function toggle(connectorTypeId: string, enabled: boolean) {
     if (!activeJournalId) return;
+    const jc = connectorsQuery.data?.find((c) => c.connector_type_id === connectorTypeId);
+    const config = mergeJournalConnectorConfig(
+      connectorTypeId,
+      journalConnectorConfigObject(jc),
+      {},
+    ) as Json;
     const { error } = await supabase.from("journal_connectors").upsert(
       {
         journal_id: activeJournalId,
         connector_type_id: connectorTypeId,
         enabled,
-        config: {},
-        status: "disabled",
+        config,
+        status: enabled ? "connected" : "disabled",
       },
       { onConflict: "journal_id,connector_type_id" },
     );
@@ -92,25 +105,32 @@ export function ConnectorsPage() {
 
   return (
     <div className="h-full overflow-y-auto px-3 pt-[4.75rem] pb-10 sm:px-6 sm:pt-[5.25rem]">
-      <div className="mx-auto max-w-2xl">
+      <div className="mx-auto max-w-2xl space-y-4">
+        <PageBackButton />
         <FloatingPanel className="p-5 sm:p-6">
           <div className="mb-4">
             <h1 className="font-display text-foreground text-2xl font-semibold tracking-tight">Connectors</h1>
             <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
-              Enable integrations for this journal. Actual sync with Google Maps, OsmAnd, Google Photos, and Immich will
-              ship later.
+              Enable integrations for this journal. iCalendar publishing is available; other connectors will ship later.
             </p>
           </div>
           <div>
-            {(typesQuery.data ?? []).map((ct) => (
-              <ConnectorRow
-                key={ct.id}
-                ct={ct}
-                journalId={activeJournalId ?? ""}
-                jc={connectorsQuery.data?.find((c) => c.connector_type_id === ct.id)}
-                onToggle={(en) => void toggle(ct.id, en)}
-              />
-            ))}
+            {(typesQuery.data ?? []).map((ct) => {
+              const jc = connectorsQuery.data?.find((c) => c.connector_type_id === ct.id);
+              return (
+                <div key={ct.id}>
+                  <ConnectorRow
+                    ct={ct}
+                    journalId={activeJournalId ?? ""}
+                    jc={jc}
+                    onToggle={(en) => void toggle(ct.id, en)}
+                  />
+                  {getConnectorDefinition(ct.id)?.implemented && jc?.enabled ? (
+                    <ConnectorJournalSettings connectorTypeId={ct.id} journalId={activeJournalId ?? ""} jc={jc} />
+                  ) : null}
+                </div>
+              );
+            })}
           </div>
         </FloatingPanel>
       </div>

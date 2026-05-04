@@ -26,11 +26,11 @@ export const connectorRegistry: ConnectorRegistry = {
     capabilities: ["calendar_traces"],
     implemented: false,
   },
-  ics: {
+  ical: {
     id: "ical",
     displayName: "iCalendar",
     capabilities: ["export_ics"],
-    implemented: false,
+    implemented: true,
   },
 };
 
