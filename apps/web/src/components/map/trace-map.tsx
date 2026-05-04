@@ -1,11 +1,47 @@
+import { FloatingPanel } from "@/components/layout/floating-panel";
+import { supabase } from "@/lib/supabase";
 import { cn, contrastingForeground } from "@/lib/utils";
 import maplibregl from "maplibre-gl";
+import { useQuery } from "@tanstack/react-query";
 import { filterTracesByTags, type TraceWithTags } from "@/lib/trace-with-tags";
 import type { MapCamera } from "@/lib/map-view-params";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useTheme } from "next-themes";
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+
+const HOVER_PHOTO_COUNT = 2;
+const HOVER_LEAVE_MS = 140;
+const HOVER_DESC_MAX_CHARS = 220;
+
+/** Marker hover preview: screen x/y updated while the map camera moves. */
+type TraceHoverPreview = { trace: TraceWithTags; lng: number; lat: number; x: number; y: number };
+
+function firstPhotosForPreview(trace: TraceWithTags) {
+  const rows = trace.photos ?? [];
+  return [...rows]
+    .filter((p): p is (typeof rows)[number] & { storage_path: string } => Boolean(p.storage_path))
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .slice(0, HOVER_PHOTO_COUNT);
+}
+
+function useMarkerHoverPhotoUrls(trace: TraceWithTags | null) {
+  const slice = useMemo(() => (trace ? firstPhotosForPreview(trace) : []), [trace]);
+
+  return useQuery({
+    queryKey: ["map-marker-hover-photo-urls", trace?.id, slice.map((p) => p.id).join("|")],
+    queryFn: async () => {
+      const out: string[] = [];
+      for (const p of slice) {
+        const { data, error } = await supabase.storage.from("trace-photos").createSignedUrl(p.storage_path, 3600);
+        if (!error && data?.signedUrl) out.push(data.signedUrl);
+      }
+      return out;
+    },
+    enabled: Boolean(trace?.id && slice.length > 0),
+    staleTime: 300_000,
+  });
+}
 
 export type { TraceWithTags };
 
@@ -122,6 +158,8 @@ export const TraceMap = forwardRef<TraceMapHandle, TraceMapProps>(function Trace
   const { resolvedTheme } = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
+  const leaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [traceHover, setTraceHover] = useState<TraceHoverPreview | null>(null);
   const appliedMapStyleUrlRef = useRef<string>("");
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const previewMarkerRef = useRef<maplibregl.Marker | null>(null);
@@ -134,6 +172,65 @@ export const TraceMap = forwardRef<TraceMapHandle, TraceMapProps>(function Trace
   const filtered = useMemo(() => filterTracesByTags(traces, selectedTagIds), [traces, selectedTagIds]);
   const filteredRef = useRef(filtered);
   filteredRef.current = filtered;
+
+  const cancelHidePreview = useCallback(() => {
+    if (leaveTimerRef.current) {
+      clearTimeout(leaveTimerRef.current);
+      leaveTimerRef.current = null;
+    }
+  }, []);
+
+  const requestHidePreview = useCallback(() => {
+    if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
+    leaveTimerRef.current = setTimeout(() => {
+      leaveTimerRef.current = null;
+      setTraceHover(null);
+    }, HOVER_LEAVE_MS);
+  }, []);
+
+  useEffect(() => () => cancelHidePreview(), [cancelHidePreview]);
+
+  const hoverPhotoUrlsQuery = useMarkerHoverPhotoUrls(traceHover?.trace ?? null);
+  const hoverPreviewPhotos = useMemo(
+    () => (traceHover ? firstPhotosForPreview(traceHover.trace) : []),
+    [traceHover],
+  );
+
+  const traceHoverAnchorId = traceHover?.trace.id;
+  const traceHoverLng = traceHover?.lng;
+  const traceHoverLat = traceHover?.lat;
+
+  useEffect(() => {
+    if (traceHoverAnchorId === undefined || traceHoverLng === undefined || traceHoverLat === undefined) return;
+
+    const map = mapRef.current;
+    const el = containerRef.current;
+    if (!map || !el) return;
+
+    const traceId = traceHoverAnchorId;
+    const lng = traceHoverLng;
+    const lat = traceHoverLat;
+
+    const project = () => {
+      const p = map.project([lng, lat]);
+      const r = el.getBoundingClientRect();
+      setTraceHover((h) => (h && h.trace.id === traceId ? { ...h, x: r.left + p.x, y: r.top + p.y } : h));
+    };
+
+    project();
+    map.on("move", project);
+    map.on("zoom", project);
+    map.on("rotate", project);
+    map.on("pitch", project);
+    window.addEventListener("resize", project);
+    return () => {
+      map.off("move", project);
+      map.off("zoom", project);
+      map.off("rotate", project);
+      map.off("pitch", project);
+      window.removeEventListener("resize", project);
+    };
+  }, [traceHoverAnchorId, traceHoverLng, traceHoverLat]);
 
   useImperativeHandle(
     ref,
@@ -308,7 +405,7 @@ export const TraceMap = forwardRef<TraceMapHandle, TraceMapProps>(function Trace
       const emoji = tag0?.icon_emoji ?? "📍";
       const el = document.createElement("button");
       el.type = "button";
-      el.title = t.title ?? "Trace";
+      el.setAttribute("aria-label", t.title?.trim() || "Open trace");
       styleTraceMarkerFace(el, {
         emoji,
         fill,
@@ -319,10 +416,33 @@ export const TraceMap = forwardRef<TraceMapHandle, TraceMapProps>(function Trace
         e.stopPropagation();
         onSelectTrace(t.id);
       });
+      el.addEventListener("mouseenter", () => {
+        cancelHidePreview();
+        const mapInst = mapRef.current;
+        const wrap = containerRef.current;
+        let x = 0;
+        let y = 0;
+        if (mapInst && wrap) {
+          const p = mapInst.project([t.lng, t.lat]);
+          const r = wrap.getBoundingClientRect();
+          x = r.left + p.x;
+          y = r.top + p.y;
+        }
+        setTraceHover({ trace: t, lng: t.lng, lat: t.lat, x, y });
+      });
+      el.addEventListener("mouseleave", () => {
+        requestHidePreview();
+      });
       const marker = new maplibregl.Marker({ element: el }).setLngLat([t.lng, t.lat]).addTo(map);
       markersRef.current.push(marker);
     }
-  }, [filtered, onSelectTrace, selectedTraceId]);
+
+    setTraceHover((h) => {
+      if (!h) return null;
+      if (!filtered.some((x) => x.id === h.trace.id)) return null;
+      return h;
+    });
+  }, [filtered, onSelectTrace, selectedTraceId, cancelHidePreview, requestHidePreview]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -350,11 +470,61 @@ export const TraceMap = forwardRef<TraceMapHandle, TraceMapProps>(function Trace
     };
   }, [previewPin]);
 
+  const hoverTitle = traceHover?.trace.title?.trim() || "Untitled place";
+  const rawDesc = traceHover?.trace.description?.trim() ?? "";
+  const hoverDesc =
+    rawDesc.length > HOVER_DESC_MAX_CHARS ? `${rawDesc.slice(0, HOVER_DESC_MAX_CHARS - 1).trimEnd()}…` : rawDesc;
+  const hoverUrls = hoverPhotoUrlsQuery.data ?? [];
+
   return (
-    <div
-      ref={containerRef}
-      className={cn("h-full min-h-0 w-full min-w-0", placementMode && "ring-2 ring-primary/50", className)}
-    />
+    <div className={cn("relative h-full min-h-0 w-full min-w-0", className)}>
+      <div
+        ref={containerRef}
+        className={cn("absolute inset-0 min-h-0 min-w-0", placementMode && "ring-2 ring-primary/50")}
+      />
+      {traceHover ? (
+        <div
+          className="pointer-events-auto fixed z-[60] w-[min(18rem,calc(100vw-1.5rem))]"
+          style={{
+            left: traceHover.x,
+            top: traceHover.y,
+            transform: "translate(-50%, calc(-100% - 10px))",
+          }}
+          onMouseEnter={cancelHidePreview}
+          onMouseLeave={requestHidePreview}
+        >
+          <FloatingPanel className="border-[var(--panel-border)] p-3 shadow-2xl">
+            <p className="font-display text-foreground text-sm leading-snug font-semibold tracking-tight">{hoverTitle}</p>
+            {hoverDesc ? (
+              <p className="text-muted-foreground mt-1.5 max-h-24 overflow-y-auto text-xs leading-relaxed whitespace-pre-wrap">
+                {hoverDesc}
+              </p>
+            ) : null}
+            {hoverPreviewPhotos.length > 0 ? (
+              <div className="mt-2.5 flex gap-1.5">
+                {hoverPreviewPhotos.map((p, i) => (
+                  <div
+                    key={p.id}
+                    className="bg-muted relative aspect-square min-h-0 flex-1 overflow-hidden rounded-lg"
+                  >
+                    {hoverUrls[i] ? (
+                      <img
+                        src={hoverUrls[i]}
+                        alt=""
+                        className="size-full object-cover"
+                        draggable={false}
+                      />
+                    ) : (
+                      <div className="bg-muted flex size-full min-h-[4.5rem] animate-pulse items-center justify-center" />
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </FloatingPanel>
+        </div>
+      ) : null}
+    </div>
   );
 });
 

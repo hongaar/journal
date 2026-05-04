@@ -4,7 +4,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Pencil, Upload } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useJournal } from "@/providers/journal-provider";
-import type { Photo, Trace } from "@/types/database";
+import type { Trace } from "@/types/database";
+import { useTracePhotosSignedUrls } from "@/lib/use-trace-photos";
 import { TraceFormDialog } from "@/components/traces/trace-form-dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,37 +41,7 @@ export function TraceDetailPage() {
     enabled: Boolean(traceId),
   });
 
-  const photosQuery = useQuery({
-    queryKey: ["photos", traceId],
-    queryFn: async () => {
-      if (!traceId) return [];
-      const { data, error } = await supabase.from("photos").select("*").eq("trace_id", traceId).order("sort_order");
-      if (error) throw error;
-      return (data ?? []) as Photo[];
-    },
-    enabled: Boolean(traceId),
-  });
-
-  const photoIdsKey = (photosQuery.data ?? [])
-    .map((p) => `${p.id}:${p.storage_path ?? ""}`)
-    .join("|");
-
-  const signedUrls = useQuery({
-    queryKey: ["photo-urls", traceId, photoIdsKey],
-    queryFn: async () => {
-      const photos = photosQuery.data ?? [];
-      const out: Record<string, string> = {};
-      for (const p of photos) {
-        if (!p.storage_path) continue;
-        const { data, error } = await supabase.storage
-          .from("trace-photos")
-          .createSignedUrl(p.storage_path, 3600);
-        if (!error && data?.signedUrl) out[p.id] = data.signedUrl;
-      }
-      return out;
-    },
-    enabled: Boolean(traceId) && (photosQuery.data?.length ?? 0) > 0,
-  });
+  const { photos, signedUrlByPhotoId } = useTracePhotosSignedUrls(traceId);
 
   const trace = traceQuery.data;
   const wrongJournal = trace && activeJournalId && trace.journal_id !== activeJournalId;
@@ -82,7 +53,7 @@ export function TraceDetailPage() {
 
   async function onUploadPhotos(files: FileList | null) {
     if (!files?.length || !trace || !activeJournalId) return;
-    let sort = (photosQuery.data ?? []).length;
+    let sort = photos.length;
     for (const file of Array.from(files)) {
       const path = `${activeJournalId}/${trace.id}/${crypto.randomUUID()}-${file.name.replace(/[^\w.-]+/g, "_")}`;
       const { error: upErr } = await supabase.storage.from("trace-photos").upload(path, file, {
@@ -102,6 +73,10 @@ export function TraceDetailPage() {
     }
     await qc.invalidateQueries({ queryKey: ["photos", traceId] });
     await qc.invalidateQueries({ queryKey: ["photo-urls", traceId] });
+    if (activeJournalId) {
+      await qc.invalidateQueries({ queryKey: ["journal-trace-photos", activeJournalId] });
+      await qc.invalidateQueries({ queryKey: ["photo-urls-batch", activeJournalId] });
+    }
   }
 
   if (traceQuery.isLoading) {
@@ -174,8 +149,8 @@ export function TraceDetailPage() {
           <div>
             <h3 className="mb-2 text-sm font-medium">Photos</h3>
             <div className="flex flex-wrap gap-2">
-              {(photosQuery.data ?? []).map((p) => {
-                const url = signedUrls.data?.[p.id];
+              {photos.map((p) => {
+                const url = signedUrlByPhotoId[p.id];
                 return url ? (
                   <a key={p.id} href={url} target="_blank" rel="noreferrer" className="block">
                     <img src={url} alt="" className="h-24 w-24 rounded-md border object-cover" />

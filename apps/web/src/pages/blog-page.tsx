@@ -22,6 +22,7 @@ import {
   applyFilterTagIdsToSearchParams,
   parseFilterTagIdsFromSearchParams,
 } from "@/lib/map-view-params";
+import { useJournalTracesPhotosSignedUrls } from "@/lib/use-trace-photos";
 
 function formatBlogDate(iso: string) {
   const d = new Date(iso);
@@ -87,6 +88,11 @@ export function BlogPage() {
 
   const traces = useMemo(() => tracesQuery.data ?? [], [tracesQuery.data]);
   const visible = useMemo(() => filterTracesByTags(traces, filterTagIds), [traces, filterTagIds]);
+  const visibleTraceIds = useMemo(() => visible.map((t) => t.id), [visible]);
+  const { photosByTraceId, signedUrlByPhotoId } = useJournalTracesPhotosSignedUrls(
+    activeJournalId ?? undefined,
+    visibleTraceIds,
+  );
 
   const formDefaults = useMemo(() => {
     if (traces.length === 0) return { lat: 20, lng: 0 };
@@ -142,7 +148,7 @@ export function BlogPage() {
             </p>
             <h1 className="font-display mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Traces</h1>
             <p className="text-muted-foreground mt-3 max-w-lg text-sm leading-relaxed">
-              Entries in chronological order. Open a trace for photos and full detail.
+              Entries in chronological order with photos. Open a trace for full detail and uploads.
             </p>
           </header>
 
@@ -163,6 +169,7 @@ export function BlogPage() {
                   color: string;
                   icon_emoji: string;
                 }[];
+                const tracePhotos = photosByTraceId.get(t.id) ?? [];
                 return (
                   <li key={t.id}>
                     <article>
@@ -199,6 +206,24 @@ export function BlogPage() {
                       ) : null}
                       {t.description?.trim() ? (
                         <p className="text-muted-foreground mt-4 text-base leading-relaxed">{t.description.trim()}</p>
+                      ) : null}
+                      {tracePhotos.length > 0 ? (
+                        <ul className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                          {tracePhotos.map((p) => {
+                            const url = signedUrlByPhotoId[p.id];
+                            return url ? (
+                              <li key={p.id} className="overflow-hidden rounded-xl border">
+                                <Link to={`/traces/${t.id}`} className="block aspect-square">
+                                  <img src={url} alt="" className="size-full object-cover transition-opacity hover:opacity-95" />
+                                </Link>
+                              </li>
+                            ) : (
+                              <li key={p.id}>
+                                <div className="bg-muted aspect-square animate-pulse rounded-xl border" />
+                              </li>
+                            );
+                          })}
+                        </ul>
                       ) : null}
                       <div className="mt-5">
                         <Link

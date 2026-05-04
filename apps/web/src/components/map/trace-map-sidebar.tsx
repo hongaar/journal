@@ -8,6 +8,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { FloatingPanel } from "@/components/layout/floating-panel";
 import { contrastingForeground } from "@/lib/utils";
 import type { TraceWithTags } from "@/lib/trace-with-tags";
+import { useTracePhotosSignedUrls } from "@/lib/use-trace-photos";
 
 type TraceMapSidebarProps = {
   traceId: string;
@@ -34,6 +35,7 @@ export function TraceMapSidebar({ traceId, journalId, onClose }: TraceMapSidebar
   });
 
   const trace = traceQuery.data;
+  const { photos, signedUrlByPhotoId } = useTracePhotosSignedUrls(traceId);
   const wrongJournal = trace && journalId && trace.journal_id !== journalId;
 
   const tagBadges = useMemo(() => {
@@ -77,6 +79,29 @@ export function TraceMapSidebar({ traceId, journalId, onClose }: TraceMapSidebar
           ) : null}
           {trace.description ? (
             <p className="text-foreground max-h-40 overflow-y-auto text-sm whitespace-pre-wrap">{trace.description}</p>
+          ) : null}
+          {photos.length > 0 ? (
+            <div className="min-h-0 shrink-0">
+              <p className="text-muted-foreground mb-1.5 text-xs font-medium tracking-wide uppercase">Photos</p>
+              <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {photos.map((p) => {
+                  const url = signedUrlByPhotoId[p.id];
+                  return url ? (
+                    <a
+                      key={p.id}
+                      href={url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="border-border shrink-0 overflow-hidden rounded-lg border"
+                    >
+                      <img src={url} alt="" className="size-20 object-cover sm:size-24" />
+                    </a>
+                  ) : (
+                    <div key={p.id} className="bg-muted size-20 shrink-0 animate-pulse rounded-lg border sm:size-24" />
+                  );
+                })}
+              </div>
+            </div>
           ) : null}
           <Link
             to={`/traces/${trace.id}`}

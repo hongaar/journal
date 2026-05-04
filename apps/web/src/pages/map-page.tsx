@@ -115,7 +115,8 @@ export function MapPage() {
         .from("traces")
         .select(
           `*,
-          trace_tags ( tag_id, tags ( id, name, color, icon_emoji ) )`,
+          trace_tags ( tag_id, tags ( id, name, color, icon_emoji ) ),
+          photos ( id, storage_path, sort_order )`,
         )
         .eq("journal_id", activeJournalId)
         .order("visited_at", { ascending: false });
