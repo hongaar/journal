@@ -3,7 +3,10 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-const brandPkgRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const brandPkgRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+);
 const repoRoot = path.resolve(brandPkgRoot, "..", "..");
 const mobileRoot = path.join(repoRoot, "apps", "mobile");
 
@@ -21,7 +24,12 @@ await fs.mkdir(assetInputDir, { recursive: true });
 await fs.writeFile(path.join(assetInputDir, "icon.svg"), logoSvg);
 await fs.writeFile(path.join(assetInputDir, "icon-dark.svg"), logoSvg);
 
-const capacitorAssetsBin = path.join(repoRoot, "node_modules", ".bin", "capacitor-assets");
+const capacitorAssetsBin = path.join(
+  repoRoot,
+  "node_modules",
+  ".bin",
+  "capacitor-assets",
+);
 
 const args = [
   "generate",

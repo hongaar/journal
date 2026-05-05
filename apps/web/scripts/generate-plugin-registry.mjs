@@ -10,11 +10,15 @@ const webPkgJsonPath = path.join(webRoot, "package.json");
 
 /** @param {string} pkgName */
 function isPluginPackage(pkgName) {
-  return /^@curolia\/plugin-/.test(pkgName) && pkgName !== "@curolia/plugin-contract";
+  return (
+    /^@curolia\/plugin-/.test(pkgName) && pkgName !== "@curolia/plugin-contract"
+  );
 }
 
 const webPkgJson = JSON.parse(fs.readFileSync(webPkgJsonPath, "utf8"));
-const deps = Object.keys(webPkgJson.dependencies ?? {}).filter(isPluginPackage).sort();
+const deps = Object.keys(webPkgJson.dependencies ?? {})
+  .filter(isPluginPackage)
+  .sort();
 
 const imports = deps
   .map(
@@ -34,4 +38,6 @@ ${manifests}
 `;
 
 fs.writeFileSync(outPath, source, "utf8");
-console.log(`generated ${path.relative(webRoot, outPath)} with ${deps.length} plugin(s)`);
+console.log(
+  `generated ${path.relative(webRoot, outPath)} with ${deps.length} plugin(s)`,
+);
