@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { TraceGooglePhotosSuggestions } from "@/components/traces/trace-google-photos-suggestions";
 import { TracePhotoLightbox, TracePhotoThumb } from "@/components/traces/trace-photo-lightbox";
 import { photosToLightboxItems } from "@/lib/trace-photo-lightbox-items";
 import { useNavigate, useParams } from "react-router-dom";
@@ -182,6 +183,7 @@ export function TraceDetailPage() {
                 />
               </label>
             </div>
+            <TraceGooglePhotosSuggestions traceId={trace.id} journalId={trace.journal_id} />
           </div>
           <TraceMetadataFooter
             createdAt={trace.created_at}

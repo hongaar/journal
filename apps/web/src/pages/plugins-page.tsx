@@ -1,8 +1,13 @@
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
+import { toast } from "sonner";
 import type { Json } from "@/lib/database.types";
+import { startPluginOAuth } from "@/lib/plugin-oauth-start";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/auth-provider";
 import { getPluginDefinition } from "@/plugins/registry";
+import { Button } from "@curolia/ui/button";
 import { Switch } from "@curolia/ui/switch";
 import { Label } from "@curolia/ui/label";
 import type { PluginType, UserPlugin } from "@/types/database";
@@ -14,15 +19,21 @@ function PluginRow({
   up,
   onToggle,
   toggleDisabled,
+  onLinkGooglePhotos,
+  linkGooglePhotosBusy,
 }: {
   ct: PluginType;
   up: UserPlugin | undefined;
   onToggle: (enabled: boolean) => void;
   toggleDisabled: boolean;
+  onLinkGooglePhotos?: () => void;
+  linkGooglePhotosBusy?: boolean;
 }) {
   const def = getPluginDefinition(ct.id);
   const implemented = def?.implemented ?? false;
   const enabled = up?.enabled ?? false;
+  const showGoogleLink =
+    ct.id === "google_photos" && implemented && enabled && typeof onLinkGooglePhotos === "function";
 
   return (
     <div className="flex flex-col gap-2 border-b border-border/60 py-4 last:border-0 sm:flex-row sm:items-center sm:justify-between">
@@ -33,7 +44,19 @@ function PluginRow({
           <p className="text-muted-foreground mt-1 text-xs">Sync and linking are not implemented yet.</p>
         ) : null}
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {showGoogleLink ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="rounded-xl"
+            disabled={linkGooglePhotosBusy}
+            onClick={onLinkGooglePhotos}
+          >
+            Link Google Photos
+          </Button>
+        ) : null}
         <Label htmlFor={`sw-${ct.id}`} className="text-muted-foreground text-sm">
           Enabled
         </Label>
@@ -54,6 +77,35 @@ function PluginRow({
 export function PluginsPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [oauthBusy, setOauthBusy] = useState(false);
+
+  useEffect(() => {
+    const status = searchParams.get("plugin_oauth");
+    if (!status) return;
+    const reason = searchParams.get("reason");
+    if (status === "success") {
+      toast.success("Google Photos linked.");
+    } else if (status === "error") {
+      toast.error(reason ? `Could not complete linking (${reason}).` : "Could not complete linking.");
+    }
+    const next = new URLSearchParams(searchParams);
+    next.delete("plugin_oauth");
+    next.delete("reason");
+    setSearchParams(next, { replace: true });
+    void qc.invalidateQueries({ queryKey: ["user_plugins", user?.id] });
+  }, [searchParams, setSearchParams, qc, user?.id]);
+
+  async function linkGooglePhotos() {
+    setOauthBusy(true);
+    try {
+      const redirect = `${window.location.origin}/settings/plugins`;
+      await startPluginOAuth("google_photos", redirect);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "OAuth failed");
+      setOauthBusy(false);
+    }
+  }
 
   const typesQuery = useQuery({
     queryKey: ["plugin_types"],
@@ -117,6 +169,8 @@ export function PluginsPage() {
                   up={up}
                   onToggle={(en) => void toggle(ct.id, en)}
                   toggleDisabled={!user || userPluginsQuery.isLoading}
+                  onLinkGooglePhotos={ct.id === "google_photos" ? () => void linkGooglePhotos() : undefined}
+                  linkGooglePhotosBusy={oauthBusy}
                 />
               );
             })}

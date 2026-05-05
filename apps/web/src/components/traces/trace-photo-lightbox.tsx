@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, ExternalLink, X } from "lucide-react";
 import { photosToLightboxItems, type TracePhotoLightboxItem } from "@/lib/trace-photo-lightbox-items";
 import { useTracePhotosSignedUrls } from "@/lib/use-trace-photos";
-import { Button } from "@curolia/ui/button";
+import { Button, buttonVariants } from "@curolia/ui/button";
 import { cn } from "@/lib/utils";
 
 type TracePhotoLightboxProps = {
@@ -104,16 +104,32 @@ export function TracePhotoLightbox({
               </p>
             ) : null}
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            className="text-white hover:bg-white/10 hover:text-white"
-            aria-label="Close"
-            onClick={() => onOpenChange(false)}
-          >
-            <X className="size-5" />
-          </Button>
+          <div className="pointer-events-auto flex shrink-0 items-center gap-1">
+            {current?.originalProductUrl ? (
+              <a
+                href={current.originalProductUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(
+                  buttonVariants({ variant: "ghost", size: "icon-sm" }),
+                  "text-white hover:bg-white/10 hover:text-white",
+                )}
+                aria-label="Open in Google Photos"
+              >
+                <ExternalLink className="size-5" />
+              </a>
+            ) : null}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="text-white hover:bg-white/10 hover:text-white"
+              aria-label="Close"
+              onClick={() => onOpenChange(false)}
+            >
+              <X className="size-5" />
+            </Button>
+          </div>
         </header>
 
         <div className="relative flex min-h-0 flex-1 items-center justify-center px-2 pb-6 sm:px-6">

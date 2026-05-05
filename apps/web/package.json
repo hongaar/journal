@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@curolia/plugin-contract": "file:../../packages/plugin-contract",
+    "@curolia/plugin-google-photos": "file:../../packages/plugins/google-photos",
     "@curolia/plugin-ical": "file:../../packages/plugins/ical",
     "@curolia/ui": "file:../../packages/ui",
     "@base-ui/react": "^1.4.1",

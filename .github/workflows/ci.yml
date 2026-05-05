@@ -23,7 +23,10 @@ jobs:
       - name: Lint, typecheck, test, build
         run: npx turbo run lint typecheck test build
 
-  # After CI: sync connector-owned functions into supabase/functions, push migrations, deploy
+      - name: Storybook static build
+        run: npm run build-storybook
+
+  # After CI: sync plugin-owned functions into supabase/functions, push migrations, deploy
   # all Edge Functions. Production frontend uses Vercel’s GitHub integration (parallel with this
   # job); keep migrations/functions backward-compatible when the web app can ship first.
   supabase:
@@ -45,7 +48,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Sync connector Edge Functions into supabase/functions
+      - name: Sync plugin Edge Functions into supabase/functions
         run: npm run functions:sync
 
       - name: Link project, push migrations, deploy Edge Functions

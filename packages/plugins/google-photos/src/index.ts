@@ -1,0 +1,1 @@
+export { googlePhotosPluginManifest } from "./manifest";

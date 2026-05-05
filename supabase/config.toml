@@ -17,3 +17,8 @@ enable_confirmations = false
 # Public iCalendar fetch (token in query); no Authorization header from calendar clients.
 [functions.ical-feed]
 verify_jwt = false
+
+# OAuth callback is a browser redirect without Authorization header.
+[functions.plugin-oauth]
+verify_jwt = false
+

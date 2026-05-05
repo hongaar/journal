@@ -1,4 +1,5 @@
 import type { PluginDefinition, PluginRegistry } from "@curolia/plugin-contract";
+import { googlePhotosPluginManifest } from "@curolia/plugin-google-photos";
 import { icalPluginManifest } from "@curolia/plugin-ical";
 
 const mapsStub = {
@@ -19,21 +20,7 @@ const calendarStub = {
 export const pluginRegistry = {
   google_maps: { id: "google_maps", displayName: "Google Maps", ...mapsStub },
   osmand: { id: "osmand", displayName: "OsmAnd", ...mapsStub },
-  google_photos: {
-    id: "google_photos",
-    displayName: "Google Photos",
-    capabilities: ["import_media", "trace_photo_suggestions"] as const,
-    implemented: false,
-    contributions: {
-      appHooks: [
-        {
-          name: "photos.suggestionsForTrace",
-          description:
-            "Suggest library photos using trace coordinates and date range (shell aggregates plugin Edge handlers).",
-        },
-      ],
-    },
-  },
+  google_photos: googlePhotosPluginManifest,
   immich: {
     id: "immich",
     displayName: "Immich",
