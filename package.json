@@ -22,15 +22,22 @@
     "db:migrate": "supabase migration up",
     "db:types": "supabase gen types typescript --local > apps/web/src/lib/database.types.ts",
     "functions:sync": "node scripts/sync-plugin-supabase.mjs",
+    "plugins:sync": "node scripts/generate-web-plugin-registry.mjs",
+    "assets:generate:web": "node scripts/generate-web-assets.mjs",
+    "assets:generate:native": "node scripts/generate-native-assets.mjs",
+    "assets:generate": "npm run assets:generate:web && npm run assets:generate:native",
     "storybook": "npm run storybook -w @curolia/ui",
     "build-storybook": "npm run build-storybook -w @curolia/ui",
     "functions:start": "supabase functions serve",
     "functions:stop": "pkill -f 'supabase functions serve' || true",
-    "mobile:sync": "npx turbo run build --filter=web && npx cap sync",
+    "mobile:sync": "npm run assets:generate:web && npx turbo run build --filter=web && npx cap sync && npm run assets:generate:native",
+    "mobile:copy": "npm run assets:generate:web && npx turbo run build --filter=web && npx cap copy && npm run assets:generate:native",
     "mobile:ios": "npx cap open ios",
     "mobile:android": "npx cap open android"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^7.4.3",
     "prettier": "^3.8.3",
     "supabase": "^2.98.0",
     "turbo": "^2.5.4"

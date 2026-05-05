@@ -24,6 +24,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Generate web assets
+        run: npm run assets:generate:web
+
       - name: Format, lint, typecheck, test, build
         run: npm run format:check && npx turbo run lint typecheck test build
 
@@ -67,6 +70,9 @@ jobs:
       - name: Sync native projects
         run: npx cap sync
 
+      - name: Generate native assets (icons/splash)
+        run: npm run assets:generate:native
+
       - name: Build Android debug APK
         working-directory: android
         run: ./gradlew assembleDebug
@@ -102,6 +108,9 @@ jobs:
 
       - name: Sync native projects
         run: npx cap sync
+
+      - name: Generate native assets (icons/splash)
+        run: npm run assets:generate:native
 
       - name: Install CocoaPods
         working-directory: ios/App

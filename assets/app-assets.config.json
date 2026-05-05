@@ -1,0 +1,17 @@
+{
+  "web": {
+    "name": "Curolia",
+    "shortName": "Curolia",
+    "description": "Curolia journals and maps your adventures.",
+    "themeColor": "#111827",
+    "backgroundColor": "#111827"
+  },
+  "native": {
+    "iconBackgroundColor": "#FFFFFF",
+    "iconBackgroundColorDark": "#111111",
+    "splashBackgroundColor": "#FFFFFF",
+    "splashBackgroundColorDark": "#111111",
+    "logoSplashScale": 0.2
+  }
+}
+

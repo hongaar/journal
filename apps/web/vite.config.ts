@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
@@ -5,6 +6,9 @@ import { VitePWA } from "vite-plugin-pwa";
 import { defineConfig } from "vite";
 
 const repoRoot = path.resolve(__dirname, "../..");
+const appAssetsConfig = JSON.parse(
+  fs.readFileSync(path.resolve(repoRoot, "assets", "app-assets.config.json"), "utf8"),
+);
 
 export default defineConfig({
   plugins: [
@@ -14,11 +18,11 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["favicon.svg", "icons.svg"],
       manifest: {
-        name: "Curolia",
-        short_name: "Curolia",
-        description: "Curolia journals and maps your adventures.",
-        theme_color: "#111827",
-        background_color: "#111827",
+        name: appAssetsConfig.web.name,
+        short_name: appAssetsConfig.web.shortName,
+        description: appAssetsConfig.web.description,
+        theme_color: appAssetsConfig.web.themeColor,
+        background_color: appAssetsConfig.web.backgroundColor,
         display: "standalone",
         scope: "/",
         start_url: "/",

@@ -4,10 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "plugins:sync": "node ../../scripts/generate-web-plugin-registry.mjs",
-    "predev": "npm run plugins:sync",
-    "prebuild": "npm run plugins:sync",
-    "pretypecheck": "npm run plugins:sync",
+    "predev": "npm --prefix ../.. run assets:generate:web && npm --prefix ../.. run plugins:sync",
+    "prebuild": "npm --prefix ../.. run assets:generate:web && npm --prefix ../.. run plugins:sync",
+    "pretypecheck": "npm --prefix ../.. run assets:generate:web && npm --prefix ../.. run plugins:sync",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
