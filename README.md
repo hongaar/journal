@@ -9,23 +9,22 @@ Travel / place journal: private **traces** (visits) per **journal**, with maps, 
 - `packages/supabase/supabase/` — Supabase project (migrations, `config.toml`, `functions/`) via **`@curolia/supabase`**
 - `packages/brand/` — app logo + theme config (**`@curolia/brand`**) and generators for web/native branding assets
 - `packages/plugin-contract` — shared plugin manifest / contribution types (`@curolia/plugin-contract`)
-- `packages/plugins/*` — optional plugin packages (e.g. `@curolia/plugin-ical`); Edge sources sync into `packages/supabase/supabase/functions/` via `npm run functions:sync -w @curolia/supabase`
+- `packages/plugins/*` — optional plugin packages (e.g. `@curolia/plugin-ical`); Edge sources sync into `packages/supabase/supabase/functions/` via `npx turbo run functions:sync`
 
 Plugin architecture details: [`packages/plugin-contract/README.md`](packages/plugin-contract/README.md).
 
 See [`AGENTS.md`](AGENTS.md) for codegen rules (including **never hand-editing** `database.types.ts`).
 
-Root scripts are Turborepo + Prettier only; see **`AGENTS.md` → Monorepo scripts**. Branding + plugin registry are the Turbo **`codegen`** task (`@curolia/brand` then `@curolia/web`); **`@curolia/web`** **lint** / **typecheck** / **test** / **build** depend on **`codegen`** automatically.
+Root scripts are Turborepo + Prettier only; see **`AGENTS.md` → Monorepo scripts**. The root **`turbo.json`** owns cross-package ordering: branding runs before the web plugin registry, web checks/builds depend on codegen, and mobile sync depends on the web build.
 
 Common commands (from repo root):
 
 ```bash
 npm ci
-npx turbo run codegen                    # optional if you’ll run lint/typecheck/test/build next (those pull codegen for @curolia/web)
-npm run dev         # Turbo dev: supabase stack + serve, Vite, Storybook (see AGENTS for task graph)
+npm run dev         # Turbo dev: Supabase stack/functions, Vite, Storybook
 npm run build       # turbo run build
-npx turbo run codegen lint typecheck test build   # CI shape (codegen is explicit; web tasks also depend on it)
-npm run sync -w @curolia/mobile   # cap sync (expects apps/web/dist; build web first)
+npx turbo run lint typecheck test build   # CI shape; Turbo pulls required codegen
+npx turbo run sync --filter=@curolia/mobile   # prepare native project; Turbo builds web and native assets first
 npm run open:ios -w @curolia/mobile
 npm run open:android -w @curolia/mobile
 ```
@@ -36,9 +35,8 @@ The production **Vercel** job runs **`npx turbo run codegen`** after install, th
 
 - Web app ships as a PWA (installable + offline static shell caching).
 - Native shells live under **`apps/mobile/ios`** and **`apps/mobile/android`** and reuse **`apps/web/dist`** (`capacitor.config.json` is next to those folders).
-- From the repo root, use **`@curolia/mobile`** (after a web build populates `apps/web/dist`):
-  - `npm run sync -w @curolia/mobile` — `cap sync` into `android` / `ios`
-  - `npm run generate:native -w @curolia/brand` — regenerate native icons/splash when branding changes
+- From the repo root, let Turbo prepare mobile prerequisites:
+  - `npx turbo run sync --filter=@curolia/mobile` — builds web, regenerates native icons/splash, and runs `cap sync`
   - `npm run open:ios -w @curolia/mobile`
   - `npm run open:android -w @curolia/mobile`
 
@@ -51,7 +49,7 @@ Native builds are integrated into `.github/workflows/build-and-deploy.yml`:
 - `android` job (Linux): `gradlew` under `apps/mobile/android`
 - `ios` job (macOS): simulator `xcodebuild` under `apps/mobile/ios/App` (no signing)
 
-Both jobs depend on the main `ci` job and reuse the built `apps/web/dist` artifact, so web assets are compiled once and fanned out to native builds.
+Both jobs depend on the main `ci` job, then run **`npx turbo run sync --filter=@curolia/mobile`** so Turbo prepares native assets and builds the web output before Capacitor sync.
 
 ## Supabase (local, recommended for now)
 
@@ -76,7 +74,7 @@ Then run **`npm run dev`** from the **repo root** (Turbo runs **`@curolia/supaba
 
 Stopping: Ctrl+C stops the Turbo dev tasks; **`npm run db:stop -w @curolia/supabase`** stops Docker when you're done.
 
-**Edge Functions:** **`npm run dev`** pulls plugin handlers in via **`stack`**. After changing files under **`packages/plugins/*/supabase/functions/`**, restart **`npm run dev`** (or run **`npm run functions:sync -w @curolia/supabase`** and restart **`functions serve`** only).
+**Edge Functions:** **`npm run dev`** pulls plugin handlers in via **`stack`**. After changing files under **`packages/plugins/*/supabase/functions/`**, restart **`npm run dev`** (or run **`npx turbo run functions:sync`** and restart **`functions serve`** only).
 
 ### Push notifications (first mobile feature)
 
@@ -86,7 +84,7 @@ Push delivery is currently enabled for `journal_invitation` notifications when t
 
 ```bash
 npm run db:start -w @curolia/supabase
-npm run functions:sync -w @curolia/supabase
+npx turbo run functions:sync
 npm run functions:start -w @curolia/supabase
 ```
 
@@ -108,8 +106,7 @@ npm run db:types -w @curolia/supabase
 4. Build web, sync native shells, and run on device/emulator:
 
 ```bash
-npx turbo run codegen build
-npm run sync -w @curolia/mobile
+npx turbo run sync --filter=@curolia/mobile
 npm run open:android -w @curolia/mobile
 # or npm run open:ios -w @curolia/mobile on macOS
 ```
@@ -137,7 +134,7 @@ Current plugin OAuth flow is handled by the `plugin-oauth` Edge Function, and pl
 
 ```bash
 npm run db:start -w @curolia/supabase
-npm run functions:sync -w @curolia/supabase
+npx turbo run functions:sync
 npm run functions:start -w @curolia/supabase
 ```
 
@@ -178,7 +175,7 @@ Use `supabase link` against your cloud project, then `supabase db push` for migr
 
 Configure the Vercel project **Root Directory** to **`apps/web`** so it picks up [`apps/web/vercel.json`](apps/web/vercel.json).
 
-That file installs from the repo root, runs **`npm run build`** inside **`apps/web`** (**`buildCommand`**). **`codegen`** is executed in CI **before** `vercel build` so generated assets exist. **`outputDirectory`** is **`dist`** relative to **`apps/web`**.
+That file installs from the repo root, runs **`npm run build`** inside **`apps/web`** (**`buildCommand`**). **`codegen`** is executed through Turbo in CI **before** `vercel build` so generated assets exist. **`outputDirectory`** is **`dist`** relative to **`apps/web`**.
 
 Set the same Supabase env vars for Production (and Preview): `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`.
 
@@ -189,7 +186,7 @@ Link the CLI from `apps/web` (creates `apps/web/.vercel/`) if you deploy locally
 Production web deploy is orchestrated by GitHub Actions (`.github/workflows/build-and-deploy.yml`) from **`apps/web`** using the `vercel` npm scripts (`vercel pull` / `vercel build` / `vercel deploy --prebuilt`).
 Vercel Git auto-deploy is disabled (`apps/web/vercel.json` → `git.deploymentEnabled: false`) so deployments happen only through the CI/CD workflow.
 
-The [`.github/workflows/build-and-deploy.yml`](.github/workflows/build-and-deploy.yml) workflow also runs, after CI: **`npm run functions:sync -w @curolia/supabase`** (copies plugin packages’ function sources into `packages/supabase/supabase/functions/`), then **`supabase db push`** and **`supabase functions deploy --use-api`** from `packages/supabase`. This keeps deployed Edge code aligned with `packages/plugins/*`, not only last-run sync output.
+The [`.github/workflows/build-and-deploy.yml`](.github/workflows/build-and-deploy.yml) workflow also runs, after CI: **`npx turbo run functions:sync`** (copies plugin packages’ function sources into `packages/supabase/supabase/functions/`), then **`supabase db push`** and **`supabase functions deploy --use-api`** from `packages/supabase`. This keeps deployed Edge code aligned with `packages/plugins/*`, not only last-run sync output.
 
 `supabase` deploy runs before the `vercel` job in CI/CD so database/functions are updated before the production web deployment.
 

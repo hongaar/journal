@@ -3,8 +3,8 @@
 ## Monorepo scripts (root `package.json`)
 
 - The **root** `package.json` should only expose **`turbo run …`** for build/lint/typecheck/test/dev (plus **`prettier`** **`format`** / **`format:check`**, since Prettier is a direct root devDependency). Do **not** add thin wrappers that chain **`npm run -w`** or other workspaces from root (e.g. avoid **`codegen && turbo build`**).
-- **CI/CD** and **developers** orchestrate codegen and checks via **Turbo** (e.g. `npx turbo run codegen lint typecheck test build`). Prefer Turbo **`codegen`**: **`@curolia/brand`** (`generate:web`) then **`@curolia/web`** (`plugins:sync`), wired with **`dependsOn`** in **`apps/web/turbo.json`**. Do **not** add root **`package.json`** chains of **`npm run -w …`**. Underlying scripts stay on each workspace **`package.json`**; each participating package exposes a **`codegen`** script for Turbo.
-- **Per-package `turbo.json`**: use **`"extends": false`** on inherited task names (**`dev`**, **`codegen`**, **`lint`**, **`build`**, …) when that package has **no** matching **`package.json`** script, so Turborepo does not schedule empty tasks. For example, only **`@curolia/web`** defines **`lint`**, **`test`**, and **`build`**.
+- **CI/CD** and **developers** orchestrate codegen and checks via **Turbo** (e.g. `npx turbo run lint typecheck test build`). Prefer Turbo **`codegen`**: **`@curolia/brand`** (`generate:web`) then **`@curolia/web`** (`plugins:sync`), wired with package-scoped task dependencies in the root **`turbo.json`**. Do **not** add root **`package.json`** chains of **`npm run -w …`**. Underlying scripts stay on each workspace **`package.json`**; each participating package exposes its own local script for Turbo to run.
+- Keep task orchestration in the root **`turbo.json`**. Avoid per-package **`turbo.json`** files unless a package has a genuinely local, package-specific graph that cannot be expressed clearly from the root.
 
 ## Database TypeScript types
 
@@ -30,7 +30,7 @@
 - **Supabase Edge Functions** for a plugin live under `packages/plugins/<id>/supabase/functions/<slug>/`. After changing plugin-owned function sources, copy them into the Supabase CLI project with:
 
   ```bash
-  npm run functions:sync -w @curolia/supabase
+  npx turbo run functions:sync
   ```
 
   before `npm run functions:start -w @curolia/supabase` / remote `supabase functions deploy`.

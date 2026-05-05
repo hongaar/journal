@@ -3,7 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "stack": "supabase start && npm run functions:sync",
+    "stack": "supabase start",
+    "dev": "supabase functions serve",
     "db:start": "supabase start",
     "db:stop": "supabase stop",
     "db:status": "supabase status",
@@ -11,7 +12,6 @@
     "db:migrate": "supabase migration up",
     "db:types": "supabase gen types typescript --local > ../../apps/web/src/lib/database.types.ts",
     "functions:sync": "node scripts/sync-plugins.mjs",
-    "dev": "supabase functions serve",
     "functions:start": "supabase functions serve",
     "functions:stop": "pkill -f 'supabase functions serve' || true"
   },

@@ -24,15 +24,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Format, lint, typecheck, test, build
-        run: npm run format:check && npx turbo run codegen lint typecheck test build
+      - name: Format check
+        run: npm run format:check
 
-      - name: Upload web dist artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: web-dist
-          path: apps/web/dist
-          if-no-files-found: error
+      - name: Validate packages
+        run: npx turbo run lint typecheck test build
 
   android:
     name: Android (Linux)
@@ -55,17 +51,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Download web dist artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: web-dist
-          path: apps/web/dist
-
-      - name: Sync native projects
-        run: npm run sync -w @curolia/mobile
-
-      - name: Generate native assets (icons/splash)
-        run: npm run generate:native -w @curolia/brand
+      - name: Prepare native project
+        run: npx turbo run sync --filter=@curolia/mobile
 
       - name: Build Android debug APK
         working-directory: apps/mobile/android
@@ -94,17 +81,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Download web dist artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: web-dist
-          path: apps/web/dist
-
-      - name: Sync native projects
-        run: npm run sync -w @curolia/mobile
-
-      - name: Generate native assets (icons/splash)
-        run: npm run generate:native -w @curolia/brand
+      - name: Prepare native project
+        run: npx turbo run sync --filter=@curolia/mobile
 
       - name: Install CocoaPods
         working-directory: apps/mobile/ios/App
@@ -142,7 +120,7 @@ jobs:
         run: npm ci
 
       - name: Sync plugin Edge Functions into packages/supabase/supabase/functions
-        run: npm run functions:sync -w @curolia/supabase
+        run: npx turbo run functions:sync
 
       - name: Link project, push migrations, deploy Edge Functions
         working-directory: packages/supabase
