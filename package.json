@@ -26,7 +26,7 @@
     "build-storybook": "npm run build-storybook -w @curolia/ui",
     "functions:start": "supabase functions serve",
     "functions:stop": "pkill -f 'supabase functions serve' || true",
-    "mobile:sync": "npm run -w web build && npx cap sync",
+    "mobile:sync": "npx turbo run build --filter=web && npx cap sync",
     "mobile:ios": "npx cap open ios",
     "mobile:android": "npx cap open android"
   },

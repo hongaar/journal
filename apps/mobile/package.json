@@ -8,7 +8,7 @@
     "copy": "npm run build:web && cap copy",
     "open:ios": "cap open ios",
     "open:android": "cap open android",
-    "build:web": "npm run -w web build"
+    "build:web": "npx turbo run build --filter=web"
   },
   "dependencies": {
     "@capacitor/core": "^7.4.3"
