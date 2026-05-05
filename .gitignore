@@ -13,6 +13,18 @@ coverage
 .asset-input/
 apps/mobile/.asset-input/
 
+# apps/mobile — Capacitor `sync` copies + `@curolia/brand` `generate:native` rasters
+apps/mobile/android/app/src/main/assets/public/
+apps/mobile/android/app/src/main/assets/capacitor.config.json
+apps/mobile/android/app/src/main/assets/capacitor.plugins.json
+apps/mobile/android/app/src/main/res/xml/config.xml
+apps/mobile/ios/App/App/public/
+apps/mobile/ios/App/App/capacitor.config.json
+apps/mobile/ios/App/App/config.xml
+apps/mobile/android/app/src/main/res/**/splash.png
+apps/mobile/android/app/src/main/res/mipmap-*/*.png
+apps/mobile/ios/App/App/Assets.xcassets/**/*.png
+
 # Generated web branding (from @curolia/brand, source: packages/brand/icon.svg)
 apps/web/public/favicon.svg
 apps/web/public/icons.svg
