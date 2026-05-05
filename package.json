@@ -14,9 +14,12 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "prepare": "husky"
   },
   "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
     "prettier": "^3.8.3",
     "turbo": "^2.5.4",
     "typescript": "~6.0.2"
@@ -28,5 +31,8 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "lint-staged": {
+    "*.{js,jsx,mjs,cjs,ts,tsx,json,css,scss,html,yml,yaml,md,mdx}": "prettier --write"
   }
 }
