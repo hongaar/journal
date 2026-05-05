@@ -6,11 +6,6 @@ on:
   pull_request:
     branches: [main]
 
-environment: production
-env:
-  VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-  VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-
 jobs:
   ci:
     runs-on: ubuntu-latest
@@ -35,6 +30,11 @@ jobs:
     name: Android (Linux)
     needs: ci
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    environment: production
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
     steps:
       - uses: actions/checkout@v4
 
@@ -69,6 +69,11 @@ jobs:
     name: iOS (macOS)
     needs: ci
     runs-on: macos-latest
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    environment: production
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
     steps:
       - uses: actions/checkout@v4
 
@@ -106,6 +111,7 @@ jobs:
     concurrency:
       group: production-supabase
       cancel-in-progress: false
+    environment: production
     steps:
       - uses: actions/checkout@v4
 
@@ -136,9 +142,12 @@ jobs:
     needs: [ci, android, ios, supabase]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    environment: production
     env:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
     concurrency:
       group: production-vercel
       cancel-in-progress: false
