@@ -1,7 +1,8 @@
 import { FloatingPanel } from "@/components/layout/floating-panel";
 import { EmojiPicker } from "@/components/traces/emoji-picker";
 import { PresetColorPicker } from "@/components/traces/preset-color-picker";
-import { TraceActionsToolbar } from "@/components/traces/trace-actions-toolbar";
+import { AddTraceFab } from "@/components/traces/add-trace-fab";
+import { useMountTagSidebarRegistration } from "@/providers/tag-sidebar-provider";
 import { TraceFormDialog } from "@/components/traces/trace-form-dialog";
 import {
   TracePhotoLightbox,
@@ -99,6 +100,26 @@ export function BlogPage() {
     enabled: Boolean(activeJournalId) && !journalLoading,
   });
 
+  useMountTagSidebarRegistration({
+    tags: tagsQuery.data ?? [],
+    filterTagIds,
+    setFilterTagIds,
+    onNewTag: () => {
+      setTagEditTarget(null);
+      setNewTagName("");
+      setNewTagColor(DEFAULT_TRACE_TAG_COLOR);
+      setNewTagEmoji("📍");
+      setTagDialogOpen(true);
+    },
+    onEditTag: (tag) => {
+      setTagEditTarget(tag);
+      setNewTagName(tag.name);
+      setNewTagColor(tag.color);
+      setNewTagEmoji(tag.icon_emoji || "📍");
+      setTagDialogOpen(true);
+    },
+  });
+
   const traces = useMemo(() => tracesQuery.data ?? [], [tracesQuery.data]);
   const visible = useMemo(
     () => filterTracesByTags(traces, filterTagIds),
@@ -178,31 +199,17 @@ export function BlogPage() {
 
   return (
     <div className="relative h-full w-full overflow-hidden">
-      <div className="pointer-events-none absolute inset-0 z-10 p-3 pt-[4.75rem] sm:p-4 sm:pt-[5.25rem]">
-        <TraceActionsToolbar
-          mode="blog"
-          onAddTrace={() => setFormOpen(true)}
-          onNewTag={() => {
-            setTagEditTarget(null);
-            setTagDialogOpen(true);
-          }}
-          onEditTag={(tag) => {
-            setTagEditTarget(tag);
-            setTagDialogOpen(true);
-          }}
-          tags={tagsQuery.data ?? []}
-          filterTagIds={filterTagIds}
-          setFilterTagIds={setFilterTagIds}
-        />
+      <div className="pointer-events-none absolute right-4 bottom-6 z-10 sm:right-6">
+        <AddTraceFab onClick={() => setFormOpen(true)} />
       </div>
 
-      <div className="text-foreground h-full overflow-y-auto px-3 pt-[4.75rem] pb-16 sm:px-6 sm:pt-[5.25rem] sm:pb-20">
+      <div className="text-foreground h-full overflow-y-auto px-3 pt-[calc(var(--app-toolbar-h)+0.75rem)] pb-20 sm:px-6 sm:pt-[calc(var(--app-toolbar-h)+1rem)] sm:pb-24">
         <div className="mx-auto max-w-[40rem]">
           <header className="border-border/40 mb-10 border-b pb-8">
-            <p className="text-muted-foreground font-display text-sm font-medium tracking-wide uppercase">
+            <p className="text-muted-foreground font-display text-sm font-normal tracking-wide uppercase">
               Journal
             </p>
-            <h1 className="font-display mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+            <h1 className="font-display mt-2 text-3xl font-normal tracking-tight sm:text-4xl">
               Traces
             </h1>
             <p className="text-muted-foreground mt-3 max-w-lg text-sm leading-relaxed">
@@ -235,14 +242,14 @@ export function BlogPage() {
                     <article>
                       {t.date ? (
                         <time
-                          className="text-muted-foreground font-display text-sm font-medium tracking-wide"
+                          className="text-muted-foreground font-display text-sm font-normal tracking-wide"
                           dateTime={t.date}
                         >
                           {formatTraceDateRange(t.date, t.end_date)}
                         </time>
                       ) : null}
                       <h2
-                        className={`font-display text-2xl font-semibold tracking-tight sm:text-[1.75rem] ${t.date ? "mt-2" : ""}`}
+                        className={`font-display text-2xl font-normal tracking-tight sm:text-[1.75rem] ${t.date ? "mt-2" : ""}`}
                       >
                         <Link
                           to={`/traces/${t.id}`}
@@ -351,7 +358,7 @@ export function BlogPage() {
       >
         <DialogContent className="border-[var(--panel-border)] bg-[var(--panel-bg)] backdrop-blur-xl sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="font-display text-xl font-semibold">
+            <DialogTitle className="font-display text-xl font-normal">
               {tagEditTarget ? "Edit tag" : "New tag"}
             </DialogTitle>
           </DialogHeader>

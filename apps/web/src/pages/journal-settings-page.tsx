@@ -131,7 +131,7 @@ export function JournalSettingsPage() {
         <PageBackButton />
         <FloatingPanel className="p-5 sm:p-6">
           <div>
-            <h1 className="font-display text-foreground text-2xl font-semibold tracking-tight">
+            <h1 className="font-display text-foreground text-2xl font-normal tracking-tight">
               Journal settings
             </h1>
             <p className="text-muted-foreground mt-1 text-sm">

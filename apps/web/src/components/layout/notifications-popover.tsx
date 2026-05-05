@@ -1,14 +1,24 @@
 import * as React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { Bell } from "lucide-react";
+import { Bell, ChevronDown } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { buttonVariants } from "@curolia/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@curolia/ui/popover";
+import { sidebarPickerTriggerClass } from "@/components/layout/sidebar-dropdown-triggers";
 import { cn } from "@/lib/utils";
 import type { AppNotification } from "@/types/database";
 
-export function NotificationsPopover({ userId }: { userId: string }) {
+type NotificationsPopoverProps = {
+  userId: string;
+  /** Wider sidebar row vs compact toolbar icon */
+  variant?: "icon" | "sidebar-row";
+};
+
+export function NotificationsPopover({
+  userId,
+  variant = "icon",
+}: NotificationsPopoverProps) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [open, setOpen] = React.useState(false);
@@ -54,17 +64,33 @@ export function NotificationsPopover({ userId }: { userId: string }) {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
-        className={cn(
-          buttonVariants({ variant: "ghost", size: "icon" }),
-          "size-9 shrink-0 rounded-xl",
-        )}
+        className={
+          variant === "sidebar-row"
+            ? sidebarPickerTriggerClass()
+            : cn(
+                buttonVariants({ variant: "ghost", size: "icon" }),
+                "size-9 shrink-0 rounded-xl",
+              )
+        }
         title="Notifications"
         aria-label="Notifications"
       >
-        <Bell className="size-4 opacity-80" />
+        {variant === "sidebar-row" ? (
+          <>
+            <span className="flex min-w-0 flex-1 items-center gap-2">
+              <Bell className="size-4 shrink-0 opacity-80" />
+              <span className="truncate font-normal">Notifications</span>
+            </span>
+            <ChevronDown className="size-4 shrink-0 opacity-60" />
+          </>
+        ) : (
+          <Bell className="size-4 shrink-0 opacity-80" />
+        )}
       </PopoverTrigger>
       <PopoverContent
-        align="end"
+        align={variant === "sidebar-row" ? "start" : "end"}
+        side="bottom"
+        sideOffset={variant === "sidebar-row" ? 6 : 8}
         className="w-[min(22rem,calc(100vw-2rem))] p-0"
       >
         <div className="border-border/60 flex items-center justify-between border-b px-3 py-2">

@@ -10,7 +10,9 @@ import { useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useJournal } from "@/providers/journal-provider";
-import { TraceActionsToolbar } from "@/components/traces/trace-actions-toolbar";
+import { MapControlsToolbar } from "@/components/map/map-controls-toolbar";
+import { AddTraceFab } from "@/components/traces/add-trace-fab";
+import { useMountTagSidebarRegistration } from "@/providers/tag-sidebar-provider";
 import {
   TraceMap,
   type TraceMapHandle,
@@ -128,10 +130,6 @@ export function MapPage() {
     setNewTraceTagIds(ids);
   }, []);
 
-  const onFitVisibleTraces = useCallback(() => {
-    mapRef.current?.fitVisibleTraces();
-  }, []);
-
   useEffect(() => {
     return () => clearTimeout(cameraIdleTimerRef.current);
   }, []);
@@ -192,6 +190,26 @@ export function MapPage() {
       return data ?? [];
     },
     enabled: Boolean(activeJournalId) && !journalLoading,
+  });
+
+  useMountTagSidebarRegistration({
+    tags: tagsQuery.data ?? [],
+    filterTagIds,
+    setFilterTagIds,
+    onNewTag: () => {
+      setTagEditTarget(null);
+      setNewTagName("");
+      setNewTagColor(DEFAULT_TRACE_TAG_COLOR);
+      setNewTagEmoji("📍");
+      setTagDialogOpen(true);
+    },
+    onEditTag: (tag) => {
+      setTagEditTarget(tag);
+      setNewTagName(tag.name);
+      setNewTagColor(tag.color);
+      setNewTagEmoji(tag.icon_emoji || "📍");
+      setTagDialogOpen(true);
+    },
   });
 
   const previewPin = useMemo((): TraceMapPreviewPin | null => {
@@ -378,7 +396,7 @@ export function MapPage() {
       </div>
 
       {placementActive ? (
-        <div className="pointer-events-none absolute top-[4.5rem] left-1/2 z-20 w-[min(100%,22rem)] -translate-x-1/2 px-3 sm:top-[5rem]">
+        <div className="pointer-events-none absolute top-[calc(var(--app-toolbar-h)+2.75rem)] left-1/2 z-20 w-[min(100%,22rem)] -translate-x-1/2 px-3">
           <FloatingPanel className="pointer-events-auto py-3 text-center shadow-xl">
             <p className="text-foreground text-sm font-medium">
               Click the map to place your trace
@@ -398,29 +416,17 @@ export function MapPage() {
         </div>
       ) : null}
 
-      <div className="pointer-events-none absolute inset-0 z-10 p-3 pt-[4.75rem] sm:p-4 sm:pt-[5.25rem]">
-        <TraceActionsToolbar
-          mode="map"
-          placementActive={placementActive}
-          onAddTrace={toggleAddTracePlacement}
-          onNewTag={() => {
-            setTagEditTarget(null);
-            setNewTagName("");
-            setNewTagColor(DEFAULT_TRACE_TAG_COLOR);
-            setNewTagEmoji("📍");
-            setTagDialogOpen(true);
-          }}
-          onEditTag={(tag) => {
-            setTagEditTarget(tag);
-            setNewTagName(tag.name);
-            setNewTagColor(tag.color);
-            setNewTagEmoji(tag.icon_emoji || "📍");
-            setTagDialogOpen(true);
-          }}
-          onFitVisible={onFitVisibleTraces}
-          tags={tagsQuery.data ?? []}
-          filterTagIds={filterTagIds}
-          setFilterTagIds={setFilterTagIds}
+      <div className="pointer-events-none absolute inset-0 z-10">
+        <MapControlsToolbar
+          mapRef={mapRef}
+          className="pointer-events-auto absolute top-[calc(var(--app-toolbar-h)+0.75rem)] right-3 z-10 sm:right-4 sm:top-[calc(var(--app-toolbar-h)+1rem)]"
+        />
+      </div>
+
+      <div className="pointer-events-none absolute right-4 bottom-6 z-10 sm:right-6">
+        <AddTraceFab
+          active={placementActive}
+          onClick={toggleAddTracePlacement}
         />
       </div>
 
@@ -467,7 +473,7 @@ export function MapPage() {
       >
         <DialogContent className="border-[var(--panel-border)] bg-[var(--panel-bg)] backdrop-blur-xl sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="font-display text-xl font-semibold">
+            <DialogTitle className="font-display text-xl font-normal">
               {tagEditTarget ? "Edit tag" : "New tag"}
             </DialogTitle>
           </DialogHeader>

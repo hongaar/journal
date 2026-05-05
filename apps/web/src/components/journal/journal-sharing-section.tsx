@@ -389,7 +389,7 @@ export function JournalSharingSection({
           <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
             <DialogContent className="border-[var(--panel-border)] bg-[var(--panel-bg)] backdrop-blur-xl">
               <DialogHeader>
-                <DialogTitle className="font-display text-xl font-semibold">
+                <DialogTitle className="font-display text-xl font-normal">
                   Transfer ownership
                 </DialogTitle>
                 <DialogDescription>

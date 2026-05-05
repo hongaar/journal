@@ -93,7 +93,12 @@ function SectionLabel({ children }: { children: ReactNode }) {
   );
 }
 
-export function GlobalSearch() {
+type GlobalSearchProps = {
+  /** Borderless opener that grows to fill a toolbar row beside other controls. */
+  toolbarEmbed?: boolean;
+};
+
+export function GlobalSearch({ toolbarEmbed = false }: GlobalSearchProps) {
   const navigate = useNavigate();
   const isMapRoute = Boolean(useMatch({ path: "/", end: true }));
   const { journals, activeJournalId, setActiveJournalId } = useJournal();
@@ -237,14 +242,30 @@ export function GlobalSearch() {
     >
       <PopoverTrigger
         type="button"
-        className={cn(
-          buttonVariants({ variant: "outline", size: "sm" }),
-          "h-9 gap-1.5 rounded-xl border-[var(--panel-border)] bg-background/80 px-2.5 shadow-sm backdrop-blur-md sm:px-3",
-        )}
+        className={
+          toolbarEmbed
+            ? cn(
+                buttonVariants({ variant: "ghost", size: "sm" }),
+                "text-muted-foreground min-h-11 w-full min-w-0 flex-1 justify-start gap-2 rounded-xl border-0 bg-transparent px-3 font-normal shadow-none ring-offset-0",
+                "hover:bg-foreground/[0.04] hover:text-foreground",
+                "focus-visible:bg-foreground/[0.06] focus-visible:ring-2 focus-visible:ring-ring/35",
+              )
+            : cn(
+                buttonVariants({ variant: "outline", size: "sm" }),
+                "h-9 gap-1.5 rounded-xl border-[var(--panel-border)] bg-background/80 px-2.5 shadow-sm backdrop-blur-md sm:px-3",
+              )
+        }
         title="Search (Ctrl+K)"
       >
         <Search className="size-4 shrink-0 opacity-80" />
-        <span className="text-muted-foreground hidden max-w-[10rem] truncate sm:inline">
+        <span
+          className={cn(
+            "truncate text-left text-sm",
+            toolbarEmbed
+              ? "text-muted-foreground min-w-0 flex-1"
+              : "text-muted-foreground hidden sm:inline max-w-[10rem]",
+          )}
+        >
           Search…
         </span>
       </PopoverTrigger>

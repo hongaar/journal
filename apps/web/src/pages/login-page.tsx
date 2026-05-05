@@ -60,7 +60,7 @@ export function LoginPage() {
       />
       <FloatingPanel className="relative z-10 w-full max-w-md p-6 sm:p-8">
         <div className="mb-6 text-center">
-          <h1 className="font-display text-foreground text-3xl font-semibold tracking-tight italic">
+          <h1 className="font-display text-foreground text-3xl font-normal tracking-tight">
             Curolia
           </h1>
           <p className="text-muted-foreground mt-2 text-sm">

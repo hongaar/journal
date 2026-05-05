@@ -84,7 +84,7 @@ export function AppSettingsPage() {
       <div className="mx-auto max-w-lg space-y-4">
         <PageBackButton />
         <FloatingPanel className="p-5 sm:p-6">
-          <h1 className="font-display text-foreground text-2xl font-semibold tracking-tight">
+            <h1 className="font-display text-foreground text-2xl font-normal tracking-tight">
             Settings
           </h1>
           <p className="text-muted-foreground mt-1 text-sm leading-relaxed">

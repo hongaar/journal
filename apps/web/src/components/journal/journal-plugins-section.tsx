@@ -74,7 +74,7 @@ export function JournalPluginsSection({
   if (implementedEnabled.length === 0) {
     return (
       <FloatingPanel className="p-5 sm:p-6">
-        <h2 className="font-display text-foreground text-lg font-semibold tracking-tight">
+        <h2 className="font-display text-foreground text-lg font-normal tracking-tight">
           Plugins
         </h2>
         <p className="text-muted-foreground mt-1 text-sm">
@@ -96,7 +96,7 @@ export function JournalPluginsSection({
         );
         return (
           <FloatingPanel key={plugin.id} className="p-5 sm:p-6">
-            <h2 className="font-display text-foreground flex items-center gap-2 text-lg font-semibold tracking-tight">
+            <h2 className="font-display text-foreground flex items-center gap-2 text-lg font-normal tracking-tight">
               <Icon className="text-muted-foreground size-4" />
               {title}
             </h2>

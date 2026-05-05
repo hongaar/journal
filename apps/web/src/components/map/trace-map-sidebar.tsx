@@ -78,7 +78,7 @@ export function TraceMapSidebar({
   return (
     <FloatingPanel className="pointer-events-auto fixed top-[4.5rem] right-3 bottom-4 z-40 flex w-[min(calc(100vw-1.5rem),22rem)] max-w-full flex-col gap-3 overflow-hidden p-4 shadow-2xl sm:top-[5.25rem] sm:right-4">
       <div className="flex items-start justify-between gap-2">
-        <h2 className="font-display text-foreground text-lg leading-tight font-semibold tracking-tight">
+        <h2 className="font-display text-foreground text-lg leading-tight font-normal tracking-tight">
           {traceQuery.isLoading ? "Loading…" : trace?.title || "Untitled place"}
         </h2>
         <Button

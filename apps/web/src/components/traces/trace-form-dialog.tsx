@@ -419,7 +419,7 @@ export function TraceFormDialog({
       >
         <div className="pointer-events-auto relative">
           <FloatingPanel className="max-h-[inherit] min-w-[288px] max-w-sm overflow-y-auto p-4 shadow-2xl">
-            <h2 className="font-display text-foreground mb-1 text-xl font-semibold tracking-tight">
+            <h2 className="font-display text-foreground mb-1 text-xl font-normal tracking-tight">
               New trace
             </h2>
             {formFields}
@@ -434,7 +434,7 @@ export function TraceFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto border-[var(--panel-border)] bg-[var(--panel-bg)] backdrop-blur-xl sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-display text-xl font-semibold">
+          <DialogTitle className="font-display text-xl font-normal">
             {trace ? "Edit trace" : "New trace"}
           </DialogTitle>
         </DialogHeader>

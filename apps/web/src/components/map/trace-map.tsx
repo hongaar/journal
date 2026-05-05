@@ -88,6 +88,10 @@ export type TraceMapHandle = {
   subscribeCamera: (cb: () => void) => () => void;
   /** Fit map camera to currently filtered traces (same logic as former auto-fit). */
   fitVisibleTraces: () => void;
+  zoomIn: () => void;
+  zoomOut: () => void;
+  /** Request browser geolocation and fly the map toward the user's position. */
+  triggerGeolocate: () => void;
 };
 
 export type TraceMapPreviewPin = {
@@ -461,6 +465,46 @@ export const TraceMap = forwardRef<TraceMapHandle, TraceMapProps>(
             duration: CAMERA_DURATION_MS,
           });
         },
+        zoomIn() {
+          const map = mapRef.current;
+          if (!map) return;
+          map.zoomTo(map.getZoom() + 1, { duration: 180 });
+        },
+        zoomOut() {
+          const map = mapRef.current;
+          if (!map) return;
+          map.zoomTo(Math.max(map.getZoom() - 1, map.getMinZoom()), {
+            duration: 180,
+          });
+        },
+        triggerGeolocate() {
+          const map = mapRef.current;
+          if (!map) return;
+          if (!navigator.geolocation) {
+            toast.error("Geolocation is not supported in this browser.");
+            return;
+          }
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              const m = mapRef.current;
+              if (!m) return;
+              m.flyTo({
+                center: [pos.coords.longitude, pos.coords.latitude],
+                zoom: Math.max(m.getZoom(), 12),
+                duration: CAMERA_DURATION_MS,
+                essential: true,
+              });
+            },
+            (err) => {
+              toast.error(geolocationToastMessage(err));
+            },
+            {
+              enableHighAccuracy: true,
+              maximumAge: 30_000,
+              timeout: 12_000,
+            },
+          );
+        },
       }),
       [],
     );
@@ -480,27 +524,6 @@ export const TraceMap = forwardRef<TraceMapHandle, TraceMapProps>(
         center: start ? [start.lng, start.lat] : [10, 20],
         zoom: start?.zoom ?? 1.5,
       });
-
-      map.addControl(
-        new maplibregl.NavigationControl({ showCompass: false }),
-        "bottom-left",
-      );
-
-      const geolocate = new maplibregl.GeolocateControl({
-        positionOptions: {
-          enableHighAccuracy: true,
-          maximumAge: 30_000,
-          timeout: 12_000,
-        },
-        trackUserLocation: true,
-        showUserLocation: true,
-        showAccuracyCircle: true,
-        fitBoundsOptions: { maxZoom: 15 },
-      });
-      geolocate.on("error", (e) => {
-        toast.error(geolocationToastMessage(e.error));
-      });
-      map.addControl(geolocate, "bottom-left");
 
       mapRef.current = map;
       return () => {
@@ -785,7 +808,7 @@ export const TraceMap = forwardRef<TraceMapHandle, TraceMapProps>(
               onMouseLeave={requestHidePreview}
             >
               <FloatingPanel className="max-h-[inherit] min-w-[288px] max-w-sm overflow-y-auto border-[var(--panel-border)] p-4 shadow-2xl">
-                <p className="font-display text-foreground mb-1 text-xl font-semibold tracking-tight">
+                <p className="font-display text-foreground mb-1 text-xl font-normal tracking-tight">
                   {hoverTitle}
                 </p>
                 {hoverDesc ? (

@@ -31,7 +31,9 @@
   --color-ring: var(--ring);
   --font-heading: var(--font-display);
   --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Newsreader", ui-serif, Georgia, "Times New Roman", serif;
+  --font-display:
+    "Faculty Glyphic", ui-serif, Georgia, "Times New Roman", serif;
+  --app-toolbar-h: 4.75rem;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -52,6 +54,13 @@
 
 /* Parchment + atlas field-journal (light) */
 :root {
+  /* Navigation rail geometry shared by sidebar clip, rail inner floor, and toolbar. */
+  --nav-sidebar-expanded-w: min(18rem, calc(100vw - 0.75rem));
+  --nav-shell-pad: 0.75rem;
+  --nav-toolbar-w: max(
+    0px,
+    calc(var(--nav-sidebar-expanded-w) - (var(--nav-shell-pad) * 2))
+  );
   --radius: 0.875rem;
   --background: oklch(0.955 0.018 88);
   --foreground: oklch(0.22 0.045 260);
@@ -89,6 +98,12 @@
   --panel-fg: oklch(0.22 0.045 260);
   --panel-shadow: 0 22px 44px -14px oklch(0.2 0.04 260 / 0.22);
   --map-marker-ring: oklch(0.99 0.01 95);
+}
+
+@media (min-width: 40rem) {
+  :root {
+    --nav-shell-pad: 1rem;
+  }
 }
 
 .dark {
@@ -142,14 +157,12 @@
   }
 }
 
-/* MapLibre controls: keep clear of floating panels */
-.maplibregl-ctrl-bottom-left {
-  margin-bottom: 0.75rem !important;
-  margin-left: 0.75rem !important;
-}
-
-@media (max-width: 639px) {
-  .maplibregl-ctrl-bottom-left {
-    margin-bottom: min(36vh, 10.5rem) !important;
+@layer utilities {
+  /* Faculty Glyphic is single-weight (Regular). Block synthetic bold/italic. */
+  .font-display,
+  .font-heading {
+    font-synthesis: none;
   }
 }
+
+/* Map controls offset from FloatingNav toolbar height (--app-toolbar-h). */

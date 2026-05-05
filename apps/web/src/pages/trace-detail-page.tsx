@@ -155,7 +155,7 @@ export function TraceDetailPage() {
         <Card className="border-[var(--panel-border)] bg-[var(--panel-bg)] shadow-[var(--panel-shadow)] backdrop-blur-xl">
           <CardHeader className="flex flex-row items-start justify-between gap-2">
             <div>
-              <CardTitle className="font-display text-2xl font-semibold tracking-tight">
+              <CardTitle className="font-display text-2xl font-normal tracking-tight">
                 {trace.title || "Untitled place"}
               </CardTitle>
               <p className="text-muted-foreground mt-1 text-sm">
