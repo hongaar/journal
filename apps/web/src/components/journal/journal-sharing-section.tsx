@@ -96,7 +96,7 @@ export function JournalSharingSection({
     enabled: Boolean(journalId && isOwner),
   });
 
-  const members = membersQuery.data ?? [];
+  const members = useMemo(() => membersQuery.data ?? [], [membersQuery.data]);
   const pendingInvites = invitationsQuery.data ?? [];
 
   const transferCandidates = useMemo(

@@ -5,6 +5,7 @@
 - The **root** `package.json` should only expose **`turbo run …`** for build/lint/typecheck/test/dev (plus **`prettier`** **`format`** / **`format:check`**, since Prettier is a direct root devDependency). Do **not** add thin wrappers that chain **`npm run -w`** or other workspaces from root (e.g. avoid **`codegen && turbo build`**).
 - **CI/CD** and **developers** orchestrate codegen and checks via **Turbo** (e.g. `npx turbo run lint typecheck test build`). Prefer Turbo **`codegen`**: **`@curolia/brand`** (`generate:web`) then **`@curolia/web`** (`plugins:sync`), wired with package-scoped task dependencies in the root **`turbo.json`**. Do **not** add root **`package.json`** chains of **`npm run -w …`**. Underlying scripts stay on each workspace **`package.json`**; each participating package exposes its own local script for Turbo to run.
 - Keep task orchestration in the root **`turbo.json`**. Avoid per-package **`turbo.json`** files unless a package has a genuinely local, package-specific graph that cannot be expressed clearly from the root.
+- Root **`devDependency`** **`typescript`** plus **`package.json`** **`overrides.@vercel.node.typescript5`** → **`$typescript`** prevents **`@vercel/node`**’s **`typescript5`** alias from winning **`node_modules/.bin/tsc`** (which broke **`ignoreDeprecations`: `"6.0"`** when it pointed at TS 5.9). **`apps/web`** can keep plain **`tsc`** in **`build`** / **`typecheck`**.
 
 ## Database TypeScript types
 
