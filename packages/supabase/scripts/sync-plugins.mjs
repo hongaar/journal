@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 /**
- * Copies Edge Function folders from plugin packages into repo-root
- * `supabase/functions/` so the Supabase CLI can serve and deploy them.
- * Invoked via `npm run functions:sync`.
+ * Copies Edge Function folders from plugin packages into
+ * `packages/supabase/supabase/functions/` so the Supabase CLI can serve and deploy them.
  *
  * Layout: packages/plugins/<id>/supabase/functions/<slug>/**
  */
@@ -11,9 +10,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(__dirname, "..");
-const pluginsRoot = path.join(root, "packages", "plugins");
-const destRoot = path.join(root, "supabase", "functions");
+const supabasePkgRoot = path.resolve(__dirname, "..");
+const repoRoot = path.resolve(supabasePkgRoot, "..", "..");
+const pluginsRoot = path.join(repoRoot, "packages", "plugins");
+const destRoot = path.join(supabasePkgRoot, "supabase", "functions");
 
 function rmrf(dir) {
   if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
@@ -30,7 +30,7 @@ function copyDir(src, dest) {
 }
 
 if (!fs.existsSync(pluginsRoot)) {
-  console.warn("sync-plugin-supabase: no packages/plugins directory");
+  console.warn("sync-plugins: no packages/plugins directory");
   process.exit(0);
 }
 
@@ -47,11 +47,11 @@ for (const pkg of fs.readdirSync(pluginsRoot, { withFileTypes: true })) {
     rmrf(dest);
     copyDir(src, dest);
     console.log(
-      `synced ${path.relative(root, src)} -> ${path.relative(root, dest)}`,
+      `synced ${path.relative(repoRoot, src)} -> ${path.relative(repoRoot, dest)}`,
     );
     count += 1;
   }
 }
 
-if (count === 0) console.log("sync-plugin-supabase: no plugin functions found");
-else console.log(`sync-plugin-supabase: ${count} function(s) synced`);
+if (count === 0) console.log("sync-plugins: no plugin functions found");
+else console.log(`sync-plugins: ${count} function(s) synced`);

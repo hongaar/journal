@@ -1,13 +1,13 @@
 {
-  "name": "mobile",
+  "name": "@curolia/mobile",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "sync": "npm --prefix ../.. run mobile:sync",
-    "copy": "npm --prefix ../.. run mobile:copy",
-    "open:ios": "npm --prefix ../.. run mobile:ios",
-    "open:android": "npm --prefix ../.. run mobile:android"
+    "sync": "cap sync",
+    "copy": "cap copy",
+    "open:ios": "cap open ios",
+    "open:android": "cap open android"
   },
   "dependencies": {
     "@capacitor/core": "^7.4.3"

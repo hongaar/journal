@@ -3,8 +3,8 @@
   "git": {
     "deploymentEnabled": false
   },
-  "installCommand": "npm ci",
-  "buildCommand": "npx turbo run build --filter=web",
-  "outputDirectory": "apps/web/dist",
+  "installCommand": "npm ci --prefix ../..",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }

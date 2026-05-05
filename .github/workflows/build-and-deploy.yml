@@ -1,4 +1,4 @@
-name: CI/CD
+name: Build and Deploy
 
 on:
   push:
@@ -24,14 +24,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Generate web assets
-        run: npm run assets:generate:web
-
       - name: Format, lint, typecheck, test, build
-        run: npm run format:check && npx turbo run lint typecheck test build
-
-      - name: Storybook static build
-        run: npm run build-storybook
+        run: npm run format:check && npx turbo run codegen lint typecheck test build
 
       - name: Upload web dist artifact
         uses: actions/upload-artifact@v4
@@ -68,20 +62,20 @@ jobs:
           path: apps/web/dist
 
       - name: Sync native projects
-        run: npx cap sync
+        run: npm run sync -w @curolia/mobile
 
       - name: Generate native assets (icons/splash)
-        run: npm run assets:generate:native
+        run: npm run generate:native -w @curolia/brand
 
       - name: Build Android debug APK
-        working-directory: android
+        working-directory: apps/mobile/android
         run: ./gradlew assembleDebug
 
       - name: Upload Android artifact
         uses: actions/upload-artifact@v4
         with:
           name: android-debug-apk
-          path: android/app/build/outputs/apk/debug/*.apk
+          path: apps/mobile/android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
 
   ios:
@@ -107,17 +101,17 @@ jobs:
           path: apps/web/dist
 
       - name: Sync native projects
-        run: npx cap sync
+        run: npm run sync -w @curolia/mobile
 
       - name: Generate native assets (icons/splash)
-        run: npm run assets:generate:native
+        run: npm run generate:native -w @curolia/brand
 
       - name: Install CocoaPods
-        working-directory: ios/App
+        working-directory: apps/mobile/ios/App
         run: pod install
 
       - name: Build iOS app for simulator (no signing)
-        working-directory: ios/App
+        working-directory: apps/mobile/ios/App
         run: |
           xcodebuild \
             -workspace App.xcworkspace \
@@ -128,9 +122,6 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build
 
-  # After CI: sync plugin-owned functions into supabase/functions, push migrations, deploy
-  # all Edge Functions. Production frontend uses Vercel’s GitHub integration (parallel with this
-  # job); keep migrations/functions backward-compatible when the web app can ship first.
   supabase:
     needs: [ci, android, ios]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -150,10 +141,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Sync plugin Edge Functions into supabase/functions
-        run: npm run functions:sync
+      - name: Sync plugin Edge Functions into packages/supabase/supabase/functions
+        run: npm run functions:sync -w @curolia/supabase
 
       - name: Link project, push migrations, deploy Edge Functions
+        working-directory: packages/supabase
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
@@ -186,17 +178,23 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Codegen (branding + plugin registry)
+        run: npx turbo run codegen
+
       - name: Pull Vercel environment
+        working-directory: apps/web
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: npx vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+        run: npm run vercel:pull:production
 
       - name: Build Vercel prebuilt output
+        working-directory: apps/web
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: npx vercel build --prod --token="$VERCEL_TOKEN"
+        run: npm run vercel:build:production
 
       - name: Deploy to Vercel production
+        working-directory: apps/web
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: npx vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+        run: npm run vercel:deploy:production

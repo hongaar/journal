@@ -9,15 +9,15 @@ dist
 coverage
 *.log
 
-# Generated intermediate assets (used as input for @capacitor/assets).
-.asset-input
+# Capacitor / @capacitor/assets temp input
 .asset-input/
+apps/mobile/.asset-input/
 
-# Generated web branding assets (derived from assets/icon.svg).
+# Generated web branding (from @curolia/brand, source: packages/brand/icon.svg)
 apps/web/public/favicon.svg
 apps/web/public/icons.svg
 apps/web/public/site.webmanifest
 
-# Supabase CLI (local)
-supabase/.branches
-supabase/.temp
+# Supabase CLI (local) — canonical project lives in packages/supabase/supabase/
+packages/supabase/supabase/.branches
+packages/supabase/supabase/.temp

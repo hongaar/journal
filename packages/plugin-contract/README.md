@@ -49,14 +49,14 @@ export const pluginManifest: PluginPackageManifest = {
 
 ## Host app integration
 
-In `apps/web`, installed plugins are discovered from `apps/web/package.json` dependencies and generated into:
+In `@curolia/web` (`apps/web`), installed plugins are discovered from its `package.json` dependencies and generated into:
 
 - `apps/web/src/plugins/generated-manifests.ts`
 
 Regenerate when plugin dependencies change:
 
 ```bash
-npm run plugins:sync -w web
+npm run plugins:sync -w @curolia/web
 ```
 
 This keeps plugin add/remove flow dependency-driven (no manual registry edits).

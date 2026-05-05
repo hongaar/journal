@@ -2,44 +2,22 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const repoRoot = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "..",
-);
+const brandPkgRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const repoRoot = path.resolve(brandPkgRoot, "..", "..");
 
-const configPath = path.join(repoRoot, "assets", "app-assets.config.json");
+const configPath = path.join(brandPkgRoot, "app-assets.config.json");
 const config = JSON.parse(await fs.readFile(configPath, "utf8"));
 
-const logoSourcePath = path.join(repoRoot, "assets", "icon.svg");
+const logoSourcePath = path.join(brandPkgRoot, "icon.svg");
 const logoSvg = await fs.readFile(logoSourcePath, "utf8");
 
-const faviconOutputPath = path.join(
-  repoRoot,
-  "apps",
-  "web",
-  "public",
-  "favicon.svg",
-);
+const faviconOutputPath = path.join(repoRoot, "apps", "web", "public", "favicon.svg");
+const iconsOutputPath = path.join(repoRoot, "apps", "web", "public", "icons.svg");
 
-const iconsOutputPath = path.join(
-  repoRoot,
-  "apps",
-  "web",
-  "public",
-  "icons.svg",
-);
-
-// Keep both files identical so the PWA manifest + favicon are always aligned.
 await fs.writeFile(faviconOutputPath, logoSvg);
 await fs.writeFile(iconsOutputPath, logoSvg);
 
-const manifestOutputPath = path.join(
-  repoRoot,
-  "apps",
-  "web",
-  "public",
-  "site.webmanifest",
-);
+const manifestOutputPath = path.join(repoRoot, "apps", "web", "public", "site.webmanifest");
 
 const manifest = {
   name: config.web.name,
@@ -85,4 +63,3 @@ const nextIndexHtml = indexHtml.replace(
 await fs.writeFile(indexHtmlPath, nextIndexHtml);
 
 console.log("Generated web assets (favicon/icons/manifest/theme-color).");
-

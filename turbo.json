@@ -5,6 +5,12 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
     },
+    "codegen": {
+      "cache": false
+    },
+    "stack": {
+      "cache": false
+    },
     "dev": {
       "cache": false,
       "persistent": true

@@ -7,7 +7,7 @@ import { defineConfig } from "vite";
 
 const repoRoot = path.resolve(__dirname, "../..");
 const appAssetsConfig = JSON.parse(
-  fs.readFileSync(path.resolve(repoRoot, "assets", "app-assets.config.json"), "utf8"),
+  fs.readFileSync(path.resolve(repoRoot, "packages", "brand", "app-assets.config.json"), "utf8"),
 );
 
 export default defineConfig({

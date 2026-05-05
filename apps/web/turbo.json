@@ -1,0 +1,25 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "dev": {
+      "dependsOn": ["@curolia/supabase#stack"]
+    },
+    "codegen": {
+      "dependsOn": ["@curolia/brand#codegen"]
+    },
+    "lint": {
+      "dependsOn": ["codegen"]
+    },
+    "typecheck": {
+      "dependsOn": ["codegen"]
+    },
+    "test": {
+      "dependsOn": ["codegen"]
+    },
+    "build": {
+      "dependsOn": ["codegen"],
+      "outputs": ["dist/**"]
+    }
+  }
+}

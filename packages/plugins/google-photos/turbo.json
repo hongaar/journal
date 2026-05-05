@@ -1,0 +1,21 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "dev": {
+      "extends": false
+    },
+    "codegen": {
+      "extends": false
+    },
+    "lint": {
+      "extends": false
+    },
+    "test": {
+      "extends": false
+    },
+    "build": {
+      "extends": false
+    }
+  }
+}

@@ -4,35 +4,43 @@ Travel / place journal: private **traces** (visits) per **journal**, with maps, 
 
 ## Monorepo
 
-- `apps/web` — SPA (`name: web` for `turbo --filter=web`)
-- `supabase/migrations` — schema, RLS, storage policies, auth bootstrap trigger
+- `apps/web` — SPA package **`@curolia/web`** (`turbo --filter=@curolia/web`)
+- `apps/mobile` — Capacitor host **`@curolia/mobile`** (`android/`, `ios/` live here)
+- `packages/supabase/supabase/` — Supabase project (migrations, `config.toml`, `functions/`) via **`@curolia/supabase`**
+- `packages/brand/` — app logo + theme config (**`@curolia/brand`**) and generators for web/native branding assets
 - `packages/plugin-contract` — shared plugin manifest / contribution types (`@curolia/plugin-contract`)
-- `packages/plugins/*` — optional plugin packages (e.g. `@curolia/plugin-ical`); Edge sources sync into `supabase/functions/` via `npm run functions:sync`
+- `packages/plugins/*` — optional plugin packages (e.g. `@curolia/plugin-ical`); Edge sources sync into `packages/supabase/supabase/functions/` via `npm run functions:sync -w @curolia/supabase`
 
 Plugin architecture details: [`packages/plugin-contract/README.md`](packages/plugin-contract/README.md).
 
 See [`AGENTS.md`](AGENTS.md) for codegen rules (including **never hand-editing** `database.types.ts`).
 
+Root scripts are Turborepo + Prettier only; see **`AGENTS.md` → Monorepo scripts**. Branding + plugin registry are the Turbo **`codegen`** task (`@curolia/brand` then `@curolia/web`); **`@curolia/web`** **lint** / **typecheck** / **test** / **build** depend on **`codegen`** automatically.
+
 Common commands (from repo root):
 
 ```bash
 npm ci
-npm run dev          # turbo run dev → Vite dev server
-npx turbo run build --filter=web
-npx turbo run lint typecheck test build
-npm run mobile:sync   # build web + sync into ios/android shells
-npm run mobile:ios    # open iOS project (macOS with Xcode)
-npm run mobile:android # open Android project (Android Studio)
+npx turbo run codegen                    # optional if you’ll run lint/typecheck/test/build next (those pull codegen for @curolia/web)
+npm run dev         # Turbo dev: supabase stack + serve, Vite, Storybook (see AGENTS for task graph)
+npm run build       # turbo run build
+npx turbo run codegen lint typecheck test build   # CI shape (codegen is explicit; web tasks also depend on it)
+npm run sync -w @curolia/mobile   # cap sync (expects apps/web/dist; build web first)
+npm run open:ios -w @curolia/mobile
+npm run open:android -w @curolia/mobile
 ```
+
+The production **Vercel** job runs **`npx turbo run codegen`** after install, then **`vercel build`** with **`apps/web/vercel.json`** **`buildCommand`**: **`npm run build`** (the **`@curolia/web`** Vite/TSC pipeline only).
 
 ## Hybrid Mobile (PWA + Capacitor)
 
-- Web app now ships as a PWA (installable + offline static shell caching).
-- Native shells are generated with Capacitor in `ios/` and `android/` and reuse `apps/web/dist`.
-- Mobile sync flow is driven by root scripts:
-  - `npm run mobile:sync`
-  - `npm run mobile:ios`
-  - `npm run mobile:android`
+- Web app ships as a PWA (installable + offline static shell caching).
+- Native shells live under **`apps/mobile/ios`** and **`apps/mobile/android`** and reuse **`apps/web/dist`** (`capacitor.config.json` is next to those folders).
+- From the repo root, use **`@curolia/mobile`** (after a web build populates `apps/web/dist`):
+  - `npm run sync -w @curolia/mobile` — `cap sync` into `android` / `ios`
+  - `npm run generate:native -w @curolia/brand` — regenerate native icons/splash when branding changes
+  - `npm run open:ios -w @curolia/mobile`
+  - `npm run open:android -w @curolia/mobile`
 
 For iOS development, install Xcode + CocoaPods. For Android, install Android Studio SDK tools.
 
@@ -40,8 +48,8 @@ For iOS development, install Xcode + CocoaPods. For Android, install Android Stu
 
 Native builds are integrated into `.github/workflows/build-and-deploy.yml`:
 
-- `android` job (Linux): `gradlew assembleDebug`
-- `ios` job (macOS): simulator `xcodebuild` (no signing)
+- `android` job (Linux): `gradlew` under `apps/mobile/android`
+- `ios` job (macOS): simulator `xcodebuild` under `apps/mobile/ios/App` (no signing)
 
 Both jobs depend on the main `ci` job and reuse the built `apps/web/dist` artifact, so web assets are compiled once and fanned out to native builds.
 
@@ -53,38 +61,39 @@ From the repo root:
 
 ```bash
 npm install
-npm run db:start          # first run pulls images; can take a few minutes
-npm run db:reset          # optional: wipe local DB and re-apply all migrations
-npm run db:status         # shows API URL, anon key, Studio URL, etc.
+npm run db:start -w @curolia/supabase
+npm run db:reset -w @curolia/supabase   # optional: wipe local DB and re-apply all migrations
+npm run db:status -w @curolia/supabase
 ```
 
 Point the web app at the local API (defaults are stable):
 
 1. Create `apps/web/.env` (see [`apps/web/.env.example`](apps/web/.env.example)).
-2. Set `VITE_SUPABASE_URL` to the **API URL** from `npm run db:status` (usually `http://127.0.0.1:54321`).
-3. Set `VITE_SUPABASE_PUBLISHABLE_KEY` to the **anon key** from `npm run db:status`.
+2. Set `VITE_SUPABASE_URL` to the **API URL** from `npm run db:status -w @curolia/supabase` (usually `http://127.0.0.1:54321`).
+3. Set `VITE_SUPABASE_PUBLISHABLE_KEY` to the **anon key** from that same command.
 
-Then run `npm run dev` and open the app. [Studio](http://127.0.0.1:54323) lists tables and auth users. [Mailpit](http://127.0.0.1:54324) catches auth emails if you turn confirmations back on.
+Then run **`npm run dev`** from the **repo root** (Turbo runs **`@curolia/supabase#stack`** once: `supabase start` + **`functions:sync`**, then **`supabase functions serve`**, **Vite**, and **Storybook** (port 6006) in parallel after that). Open the web app URL from Vite's output. [Studio](http://127.0.0.1:54323) lists tables and auth users. [Mailpit](http://127.0.0.1:54324) catches auth emails if you turn confirmations back on.
 
-Stop the stack when finished: `npm run db:stop`.
+Stopping: Ctrl+C stops the Turbo dev tasks; **`npm run db:stop -w @curolia/supabase`** stops Docker when you're done.
 
-**Edge Functions (local):** after `npm run db:start`, run `npm run functions:sync` when you change code under `packages/plugins/*/supabase/functions/`, then `npm run functions:start` in another terminal to serve all functions (e.g. iCal at `/functions/v1/ical-feed`). `npm run functions:stop` sends `pkill` to the `supabase functions serve` process (Linux/macOS); you can also stop with Ctrl+C in that terminal.
+**Edge Functions:** **`npm run dev`** pulls plugin handlers in via **`stack`**. After changing files under **`packages/plugins/*/supabase/functions/`**, restart **`npm run dev`** (or run **`npm run functions:sync -w @curolia/supabase`** and restart **`functions serve`** only).
 
 ### Push notifications (first mobile feature)
 
 Push delivery is currently enabled for `journal_invitation` notifications when the recipient has push enabled in settings.
 
-1. Ensure local Supabase and functions are running:
+1. Ensure local Supabase and functions are running (`npm run dev` from repo root covers this):
 
 ```bash
-npm run db:start
-npm run functions:start
+npm run db:start -w @curolia/supabase
+npm run functions:sync -w @curolia/supabase
+npm run functions:start -w @curolia/supabase
 ```
 
 2. Set local function secrets for the dispatcher:
 
 ```bash
-npx supabase secrets set --local \
+cd packages/supabase && npx supabase secrets set --local \
   PUSH_DISPATCH_SECRET=<random-long-secret> \
   FCM_SERVER_KEY=<firebase-server-key>
 ```
@@ -92,16 +101,17 @@ npx supabase secrets set --local \
 3. Apply migrations and regenerate DB types:
 
 ```bash
-npx supabase migration up --local
-npm run db:types
+npm run db:migrate -w @curolia/supabase
+npm run db:types -w @curolia/supabase
 ```
 
-4. Sync native shells and run on device/emulator:
+4. Build web, sync native shells, and run on device/emulator:
 
 ```bash
-npm run mobile:sync
-npm run mobile:android
-# or npm run mobile:ios on macOS
+npx turbo run codegen build
+npm run sync -w @curolia/mobile
+npm run open:android -w @curolia/mobile
+# or npm run open:ios -w @curolia/mobile on macOS
 ```
 
 5. Trigger dispatch (example):
@@ -126,22 +136,22 @@ Current plugin OAuth flow is handled by the `plugin-oauth` Edge Function, and pl
 1. Ensure local Supabase and functions are running:
 
 ```bash
-npm run db:start
-npm run functions:sync
-npm run functions:start
+npm run db:start -w @curolia/supabase
+npm run functions:sync -w @curolia/supabase
+npm run functions:start -w @curolia/supabase
 ```
 
 2. Set frontend env in `apps/web/.env`:
 
 ```bash
 VITE_SUPABASE_URL=http://127.0.0.1:54321
-VITE_SUPABASE_PUBLISHABLE_KEY=<local anon/publishable key from `npm run db:status`>
+VITE_SUPABASE_PUBLISHABLE_KEY=<local anon/publishable key from `npm run db:status -w @curolia/supabase`>
 ```
 
 3. Set local function secrets (required for OAuth):
 
 ```bash
-npx supabase secrets set --local \
+cd packages/supabase && npx supabase secrets set --local \
   PLUGIN_OAUTH_ENCRYPTION_KEY=<base64 32-byte key> \
   GOOGLE_CLIENT_ID=<google oauth client id> \
   GOOGLE_CLIENT_SECRET=<google oauth client secret> \
@@ -166,19 +176,20 @@ Use `supabase link` against your cloud project, then `supabase db push` for migr
 
 ## Deploy (Vercel)
 
-- **Root directory**: repository root (default).
-- **Install**: `npm ci`
-- **Build**: `npx turbo run build --filter=web`
-- **Output**: `apps/web/dist`
+Configure the Vercel project **Root Directory** to **`apps/web`** so it picks up [`apps/web/vercel.json`](apps/web/vercel.json).
 
-`vercel.json` in this repo matches the above. Set the same Supabase env vars for Production (and Preview): `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`.
+That file installs from the repo root, runs **`npm run build`** inside **`apps/web`** (**`buildCommand`**). **`codegen`** is executed in CI **before** `vercel build` so generated assets exist. **`outputDirectory`** is **`dist`** relative to **`apps/web`**.
+
+Set the same Supabase env vars for Production (and Preview): `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`.
+
+Link the CLI from `apps/web` (creates `apps/web/.vercel/`) if you deploy locally: `cd apps/web && npx vercel link`.
 
 ### Production: Supabase (GitHub Actions) + web (Vercel Git)
 
-Production web deploy is orchestrated by GitHub Actions (`.github/workflows/build-and-deploy.yml`) using Vercel CLI prebuilt deploys.
-Vercel Git auto-deploy is disabled (`vercel.json` -> `git.deploymentEnabled: false`) so deployments happen only through the CI/CD workflow.
+Production web deploy is orchestrated by GitHub Actions (`.github/workflows/build-and-deploy.yml`) from **`apps/web`** using the `vercel` npm scripts (`vercel pull` / `vercel build` / `vercel deploy --prebuilt`).
+Vercel Git auto-deploy is disabled (`apps/web/vercel.json` → `git.deploymentEnabled: false`) so deployments happen only through the CI/CD workflow.
 
-The [`.github/workflows/build-and-deploy.yml`](.github/workflows/build-and-deploy.yml) workflow also runs, after CI: **`npm run functions:sync`** (copies plugin packages’ `supabase/functions/*` into the repo-root functions tree), **`supabase db push`**, and **`supabase functions deploy --use-api`** for every function. Run `functions:sync` here so deployed Edge code always matches `packages/plugins/*`, not only whatever was last committed under `supabase/functions/`.
+The [`.github/workflows/build-and-deploy.yml`](.github/workflows/build-and-deploy.yml) workflow also runs, after CI: **`npm run functions:sync -w @curolia/supabase`** (copies plugin packages’ function sources into `packages/supabase/supabase/functions/`), then **`supabase db push`** and **`supabase functions deploy --use-api`** from `packages/supabase`. This keeps deployed Edge code aligned with `packages/plugins/*`, not only last-run sync output.
 
 `supabase` deploy runs before the `vercel` job in CI/CD so database/functions are updated before the production web deployment.
 
@@ -217,7 +228,7 @@ When env vars are already configured in Vercel UI, copy these frontend vars manu
 Set all OAuth and plugin runtime secrets in Supabase project secrets (not in Vercel browser env):
 
 ```bash
-npx supabase secrets set \
+cd packages/supabase && npx supabase secrets set \
   PLUGIN_OAUTH_ENCRYPTION_KEY=<base64 32-byte key> \
   GOOGLE_CLIENT_ID=<google oauth client id> \
   GOOGLE_CLIENT_SECRET=<google oauth client secret> \
@@ -231,11 +242,11 @@ Production checklist:
 2. In Vercel project env vars (Preview + Production), set:
    - `VITE_SUPABASE_URL=https://<your-project-ref>.supabase.co`
    - `VITE_SUPABASE_PUBLISHABLE_KEY=<supabase publishable/anon key>`
-3. Keep `supabase/config.toml` function policy aligned:
+3. Keep `packages/supabase/supabase/config.toml` function policy aligned:
    - `plugin-oauth` must keep `verify_jwt = false` (provider callback has no JWT).
    - plugin APIs can validate JWT inside handler.
 4. Deploy flow:
-   - GitHub workflow runs `functions:sync`, `supabase db push`, and `supabase functions deploy --use-api`.
+   - GitHub workflow runs `functions:sync` (via `@curolia/supabase`), `supabase db push`, and `supabase functions deploy --use-api` from `packages/supabase`.
    - Then GitHub workflow deploys web to Vercel via `vercel build --prod` + `vercel deploy --prebuilt --prod`.
 
 ## Roadmap

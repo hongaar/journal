@@ -45,7 +45,7 @@ export type AppHookDeclaration = {
 
 /**
  * Edge Function deployed via Supabase (source under plugin package;
- * synced into repo-root `supabase/functions/`).
+ * synced into `packages/supabase/supabase/functions/`).
  */
 export type EdgeFunctionDeclaration = {
   slug: string;

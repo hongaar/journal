@@ -1,0 +1,14 @@
+{
+  "name": "@curolia/brand",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "codegen": "npm run generate:web",
+    "generate:web": "node scripts/generate-web.mjs",
+    "generate:native": "node scripts/generate-native.mjs"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5"
+  }
+}
