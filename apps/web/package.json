@@ -12,9 +12,9 @@
     "preview": "vite preview",
     "typecheck": "tsc -b",
     "test": "vitest run",
-    "vercel:pull:production": "vercel pull --yes --environment=production",
-    "vercel:build:production": "vercel build --prod",
-    "vercel:deploy:production": "vercel deploy --prebuilt --prod"
+    "vercel:pull:production": "vercel pull --yes --environment=production ${VERCEL_TOKEN:+--token=$VERCEL_TOKEN}",
+    "vercel:build:production": "vercel build --prod ${VERCEL_TOKEN:+--token=$VERCEL_TOKEN}",
+    "vercel:deploy:production": "vercel deploy --prebuilt --prod ${VERCEL_TOKEN:+--token=$VERCEL_TOKEN}"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",

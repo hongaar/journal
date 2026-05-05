@@ -1,6 +1,6 @@
-import { Plus } from "lucide-react";
-import { Button } from "@curolia/ui/button";
 import { cn } from "@/lib/utils";
+import { Button } from "@curolia/ui/button";
+import { Plus } from "lucide-react";
 
 type AddTraceFabProps = {
   onClick: () => void;
@@ -10,11 +10,7 @@ type AddTraceFabProps = {
 };
 
 /** Large + FAB; expands on hover to reveal the label. */
-export function AddTraceFab({
-  onClick,
-  active,
-  className,
-}: AddTraceFabProps) {
+export function AddTraceFab({ onClick, active, className }: AddTraceFabProps) {
   return (
     <Button
       type="button"
