@@ -6,6 +6,7 @@ on:
   pull_request:
     branches: [main]
 
+environment: production
 env:
   VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
   VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
@@ -34,7 +35,6 @@ jobs:
     name: Android (Linux)
     needs: ci
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' || github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4
 
@@ -69,7 +69,6 @@ jobs:
     name: iOS (macOS)
     needs: ci
     runs-on: macos-latest
-    if: github.event_name == 'push' || github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4
 
@@ -107,7 +106,6 @@ jobs:
     concurrency:
       group: production-supabase
       cancel-in-progress: false
-    environment: production
     steps:
       - uses: actions/checkout@v4
 
@@ -144,7 +142,6 @@ jobs:
     concurrency:
       group: production-vercel
       cancel-in-progress: false
-    environment: production
     steps:
       - uses: actions/checkout@v4
 

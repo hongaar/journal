@@ -51,6 +51,8 @@ Native builds are integrated into `.github/workflows/build-and-deploy.yml`:
 
 Both jobs depend on the main `ci` job, then run **`npx turbo run sync --filter=@curolia/mobile`** so Turbo prepares native assets and builds the web output before Capacitor sync.
 
+**GitHub Actions APK/IPA:** `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` are injected per job (see workflow `ci`, `android`, `ios`). They must point at your **hosted** Supabase project (not `127.0.0.1`). Those jobs use **`environment: production`** so **GitHub environment secrets** work; a workflow-wide `env` block **cannot** read environment-only secrets. If the `production` environment limits which branches may deploy, pull-request runs might not see those secrets — use repository secrets for PR CI, relax the rule, or add a separate environment for builds.
+
 ## Supabase (local, recommended for now)
 
 Prerequisites: [Docker](https://docs.docker.com/get-docker/) (or another engine the [Supabase CLI](https://supabase.com/docs/guides/cli/getting-started) can use).
