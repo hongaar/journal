@@ -9,6 +9,8 @@ Travel / place journal: private **traces** (visits) per **journal**, with maps, 
 - `packages/plugin-contract` — shared plugin manifest / contribution types (`@curolia/plugin-contract`)
 - `packages/plugins/*` — optional plugin packages (e.g. `@curolia/plugin-ical`); Edge sources sync into `supabase/functions/` via `npm run functions:sync`
 
+Plugin architecture details: [`packages/plugin-contract/README.md`](packages/plugin-contract/README.md).
+
 See [`AGENTS.md`](AGENTS.md) for codegen rules (including **never hand-editing** `database.types.ts`).
 
 Common commands (from repo root):
@@ -18,7 +20,21 @@ npm ci
 npm run dev          # turbo run dev → Vite dev server
 npx turbo run build --filter=web
 npx turbo run lint typecheck test build
+npm run mobile:sync   # build web + sync into ios/android shells
+npm run mobile:ios    # open iOS project (macOS with Xcode)
+npm run mobile:android # open Android project (Android Studio)
 ```
+
+## Hybrid Mobile (PWA + Capacitor)
+
+- Web app now ships as a PWA (installable + offline static shell caching).
+- Native shells are generated with Capacitor in `ios/` and `android/` and reuse `apps/web/dist`.
+- Mobile sync flow is driven by root scripts:
+  - `npm run mobile:sync`
+  - `npm run mobile:ios`
+  - `npm run mobile:android`
+
+For iOS development, install Xcode + CocoaPods. For Android, install Android Studio SDK tools.
 
 ## Supabase (local, recommended for now)
 
@@ -44,6 +60,55 @@ Then run `npm run dev` and open the app. [Studio](http://127.0.0.1:54323) lists 
 Stop the stack when finished: `npm run db:stop`.
 
 **Edge Functions (local):** after `npm run db:start`, run `npm run functions:sync` when you change code under `packages/plugins/*/supabase/functions/`, then `npm run functions:start` in another terminal to serve all functions (e.g. iCal at `/functions/v1/ical-feed`). `npm run functions:stop` sends `pkill` to the `supabase functions serve` process (Linux/macOS); you can also stop with Ctrl+C in that terminal.
+
+### Push notifications (first mobile feature)
+
+Push delivery is currently enabled for `journal_invitation` notifications when the recipient has push enabled in settings.
+
+1. Ensure local Supabase and functions are running:
+
+```bash
+npm run db:start
+npm run functions:start
+```
+
+2. Set local function secrets for the dispatcher:
+
+```bash
+npx supabase secrets set --local \
+  PUSH_DISPATCH_SECRET=<random-long-secret> \
+  FCM_SERVER_KEY=<firebase-server-key>
+```
+
+3. Apply migrations and regenerate DB types:
+
+```bash
+npx supabase migration up --local
+npm run db:types
+```
+
+4. Sync native shells and run on device/emulator:
+
+```bash
+npm run mobile:sync
+npm run mobile:android
+# or npm run mobile:ios on macOS
+```
+
+5. Trigger dispatch (example):
+
+```bash
+curl -X POST http://127.0.0.1:54321/functions/v1/push-dispatch \
+  -H "Authorization: Bearer <PUSH_DISPATCH_SECRET>" \
+  -H "Content-Type: application/json" \
+  -d '{"limit":50}'
+```
+
+Notes:
+
+- Device tokens are stored in `public.push_tokens`.
+- Pending deliveries are queued in `public.push_notification_outbox`.
+- The web/native app registers tokens only on native platforms and only when `notification_push_enabled` is true.
 
 ### Plugin OAuth + Edge config (local)
 
@@ -135,7 +200,6 @@ Production checklist:
    - Vercel deploys web on push.
    - GitHub workflow runs `functions:sync`, `supabase db push`, and `supabase functions deploy --use-api`.
 
-## Roadmap (not in this repo yet)
+## Roadmap
 
-- **Mobile app** — e.g. Expo consuming the same Supabase project.
 - **Public HTTP API** — service role + API keys behind a small Node layer or Edge Functions when you need non-Supabase clients.

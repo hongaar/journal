@@ -55,10 +55,14 @@ export function UserAvatar({
 
   const tryStored = attempt === 0;
   const tryGravatar = attempt === 1;
-  const src = tryStored && stored ? stored : tryGravatar && gravatar ? gravatar : null;
+  const src =
+    tryStored && stored ? stored : tryGravatar && gravatar ? gravatar : null;
 
   const inner = !src ? (
-    <span className={cn("text-muted-foreground inline-flex", className)} aria-hidden>
+    <span
+      className={cn("text-muted-foreground inline-flex", className)}
+      aria-hidden
+    >
       <UserCircle className={cn("size-7", imgClassName)} />
     </span>
   ) : (
@@ -66,7 +70,10 @@ export function UserAvatar({
       <img
         src={src}
         alt={label}
-        className={cn("size-8 rounded-full object-cover ring-1 ring-foreground/15", imgClassName)}
+        className={cn(
+          "size-8 rounded-full object-cover ring-1 ring-foreground/15",
+          imgClassName,
+        )}
         referrerPolicy="no-referrer"
         onError={() => {
           setAttempt((a) => (a < 2 ? ((a + 1) as Attempt) : 2));

@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { supabase } from "@/lib/supabase";
+import { enableNativePushIfEligible } from "@/lib/native-push";
 
 type AuthContextValue = {
   user: User | null;
@@ -49,6 +50,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void supabase.auth.getSession().then(({ data }) => {
       if (!cancelled) {
         setSession(data.session);
+        void enableNativePushIfEligible(data.session?.user.id ?? null).catch(
+          (error: unknown) => {
+            console.error("Failed to initialize native push", error);
+          },
+        );
         setLoading(false);
       }
     });
@@ -56,6 +62,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, next) => {
       setSession(next);
+      void enableNativePushIfEligible(next?.user.id ?? null).catch(
+        (error: unknown) => {
+          console.error("Failed to initialize native push", error);
+        },
+      );
     });
     return () => {
       cancelled = true;
@@ -64,7 +75,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
     return { error: error as Error | null };
   }, []);
 

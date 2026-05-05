@@ -18,7 +18,10 @@ export async function googlePhotosSearch(traceId: string): Promise<{
   return { suggestions: data?.suggestions ?? [], needsLink: false };
 }
 
-export async function googlePhotosImport(traceId: string, mediaItemIds: string[]): Promise<string[]> {
+export async function googlePhotosImport(
+  traceId: string,
+  mediaItemIds: string[],
+): Promise<string[]> {
   const { data, error } = await supabase.functions.invoke<{
     importedIds?: string[];
     error?: string;

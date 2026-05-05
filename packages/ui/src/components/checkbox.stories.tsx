@@ -31,7 +31,10 @@ export const Controlled: Story = {
     const [checked, setChecked] = useState(false);
     return (
       <Label className="gap-2">
-        <Checkbox checked={checked} onCheckedChange={(v) => setChecked(v === true)} />
+        <Checkbox
+          checked={checked}
+          onCheckedChange={(v) => setChecked(v === true)}
+        />
         {checked ? "Enabled" : "Disabled"}
       </Label>
     );

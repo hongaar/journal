@@ -4,7 +4,10 @@ import { supabase } from "@/lib/supabase";
  * Starts PKCE OAuth for a plugin Edge flow; redirects the browser to the provider.
  * Callback is handled by `plugin-oauth`, which redirects back with `?plugin_oauth=success|error`.
  */
-export async function startPluginOAuth(pluginTypeId: string, redirectAfter?: string): Promise<void> {
+export async function startPluginOAuth(
+  pluginTypeId: string,
+  redirectAfter?: string,
+): Promise<void> {
   const {
     data: { session },
   } = await supabase.auth.getSession();

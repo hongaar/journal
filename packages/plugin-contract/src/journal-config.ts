@@ -6,9 +6,12 @@ export type JournalPluginLike = {
   config?: unknown;
 };
 
-export function journalPluginConfigRecord(jp: JournalPluginLike | undefined | null): Record<string, unknown> {
+export function journalPluginConfigRecord(
+  jp: JournalPluginLike | undefined | null,
+): Record<string, unknown> {
   const c = jp?.config;
-  if (c && typeof c === "object" && !Array.isArray(c)) return { ...(c as Record<string, unknown>) };
+  if (c && typeof c === "object" && !Array.isArray(c))
+    return { ...(c as Record<string, unknown>) };
   return {};
 }
 

@@ -4,6 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "plugins:sync": "node ../../scripts/generate-web-plugin-registry.mjs",
+    "predev": "npm run plugins:sync",
+    "prebuild": "npm run plugins:sync",
+    "pretypecheck": "npm run plugins:sync",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
@@ -12,11 +16,14 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@base-ui/react": "^1.4.1",
+    "@capacitor/core": "^8.3.1",
+    "@capacitor/device": "^8.0.2",
+    "@capacitor/push-notifications": "^8.0.3",
     "@curolia/plugin-contract": "file:../../packages/plugin-contract",
     "@curolia/plugin-google-photos": "file:../../packages/plugins/google-photos",
     "@curolia/plugin-ical": "file:../../packages/plugins/ical",
     "@curolia/ui": "file:../../packages/ui",
-    "@base-ui/react": "^1.4.1",
     "@floating-ui/dom": "^1.7.6",
     "@fontsource-variable/geist": "^5.2.8",
     "@supabase/supabase-js": "^2.49.8",
@@ -53,6 +60,7 @@
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.2",
     "vite": "^8.0.10",
+    "vite-plugin-pwa": "^1.2.0",
     "vitest": "^3.1.2"
   }
 }

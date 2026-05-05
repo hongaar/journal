@@ -13,7 +13,12 @@ export function NotificationsPopover({ userId }: { userId: string }) {
   const qc = useQueryClient();
   const [open, setOpen] = React.useState(false);
 
-  const { data: items = [], refetch, isPending, isFetching } = useQuery({
+  const {
+    data: items = [],
+    refetch,
+    isPending,
+    isFetching,
+  } = useQuery({
     queryKey: ["notifications", userId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -58,12 +63,18 @@ export function NotificationsPopover({ userId }: { userId: string }) {
       >
         <Bell className="size-4 opacity-80" />
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-[min(22rem,calc(100vw-2rem))] p-0">
+      <PopoverContent
+        align="end"
+        className="w-[min(22rem,calc(100vw-2rem))] p-0"
+      >
         <div className="border-border/60 flex items-center justify-between border-b px-3 py-2">
           <span className="text-sm font-medium">Notifications</span>
           <button
             type="button"
-            className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "h-8 rounded-lg text-xs")}
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "sm" }),
+              "h-8 rounded-lg text-xs",
+            )}
             onClick={() => {
               setOpen(false);
               navigate("/notifications");
@@ -75,13 +86,20 @@ export function NotificationsPopover({ userId }: { userId: string }) {
         <div className="max-h-72 overflow-y-auto">
           {open ? (
             isPending || isFetching ? (
-              <p className="text-muted-foreground px-3 py-4 text-sm">Loading…</p>
+              <p className="text-muted-foreground px-3 py-4 text-sm">
+                Loading…
+              </p>
             ) : items.length === 0 ? (
-              <p className="text-muted-foreground px-3 py-4 text-sm">No notifications yet.</p>
+              <p className="text-muted-foreground px-3 py-4 text-sm">
+                No notifications yet.
+              </p>
             ) : (
               <ul>
                 {items.map((n) => (
-                  <li key={n.id} className="border-border/40 border-b last:border-0">
+                  <li
+                    key={n.id}
+                    className="border-border/40 border-b last:border-0"
+                  >
                     <button
                       type="button"
                       className={cn(
@@ -92,14 +110,19 @@ export function NotificationsPopover({ userId }: { userId: string }) {
                     >
                       <span className="flex items-start gap-2">
                         {!n.read_at ? (
-                          <span className="bg-primary mt-1.5 size-1.5 shrink-0 rounded-full" aria-hidden />
+                          <span
+                            className="bg-primary mt-1.5 size-1.5 shrink-0 rounded-full"
+                            aria-hidden
+                          />
                         ) : (
                           <span className="size-1.5 shrink-0" aria-hidden />
                         )}
                         <span className="min-w-0 flex-1">
                           <span className="font-medium">{n.title}</span>
                           {n.body ? (
-                            <span className="text-muted-foreground mt-0.5 line-clamp-2 block text-xs">{n.body}</span>
+                            <span className="text-muted-foreground mt-0.5 line-clamp-2 block text-xs">
+                              {n.body}
+                            </span>
                           ) : null}
                         </span>
                       </span>

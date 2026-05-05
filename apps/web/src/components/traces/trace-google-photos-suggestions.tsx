@@ -4,7 +4,10 @@ import type { TracePhotoSuggestion } from "@curolia/plugin-contract";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
-import { googlePhotosImport, googlePhotosSearch } from "@/lib/google-photos-functions";
+import {
+  googlePhotosImport,
+  googlePhotosSearch,
+} from "@/lib/google-photos-functions";
 import { useAuth } from "@/providers/auth-provider";
 import { getPluginDefinition } from "@/plugins/registry";
 import { Button } from "@curolia/ui/button";
@@ -38,7 +41,8 @@ export function TraceGooglePhotosSuggestions({ traceId, journalId }: Props) {
     enabled: Boolean(user),
   });
 
-  const pluginEnabled = Boolean(enabledQuery.data?.enabled) && (def?.implemented ?? false);
+  const pluginEnabled =
+    Boolean(enabledQuery.data?.enabled) && (def?.implemented ?? false);
 
   const searchMut = useMutation({
     mutationFn: async () => googlePhotosSearch(traceId),
@@ -46,11 +50,15 @@ export function TraceGooglePhotosSuggestions({ traceId, journalId }: Props) {
       setSuggestions(result.suggestions);
       setSelected(new Set());
       if (result.needsLink) {
-        toast.info("Link Google Photos under Settings → Plugins, then try again.");
+        toast.info(
+          "Link Google Photos under Settings → Plugins, then try again.",
+        );
         return;
       }
       if (result.suggestions.length === 0) {
-        toast.message("No matching photos found in your library for this date and place.");
+        toast.message(
+          "No matching photos found in your library for this date and place.",
+        );
       }
     },
     onError: (e) => {
@@ -61,10 +69,16 @@ export function TraceGooglePhotosSuggestions({ traceId, journalId }: Props) {
   const importMut = useMutation({
     mutationFn: async (ids: string[]) => googlePhotosImport(traceId, ids),
     onSuccess: async (importedIds) => {
-      toast.success(importedIds.length === 1 ? "Imported 1 photo." : `Imported ${importedIds.length} photos.`);
+      toast.success(
+        importedIds.length === 1
+          ? "Imported 1 photo."
+          : `Imported ${importedIds.length} photos.`,
+      );
       setSelected(new Set());
       await qc.invalidateQueries({ queryKey: ["photos", traceId] });
-      await qc.invalidateQueries({ queryKey: ["journal-trace-photos", journalId] });
+      await qc.invalidateQueries({
+        queryKey: ["journal-trace-photos", journalId],
+      });
     },
     onError: (e) => {
       toast.error(e instanceof Error ? e.message : "Import failed");
@@ -90,7 +104,8 @@ export function TraceGooglePhotosSuggestions({ traceId, journalId }: Props) {
     <div className="border-border/60 border-t pt-4">
       <h3 className="mb-2 text-sm font-medium">Google Photos</h3>
       <p className="text-muted-foreground mb-3 text-xs leading-relaxed">
-        Search your library for shots near this trace and in its date range, then import copies into this trace.
+        Search your library for shots near this trace and in its date range,
+        then import copies into this trace.
       </p>
       <div className="flex flex-wrap gap-2">
         <Button
@@ -101,7 +116,9 @@ export function TraceGooglePhotosSuggestions({ traceId, journalId }: Props) {
           disabled={busy}
           onClick={() => searchMut.mutate()}
         >
-          {searchMut.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+          {searchMut.isPending ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : null}
           Search library
         </Button>
         <Button
@@ -111,7 +128,9 @@ export function TraceGooglePhotosSuggestions({ traceId, journalId }: Props) {
           disabled={busy || selectedArr.length === 0}
           onClick={() => importMut.mutate(selectedArr)}
         >
-          {importMut.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+          {importMut.isPending ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : null}
           Import selected
         </Button>
       </div>
@@ -141,7 +160,9 @@ export function TraceGooglePhotosSuggestions({ traceId, journalId }: Props) {
                 )}
                 <p className="truncate font-medium">{s.title ?? "Untitled"}</p>
                 {s.capturedAt ? (
-                  <p className="text-muted-foreground truncate tabular-nums">{s.capturedAt.slice(0, 16)}</p>
+                  <p className="text-muted-foreground truncate tabular-nums">
+                    {s.capturedAt.slice(0, 16)}
+                  </p>
                 ) : null}
               </div>
             </li>

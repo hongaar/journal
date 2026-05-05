@@ -14,7 +14,8 @@ type StartBody = {
 function cors(): HeadersInit {
   return {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
   };
 }
@@ -22,7 +23,8 @@ function cors(): HeadersInit {
 function base64UrlEncode(buf: ArrayBuffer): string {
   const bytes = new Uint8Array(buf);
   let binary = "";
-  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]!);
+  for (let i = 0; i < bytes.byteLength; i++)
+    binary += String.fromCharCode(bytes[i]!);
   const b64 = btoa(binary);
   return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
@@ -40,14 +42,18 @@ function randomUrlSafe(len: number): string {
 }
 
 async function importAesKey(raw: Uint8Array): Promise<CryptoKey> {
-  return crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["encrypt", "decrypt"]);
+  return crypto.subtle.importKey("raw", raw, "AES-GCM", false, [
+    "encrypt",
+    "decrypt",
+  ]);
 }
 
 function getEncryptionKey(): Uint8Array {
   const b64 = Deno.env.get("PLUGIN_OAUTH_ENCRYPTION_KEY") ?? "";
   if (!b64) throw new Error("PLUGIN_OAUTH_ENCRYPTION_KEY is not set");
   const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-  if (bin.length !== 32) throw new Error("PLUGIN_OAUTH_ENCRYPTION_KEY must decode to 32 bytes");
+  if (bin.length !== 32)
+    throw new Error("PLUGIN_OAUTH_ENCRYPTION_KEY must decode to 32 bytes");
   return bin;
 }
 
@@ -57,7 +63,9 @@ async function encryptSecret(plaintext: string): Promise<Uint8Array> {
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const key = await importAesKey(keyRaw);
   const enc = new TextEncoder().encode(plaintext);
-  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc));
+  const ct = new Uint8Array(
+    await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc),
+  );
   const out = new Uint8Array(iv.length + ct.length);
   out.set(iv, 0);
   out.set(ct, iv.length);
@@ -92,10 +100,13 @@ async function handleStart(body: StartBody, jwt: string): Promise<Response> {
   }
 
   if (body.plugin_type_id !== "google_photos") {
-    return new Response(JSON.stringify({ error: "unsupported plugin_type_id" }), {
-      status: 400,
-      headers: { ...cors(), "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ error: "unsupported plugin_type_id" }),
+      {
+        status: 400,
+        headers: { ...cors(), "Content-Type": "application/json" },
+      },
+    );
   }
 
   const userClient = createClient(supabaseUrl, anonKey, {
@@ -111,10 +122,13 @@ async function handleStart(body: StartBody, jwt: string): Promise<Response> {
   const userId = userData.user.id;
 
   if (!googleClientId) {
-    return new Response(JSON.stringify({ error: "GOOGLE_CLIENT_ID not configured" }), {
-      status: 500,
-      headers: { ...cors(), "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ error: "GOOGLE_CLIENT_ID not configured" }),
+      {
+        status: 500,
+        headers: { ...cors(), "Content-Type": "application/json" },
+      },
+    );
   }
 
   const codeVerifier = randomUrlSafe(48);
@@ -133,10 +147,13 @@ async function handleStart(body: StartBody, jwt: string): Promise<Response> {
   });
   if (pendErr) {
     console.error(pendErr);
-    return new Response(JSON.stringify({ error: "could not store oauth state" }), {
-      status: 500,
-      headers: { ...cors(), "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ error: "could not store oauth state" }),
+      {
+        status: 500,
+        headers: { ...cors(), "Content-Type": "application/json" },
+      },
+    );
   }
 
   const redirectUri = callbackUrl();
@@ -164,10 +181,16 @@ async function handleCallback(req: Request, url: URL): Promise<Response> {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const googleClientId = Deno.env.get("GOOGLE_CLIENT_ID") ?? "";
   const googleClientSecret = Deno.env.get("GOOGLE_CLIENT_SECRET") ?? "";
-  const defaultOrigin = Deno.env.get("PUBLIC_APP_ORIGIN") ?? "http://127.0.0.1:5173";
+  const defaultOrigin =
+    Deno.env.get("PUBLIC_APP_ORIGIN") ?? "http://127.0.0.1:5173";
 
-  function redirectBack(target: string, params: Record<string, string>): Response {
-    const u = target.startsWith("http") ? new URL(target) : new URL(target, defaultOrigin);
+  function redirectBack(
+    target: string,
+    params: Record<string, string>,
+  ): Response {
+    const u = target.startsWith("http")
+      ? new URL(target)
+      : new URL(target, defaultOrigin);
     for (const [k, v] of Object.entries(params)) u.searchParams.set(k, v);
     return Response.redirect(u.toString(), 302);
   }
@@ -241,7 +264,10 @@ async function handleCallback(req: Request, url: URL): Promise<Response> {
     console.error("google token error", tokenJson);
     await admin.from("plugin_oauth_pending").delete().eq("state", state);
     const base = p.redirect_after ?? `${defaultOrigin}/settings/plugins`;
-    return redirectBack(base, { plugin_oauth: "error", reason: "token_exchange_failed" });
+    return redirectBack(base, {
+      plugin_oauth: "error",
+      reason: "token_exchange_failed",
+    });
   }
 
   const refreshToken = tokenJson.refresh_token as string | undefined;
@@ -259,7 +285,9 @@ async function handleCallback(req: Request, url: URL): Promise<Response> {
 
   const refreshCt = await encryptSecret(refreshToken);
   const accessCt = accessToken ? await encryptSecret(accessToken) : null;
-  const accessExpires = accessToken ? new Date(Date.now() + expiresIn * 1000).toISOString() : null;
+  const accessExpires = accessToken
+    ? new Date(Date.now() + expiresIn * 1000).toISOString()
+    : null;
 
   const row = {
     user_id: p.user_id,
@@ -272,15 +300,20 @@ async function handleCallback(req: Request, url: URL): Promise<Response> {
     revoked_at: null,
   };
 
-  const { error: tokErr } = await admin.from("user_plugin_oauth_tokens").upsert(row, {
-    onConflict: "user_id,plugin_type_id",
-  });
+  const { error: tokErr } = await admin
+    .from("user_plugin_oauth_tokens")
+    .upsert(row, {
+      onConflict: "user_id,plugin_type_id",
+    });
 
   if (tokErr) {
     console.error(tokErr);
     await admin.from("plugin_oauth_pending").delete().eq("state", state);
     const base = p.redirect_after ?? `${defaultOrigin}/settings/plugins`;
-    return redirectBack(base, { plugin_oauth: "error", reason: "db_token_store_failed" });
+    return redirectBack(base, {
+      plugin_oauth: "error",
+      reason: "db_token_store_failed",
+    });
   }
 
   await admin.from("user_plugins").upsert(

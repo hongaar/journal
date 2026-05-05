@@ -21,7 +21,14 @@ type EmojiPickerProps = {
 };
 
 /** Tag icon field: popover + Frimousse (liveblocks/frimousse), installed via shadcn registry emoji-picker block. */
-export function EmojiPicker({ id, label, value, onChange, className, disabled = false }: EmojiPickerProps) {
+export function EmojiPicker({
+  id,
+  label,
+  value,
+  onChange,
+  className,
+  disabled = false,
+}: EmojiPickerProps) {
   const [open, setOpen] = useState(false);
   const displayChar = value || "📍";
 
@@ -32,7 +39,10 @@ export function EmojiPicker({ id, label, value, onChange, className, disabled = 
       </Label>
       {/* Wrapper: open popover injects focus-guard siblings next to the trigger; keep them off the label-spacing flex axis */}
       <div className="min-w-0">
-        <Popover open={disabled ? false : open} onOpenChange={(o) => !disabled && setOpen(o)}>
+        <Popover
+          open={disabled ? false : open}
+          onOpenChange={(o) => !disabled && setOpen(o)}
+        >
           <PopoverTrigger
             id={id}
             type="button"
@@ -46,9 +56,14 @@ export function EmojiPicker({ id, label, value, onChange, className, disabled = 
               <span className="text-xl leading-none" aria-hidden>
                 {displayChar}
               </span>
-              <span className="text-muted-foreground truncate text-xs">Choose emoji</span>
+              <span className="text-muted-foreground truncate text-xs">
+                Choose emoji
+              </span>
             </span>
-            <ChevronDown className="text-muted-foreground size-4 shrink-0 opacity-70" aria-hidden />
+            <ChevronDown
+              className="text-muted-foreground size-4 shrink-0 opacity-70"
+              aria-hidden
+            />
           </PopoverTrigger>
           <PopoverContent
             align="start"

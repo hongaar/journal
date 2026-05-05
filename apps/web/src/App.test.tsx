@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/providers/auth-provider";
@@ -10,7 +10,7 @@ describe("LoginPage", () => {
     const qc = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
-    render(
+    const view = render(
       <QueryClientProvider client={qc}>
         <AuthProvider>
           <MemoryRouter initialEntries={["/login"]}>
@@ -21,6 +21,6 @@ describe("LoginPage", () => {
         </AuthProvider>
       </QueryClientProvider>,
     );
-    expect(screen.getByText("Curolia")).toBeInTheDocument();
+    expect(view.getByText("Curolia")).toBeInTheDocument();
   });
 });

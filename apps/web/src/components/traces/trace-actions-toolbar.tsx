@@ -45,7 +45,12 @@ export function TraceActionsToolbar({
   filterTagIds,
   setFilterTagIds,
 }: TraceActionsToolbarProps) {
-  const addLabel = mode === "map" ? (placementActive ? "Placing pin…" : "Add trace") : "Add trace";
+  const addLabel =
+    mode === "map"
+      ? placementActive
+        ? "Placing pin…"
+        : "Add trace"
+      : "Add trace";
 
   return (
     <MapToolbarGroup>
@@ -67,7 +72,8 @@ export function TraceActionsToolbar({
         <DropdownMenuTrigger
           className={cn(
             MAP_TOOLBAR_TRIGGER_CLASS,
-            filterTagIds.size > 0 && "bg-primary/8 ring-1 ring-inset ring-primary/15",
+            filterTagIds.size > 0 &&
+              "bg-primary/8 ring-1 ring-inset ring-primary/15",
           )}
         >
           <span className={cn(MAP_TOOLBAR_ICON_CELL, "relative")}>
@@ -94,7 +100,10 @@ export function TraceActionsToolbar({
               tags.map((tag) => {
                 const selected = filterTagIds.has(tag.id);
                 return (
-                  <div key={tag.id} className="flex items-center gap-0.5 rounded-md">
+                  <div
+                    key={tag.id}
+                    className="flex items-center gap-0.5 rounded-md"
+                  >
                     <DropdownMenuItem
                       closeOnClick={false}
                       className="min-w-0 flex-1 gap-1.5 pr-2"
@@ -110,9 +119,14 @@ export function TraceActionsToolbar({
                       <span className="text-base shrink-0" aria-hidden>
                         {tag.icon_emoji}
                       </span>
-                      <span className="min-w-0 flex-1 truncate">{tag.name}</span>
+                      <span className="min-w-0 flex-1 truncate">
+                        {tag.name}
+                      </span>
                       {selected ? (
-                        <Check className="text-foreground ml-auto size-4 shrink-0" aria-hidden />
+                        <Check
+                          className="text-foreground ml-auto size-4 shrink-0"
+                          aria-hidden
+                        />
                       ) : (
                         <span className="ml-auto size-4 shrink-0" aria-hidden />
                       )}

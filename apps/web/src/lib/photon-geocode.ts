@@ -32,7 +32,9 @@ type PhotonResponse = {
   }[];
 };
 
-type PhotonProps = NonNullable<PhotonResponse["features"]>[number]["properties"];
+type PhotonProps = NonNullable<
+  PhotonResponse["features"]
+>[number]["properties"];
 
 export function photonLabel(props: PhotonProps | undefined): string {
   if (!props) return "Place";
@@ -47,7 +49,11 @@ export function photonLabel(props: PhotonProps | undefined): string {
 }
 
 /** Short row title: prefer the smallest field that contains the query, else a sensible default. */
-export function photonPrimaryTitle(query: string, props: PhotonProps | undefined, fullLabel: string): string {
+export function photonPrimaryTitle(
+  query: string,
+  props: PhotonProps | undefined,
+  fullLabel: string,
+): string {
   const q = query.trim().toLowerCase();
   const full = fullLabel.trim();
   if (!q) {
@@ -82,11 +88,20 @@ export function photonPrimaryTitle(query: string, props: PhotonProps | undefined
   const prefix = candidates.find((c) => c.toLowerCase().startsWith(q));
   if (prefix) return prefix;
 
-  for (const segment of full.split(",").map((s) => s.trim()).filter(Boolean)) {
+  for (const segment of full
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)) {
     if (segment.toLowerCase().includes(q)) return segment;
   }
 
-  return props?.name?.trim() || props?.street?.trim() || full.split(",")[0]?.trim() || full || "Place";
+  return (
+    props?.name?.trim() ||
+    props?.street?.trim() ||
+    full.split(",")[0]?.trim() ||
+    full ||
+    "Place"
+  );
 }
 
 type PhotonFeature = NonNullable<PhotonResponse["features"]>[number];
@@ -95,7 +110,9 @@ type PhotonFeature = NonNullable<PhotonResponse["features"]>[number];
  * Photon/OSM bbox arrays pair longitudes at indices 0 & 2 and latitudes at 1 & 3.
  * Order may be GeoJSON [west,south,east,north] or [west,north,east,south]; min/max fixes both.
  */
-function bboxFromLonLatQuadruple(nums: readonly [number, number, number, number]): MapBbox {
+function bboxFromLonLatQuadruple(
+  nums: readonly [number, number, number, number],
+): MapBbox {
   return {
     west: Math.min(nums[0], nums[2]),
     east: Math.max(nums[0], nums[2]),
@@ -109,7 +126,9 @@ function photonFeatureToBbox(f: PhotonFeature): MapBbox | undefined {
   if (Array.isArray(raw) && raw.length === 4) {
     const nums = raw.map((x) => Number(x));
     if (nums.every((n) => Number.isFinite(n))) {
-      const box = bboxFromLonLatQuadruple(nums as [number, number, number, number]);
+      const box = bboxFromLonLatQuadruple(
+        nums as [number, number, number, number],
+      );
       if (isValidMapBbox(box)) return box;
     }
   }
@@ -118,7 +137,9 @@ function photonFeatureToBbox(f: PhotonFeature): MapBbox | undefined {
   if (Array.isArray(ext) && ext.length === 4) {
     const nums = ext.map((x) => Number(x));
     if (nums.every((n) => Number.isFinite(n))) {
-      const box = bboxFromLonLatQuadruple(nums as [number, number, number, number]);
+      const box = bboxFromLonLatQuadruple(
+        nums as [number, number, number, number],
+      );
       if (isValidMapBbox(box)) return box;
     }
   }
@@ -127,7 +148,9 @@ function photonFeatureToBbox(f: PhotonFeature): MapBbox | undefined {
 }
 
 /** Komoot Photon — public, no API key; usable from the browser (CORS). */
-export async function searchPhotonPlaces(query: string): Promise<PhotonPlace[]> {
+export async function searchPhotonPlaces(
+  query: string,
+): Promise<PhotonPlace[]> {
   const q = query.trim();
   if (q.length < 2) return [];
 
@@ -165,7 +188,10 @@ export async function searchPhotonPlaces(query: string): Promise<PhotonPlace[]> 
 }
 
 /** Reverse geocode coordinates to a single friendly label (Photon). */
-export async function reversePhotonLocationLabel(lat: number, lng: number): Promise<string | null> {
+export async function reversePhotonLocationLabel(
+  lat: number,
+  lng: number,
+): Promise<string | null> {
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
 
   const url = new URL("https://photon.komoot.io/reverse");

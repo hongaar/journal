@@ -1,17 +1,30 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from "./select";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from "./select";
 
 const meta = {
   title: "UI/Select",
   component: Select,
   tags: ["autodocs"],
   argTypes: {
-    defaultValue: { control: "text", description: "Initially selected item value." },
+    defaultValue: {
+      control: "text",
+      description: "Initially selected item value.",
+    },
   },
   parameters: {
     docs: {
       description: {
-        component: "Composed select primitives. Trigger supports `size`; content supports side/alignment positioning.",
+        component:
+          "Composed select primitives. Trigger supports `size`; content supports side/alignment positioning.",
       },
     },
   },

@@ -7,6 +7,7 @@ import { AuthProvider } from "@/providers/auth-provider";
 import { Toaster } from "@curolia/ui/sonner";
 import App from "./App.tsx";
 import "./index.css";
+import { registerSW } from "virtual:pwa-register";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -16,6 +17,8 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+registerSW({ immediate: true });
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

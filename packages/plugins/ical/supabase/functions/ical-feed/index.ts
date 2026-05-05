@@ -49,10 +49,16 @@ function exclusiveEndFromInclusive(ymd: string): string {
 }
 
 function formatUtcDtStamp(d: Date): string {
-  return d.toISOString().replaceAll("-", "").replaceAll(":", "").split(".")[0] + "Z";
+  return (
+    d.toISOString().replaceAll("-", "").replaceAll(":", "").split(".")[0] + "Z"
+  );
 }
 
-function buildCalendar(params: { journalName: string; journalId: string; traces: TraceRow[] }): string {
+function buildCalendar(params: {
+  journalName: string;
+  journalId: string;
+  traces: TraceRow[];
+}): string {
   const lines: string[] = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -66,7 +72,8 @@ function buildCalendar(params: { journalName: string; journalId: string; traces:
     const summary = (t.title?.trim() || "Trace").slice(0, 200);
     const desc = t.description?.trim() ?? "";
     const start = ymdToIcsDate(t.date);
-    const lastInclusive = t.end_date && t.end_date >= t.date ? t.end_date : t.date;
+    const lastInclusive =
+      t.end_date && t.end_date >= t.date ? t.end_date : t.date;
     const endExclusive = exclusiveEndFromInclusive(lastInclusive);
     lines.push("BEGIN:VEVENT");
     lines.push(foldLine(`UID:${t.id}@curolia-${params.journalId}`));
@@ -74,7 +81,8 @@ function buildCalendar(params: { journalName: string; journalId: string; traces:
     lines.push(`DTSTART;VALUE=DATE:${start}`);
     lines.push(`DTEND;VALUE=DATE:${endExclusive}`);
     lines.push(foldLine(`SUMMARY:${escapeIcsText(summary)}`));
-    if (desc.length > 0) lines.push(foldLine(`DESCRIPTION:${escapeIcsText(desc)}`));
+    if (desc.length > 0)
+      lines.push(foldLine(`DESCRIPTION:${escapeIcsText(desc)}`));
     lines.push(foldLine(`GEO:${t.lat};${t.lng}`));
     lines.push("END:VEVENT");
   }
@@ -100,7 +108,10 @@ Deno.serve(async (req) => {
   const url = new URL(req.url);
   const token = url.searchParams.get("token")?.trim();
   if (!token || !/^[0-9a-f-]{36}$/i.test(token)) {
-    return new Response("Not found", { status: 404, headers: { "Access-Control-Allow-Origin": "*" } });
+    return new Response("Not found", {
+      status: 404,
+      headers: { "Access-Control-Allow-Origin": "*" },
+    });
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -109,7 +120,9 @@ Deno.serve(async (req) => {
     return new Response("Server misconfigured", { status: 500 });
   }
 
-  const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
+  const admin = createClient(supabaseUrl, serviceKey, {
+    auth: { persistSession: false },
+  });
 
   const { data: feedRow, error: feedErr } = await admin
     .from("journal_ical_feed_tokens")
@@ -118,7 +131,10 @@ Deno.serve(async (req) => {
     .maybeSingle();
 
   if (feedErr || !feedRow?.journal_id) {
-    return new Response("Not found", { status: 404, headers: { "Access-Control-Allow-Origin": "*" } });
+    return new Response("Not found", {
+      status: 404,
+      headers: { "Access-Control-Allow-Origin": "*" },
+    });
   }
 
   const journalId = feedRow.journal_id as string;
@@ -131,7 +147,10 @@ Deno.serve(async (req) => {
     .maybeSingle();
 
   if (ownerErr || !ownerRow?.user_id) {
-    return new Response("Not found", { status: 404, headers: { "Access-Control-Allow-Origin": "*" } });
+    return new Response("Not found", {
+      status: 404,
+      headers: { "Access-Control-Allow-Origin": "*" },
+    });
   }
 
   const { data: uc, error: ucErr } = await admin
@@ -142,7 +161,10 @@ Deno.serve(async (req) => {
     .maybeSingle();
 
   if (ucErr || !uc?.enabled) {
-    return new Response("Not found", { status: 404, headers: { "Access-Control-Allow-Origin": "*" } });
+    return new Response("Not found", {
+      status: 404,
+      headers: { "Access-Control-Allow-Origin": "*" },
+    });
   }
 
   const { data: jc, error: jcErr } = await admin
@@ -153,18 +175,31 @@ Deno.serve(async (req) => {
     .maybeSingle();
 
   if (jcErr || !jc) {
-    return new Response("Not found", { status: 404, headers: { "Access-Control-Allow-Origin": "*" } });
+    return new Response("Not found", {
+      status: 404,
+      headers: { "Access-Control-Allow-Origin": "*" },
+    });
   }
 
   const cfg = jc.config as Record<string, unknown> | null;
   const publish = cfg?.publishFeed === true;
   if (!publish) {
-    return new Response("Not found", { status: 404, headers: { "Access-Control-Allow-Origin": "*" } });
+    return new Response("Not found", {
+      status: 404,
+      headers: { "Access-Control-Allow-Origin": "*" },
+    });
   }
 
-  const { data: journal, error: jErr } = await admin.from("journals").select("name").eq("id", journalId).single();
+  const { data: journal, error: jErr } = await admin
+    .from("journals")
+    .select("name")
+    .eq("id", journalId)
+    .single();
   if (jErr || !journal) {
-    return new Response("Not found", { status: 404, headers: { "Access-Control-Allow-Origin": "*" } });
+    return new Response("Not found", {
+      status: 404,
+      headers: { "Access-Control-Allow-Origin": "*" },
+    });
   }
 
   const { data: traces, error: tErr } = await admin
@@ -174,7 +209,10 @@ Deno.serve(async (req) => {
     .order("date", { ascending: true, nullsFirst: false });
 
   if (tErr) {
-    return new Response("Error", { status: 500, headers: { "Access-Control-Allow-Origin": "*" } });
+    return new Response("Error", {
+      status: 500,
+      headers: { "Access-Control-Allow-Origin": "*" },
+    });
   }
 
   const body = buildCalendar({

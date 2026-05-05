@@ -11,7 +11,10 @@ export function formatLocalCalendarDay(ymd: string): string {
   });
 }
 
-export function formatTraceDateRange(date: string | null | undefined, endDate: string | null | undefined): string {
+export function formatTraceDateRange(
+  date: string | null | undefined,
+  endDate: string | null | undefined,
+): string {
   if (!date) return "";
   if (!endDate || endDate === date) return formatLocalCalendarDay(date);
   return `${formatLocalCalendarDay(date)} – ${formatLocalCalendarDay(endDate)}`;
@@ -38,7 +41,10 @@ export function formatTraceMetadataTimestamp(iso: string): string {
 }
 
 /** True when the row was edited after insert (strictly after `created_at`). */
-export function traceWasModifiedAfterCreate(createdAt: string, updatedAt: string): boolean {
+export function traceWasModifiedAfterCreate(
+  createdAt: string,
+  updatedAt: string,
+): boolean {
   return new Date(updatedAt).getTime() > new Date(createdAt).getTime();
 }
 

@@ -20,8 +20,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint, typecheck, test, build
-        run: npx turbo run lint typecheck test build
+      - name: Format, lint, typecheck, test, build
+        run: npm run format:check && npx turbo run lint typecheck test build
 
       - name: Storybook static build
         run: npm run build-storybook

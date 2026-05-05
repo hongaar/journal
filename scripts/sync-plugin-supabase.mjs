@@ -46,7 +46,9 @@ for (const pkg of fs.readdirSync(pluginsRoot, { withFileTypes: true })) {
     const dest = path.join(destRoot, slug.name);
     rmrf(dest);
     copyDir(src, dest);
-    console.log(`synced ${path.relative(root, src)} -> ${path.relative(root, dest)}`);
+    console.log(
+      `synced ${path.relative(root, src)} -> ${path.relative(root, dest)}`,
+    );
     count += 1;
   }
 }

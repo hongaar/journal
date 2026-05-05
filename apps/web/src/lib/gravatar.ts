@@ -2,7 +2,10 @@
  * Gravatar image URL from email (SHA-256 of trimmed lowercase email).
  * @see https://docs.gravatar.com/general/hash/
  */
-export async function getGravatarUrl(email: string, sizePx = 160): Promise<string | null> {
+export async function getGravatarUrl(
+  email: string,
+  sizePx = 160,
+): Promise<string | null> {
   const normalized = email.trim().toLowerCase();
   if (!normalized) return null;
 

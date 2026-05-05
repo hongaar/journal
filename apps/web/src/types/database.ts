@@ -1,6 +1,13 @@
 export type JournalMemberRole = "owner" | "editor" | "viewer";
-export type JournalInvitationStatus = "pending" | "accepted" | "declined" | "cancelled";
-export type NotificationType = "journal_invitation" | "journal_invitation_accepted" | "journal_ownership_received";
+export type JournalInvitationStatus =
+  | "pending"
+  | "accepted"
+  | "declined"
+  | "cancelled";
+export type NotificationType =
+  | "journal_invitation"
+  | "journal_invitation_accepted"
+  | "journal_ownership_received";
 export type PluginLinkStatus = "disabled" | "pending" | "error" | "connected";
 
 export type Profile = {
@@ -144,16 +151,35 @@ export type AppNotification = {
 export type Database = {
   public: {
     Tables: {
-      profiles: { Row: Profile; Insert: Partial<Profile> & { id: string }; Update: Partial<Profile> };
-      journals: { Row: Journal; Insert: Partial<Journal> & { name: string; created_by_user_id: string }; Update: Partial<Journal> };
+      profiles: {
+        Row: Profile;
+        Insert: Partial<Profile> & { id: string };
+        Update: Partial<Profile>;
+      };
+      journals: {
+        Row: Journal;
+        Insert: Partial<Journal> & { name: string; created_by_user_id: string };
+        Update: Partial<Journal>;
+      };
       journal_members: {
         Row: JournalMember;
-        Insert: { journal_id: string; user_id: string; role?: JournalMemberRole };
+        Insert: {
+          journal_id: string;
+          user_id: string;
+          role?: JournalMemberRole;
+        };
         Update: Partial<JournalMember>;
       };
       traces: {
         Row: Trace;
-        Insert: Omit<Trace, "id" | "created_at" | "updated_at" | "created_by_user_id" | "modified_by_user_id"> & {
+        Insert: Omit<
+          Trace,
+          | "id"
+          | "created_at"
+          | "updated_at"
+          | "created_by_user_id"
+          | "modified_by_user_id"
+        > & {
           id?: string;
           created_by_user_id?: string | null;
           modified_by_user_id?: string | null;
@@ -165,7 +191,11 @@ export type Database = {
         Insert: Omit<Tag, "id" | "created_at" | "updated_at"> & { id?: string };
         Update: Partial<Tag>;
       };
-      trace_tags: { Row: TraceTagRow; Insert: TraceTagRow; Update: TraceTagRow };
+      trace_tags: {
+        Row: TraceTagRow;
+        Insert: TraceTagRow;
+        Update: TraceTagRow;
+      };
       photos: {
         Row: Photo;
         Insert: Omit<Photo, "id" | "created_at"> & { id?: string };
@@ -174,12 +204,16 @@ export type Database = {
       plugin_types: { Row: PluginType; Insert: never; Update: never };
       journal_plugins: {
         Row: JournalPlugin;
-        Insert: Omit<JournalPlugin, "id" | "created_at" | "updated_at"> & { id?: string };
+        Insert: Omit<JournalPlugin, "id" | "created_at" | "updated_at"> & {
+          id?: string;
+        };
         Update: Partial<JournalPlugin>;
       };
       user_plugins: {
         Row: UserPlugin;
-        Insert: Omit<UserPlugin, "id" | "created_at" | "updated_at"> & { id?: string };
+        Insert: Omit<UserPlugin, "id" | "created_at" | "updated_at"> & {
+          id?: string;
+        };
         Update: Partial<UserPlugin>;
       };
       journal_ical_feed_tokens: {

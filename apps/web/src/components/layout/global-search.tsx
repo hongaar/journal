@@ -1,5 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, Map as MapIcon, MapPin, Notebook, Search } from "lucide-react";
+import {
+  Loader2,
+  Map as MapIcon,
+  MapPin,
+  Notebook,
+  Search,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { useMatch, useNavigate } from "react-router-dom";
@@ -30,7 +36,10 @@ import type { Journal } from "@/types/database";
 
 const DEBOUNCE_MS = 320;
 
-function journalTitle(trace: TraceSearchRow, journalById: Map<string, Journal>) {
+function journalTitle(
+  trace: TraceSearchRow,
+  journalById: Map<string, Journal>,
+) {
   return journalById.get(trace.journal_id)?.name ?? "Journal";
 }
 
@@ -63,9 +72,13 @@ function ResultRow({ icon, title, subtitle, onPick }: ResultButtonProps) {
     >
       <span className="text-muted-foreground shrink-0">{icon}</span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-foreground text-sm leading-tight">{title}</span>
+        <span className="block truncate text-foreground text-sm leading-tight">
+          {title}
+        </span>
         {subtitle ? (
-          <span className="text-muted-foreground mt-0.5 block truncate text-xs leading-tight">{subtitle}</span>
+          <span className="text-muted-foreground mt-0.5 block truncate text-xs leading-tight">
+            {subtitle}
+          </span>
         ) : null}
       </span>
     </button>
@@ -113,8 +126,14 @@ export function GlobalSearch() {
   }, []);
 
   const journalIds = useMemo(() => journals.map((j) => j.id), [journals]);
-  const journalIdsKey = useMemo(() => [...journalIds].sort().join(","), [journalIds]);
-  const journalById = useMemo(() => new Map(journals.map((j) => [j.id, j])), [journals]);
+  const journalIdsKey = useMemo(
+    () => [...journalIds].sort().join(","),
+    [journalIds],
+  );
+  const journalById = useMemo(
+    () => new Map(journals.map((j) => [j.id, j])),
+    [journals],
+  );
 
   const journalMatches = useMemo(() => {
     const q = debounced.toLowerCase();
@@ -160,7 +179,10 @@ export function GlobalSearch() {
       setActiveJournalId(t.journal_id);
     });
     if (isMapRoute) {
-      const withTrace = applySelectedTraceToSearchParams(new URLSearchParams(), t.id);
+      const withTrace = applySelectedTraceToSearchParams(
+        new URLSearchParams(),
+        t.id,
+      );
       const params = applyMapCameraToSearchParams(
         withTrace,
         normalizeCameraForUrl({
@@ -188,7 +210,10 @@ export function GlobalSearch() {
           zoom: 11,
         }
       : { lat: p.lat, lng: p.lng, zoom: 12 };
-    params = applyMapCameraToSearchParams(params, normalizeCameraForUrl(center));
+    params = applyMapCameraToSearchParams(
+      params,
+      normalizeCameraForUrl(center),
+    );
     navigate(`/?${params.toString()}`);
     setOpen(false);
   }
@@ -196,7 +221,8 @@ export function GlobalSearch() {
   const showPlaces = isMapRoute && debounced.length >= 2;
   const showTraces = debounced.length >= 2;
   const busy =
-    (showTraces && tracesQuery.isFetching) || (showPlaces && placesQuery.isFetching);
+    (showTraces && tracesQuery.isFetching) ||
+    (showPlaces && placesQuery.isFetching);
 
   return (
     <Popover
@@ -218,16 +244,23 @@ export function GlobalSearch() {
         title="Search (Ctrl+K)"
       >
         <Search className="size-4 shrink-0 opacity-80" />
-        <span className="text-muted-foreground hidden max-w-[10rem] truncate sm:inline">Search…</span>
+        <span className="text-muted-foreground hidden max-w-[10rem] truncate sm:inline">
+          Search…
+        </span>
       </PopoverTrigger>
       <PopoverContent
         align="start"
         sideOffset={8}
         className="w-[min(calc(100vw-1.5rem),22rem)] gap-0 border-[var(--panel-border)] bg-[var(--panel-bg)] p-0 shadow-xl backdrop-blur-xl"
       >
-        <PopoverTitle className="sr-only">Search journals and traces</PopoverTitle>
+        <PopoverTitle className="sr-only">
+          Search journals and traces
+        </PopoverTitle>
         <div className="border-border/60 flex items-center gap-2 border-b px-2 py-2">
-          <Search className="text-muted-foreground size-4 shrink-0" aria-hidden />
+          <Search
+            className="text-muted-foreground size-4 shrink-0"
+            aria-hidden
+          />
           <Input
             ref={inputRef}
             value={input}
@@ -238,13 +271,19 @@ export function GlobalSearch() {
             autoCorrect="off"
             spellCheck={false}
           />
-          {busy ? <Loader2 className="text-muted-foreground size-4 shrink-0 animate-spin" aria-hidden /> : null}
+          {busy ? (
+            <Loader2
+              className="text-muted-foreground size-4 shrink-0 animate-spin"
+              aria-hidden
+            />
+          ) : null}
         </div>
 
         <div className="max-h-[min(50vh,300px)] overflow-y-auto px-1 pb-2">
           {debounced.length === 0 ? (
             <p className="text-muted-foreground px-2 py-3 text-center text-xs">
-              Search journals by name. Type two or more characters to find traces
+              Search journals by name. Type two or more characters to find
+              traces
               {isMapRoute ? " and map places" : ""}.
             </p>
           ) : null}
@@ -264,9 +303,12 @@ export function GlobalSearch() {
             </>
           ) : null}
 
-          {debounced.length >= 1 && journalMatches.length === 0 && debounced.length < 2 ? (
+          {debounced.length >= 1 &&
+          journalMatches.length === 0 &&
+          debounced.length < 2 ? (
             <p className="text-muted-foreground px-2 py-2 text-xs">
-              No journals match. Add another letter to search traces{isMapRoute ? " and places" : ""}.
+              No journals match. Add another letter to search traces
+              {isMapRoute ? " and places" : ""}.
             </p>
           ) : null}
 
@@ -274,11 +316,17 @@ export function GlobalSearch() {
             <>
               <SectionLabel>Traces</SectionLabel>
               {tracesQuery.isError ? (
-                <p className="text-muted-foreground px-2 py-1 text-xs">Could not load traces.</p>
+                <p className="text-muted-foreground px-2 py-1 text-xs">
+                  Could not load traces.
+                </p>
               ) : tracesQuery.isFetching && tracesSorted.length === 0 ? (
-                <p className="text-muted-foreground px-2 py-1 text-xs">Searching…</p>
+                <p className="text-muted-foreground px-2 py-1 text-xs">
+                  Searching…
+                </p>
               ) : tracesSorted.length === 0 ? (
-                <p className="text-muted-foreground px-2 py-1 text-xs">No matching traces.</p>
+                <p className="text-muted-foreground px-2 py-1 text-xs">
+                  No matching traces.
+                </p>
               ) : (
                 tracesSorted.map((t) => (
                   <ResultRow
@@ -297,11 +345,18 @@ export function GlobalSearch() {
             <>
               <SectionLabel>Places</SectionLabel>
               {placesQuery.isError ? (
-                <p className="text-muted-foreground px-2 py-1 text-xs">Could not load places.</p>
-              ) : placesQuery.isFetching && (placesQuery.data?.length ?? 0) === 0 ? (
-                <p className="text-muted-foreground px-2 py-1 text-xs">Searching…</p>
+                <p className="text-muted-foreground px-2 py-1 text-xs">
+                  Could not load places.
+                </p>
+              ) : placesQuery.isFetching &&
+                (placesQuery.data?.length ?? 0) === 0 ? (
+                <p className="text-muted-foreground px-2 py-1 text-xs">
+                  Searching…
+                </p>
               ) : (placesQuery.data?.length ?? 0) === 0 ? (
-                <p className="text-muted-foreground px-2 py-1 text-xs">No matching places.</p>
+                <p className="text-muted-foreground px-2 py-1 text-xs">
+                  No matching places.
+                </p>
               ) : (
                 (placesQuery.data ?? []).map((p) => {
                   const primary = p.primaryName.trim();
@@ -324,8 +379,8 @@ export function GlobalSearch() {
 
         <div className="text-muted-foreground border-border/60 hidden border-t px-2 py-1.5 text-[10px] sm:block">
           <kbd className="rounded border px-1 py-px font-mono">Ctrl</kbd>{" "}
-          <kbd className="rounded border px-1 py-px font-mono">K</kbd> to open · Trace results prefer the active
-          journal
+          <kbd className="rounded border px-1 py-px font-mono">K</kbd> to open ·
+          Trace results prefer the active journal
         </div>
       </PopoverContent>
     </Popover>

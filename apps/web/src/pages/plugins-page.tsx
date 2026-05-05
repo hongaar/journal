@@ -6,42 +6,53 @@ import type { Json } from "@/lib/database.types";
 import { startPluginOAuth } from "@/lib/plugin-oauth-start";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/auth-provider";
-import { getPluginDefinition } from "@/plugins/registry";
+import { pluginList } from "@/plugins/registry";
 import { Button } from "@curolia/ui/button";
 import { Switch } from "@curolia/ui/switch";
 import { Label } from "@curolia/ui/label";
-import type { PluginType, UserPlugin } from "@/types/database";
+import type { UserPlugin } from "@/types/database";
 import { FloatingPanel } from "@/components/layout/floating-panel";
 import { PageBackButton } from "@/components/layout/page-back-button";
+import type { PluginDefinition } from "@curolia/plugin-contract";
 
 function PluginRow({
-  ct,
+  plugin,
   up,
   onToggle,
   toggleDisabled,
   onLinkGooglePhotos,
   linkGooglePhotosBusy,
 }: {
-  ct: PluginType;
+  plugin: PluginDefinition;
   up: UserPlugin | undefined;
   onToggle: (enabled: boolean) => void;
   toggleDisabled: boolean;
   onLinkGooglePhotos?: () => void;
   linkGooglePhotosBusy?: boolean;
 }) {
-  const def = getPluginDefinition(ct.id);
-  const implemented = def?.implemented ?? false;
+  const Icon = plugin.icon;
+  const implemented = plugin.implemented;
   const enabled = up?.enabled ?? false;
   const showGoogleLink =
-    ct.id === "google_photos" && implemented && enabled && typeof onLinkGooglePhotos === "function";
+    plugin.id === "google_photos" &&
+    implemented &&
+    enabled &&
+    typeof onLinkGooglePhotos === "function";
 
   return (
     <div className="flex flex-col gap-2 border-b border-border/60 py-4 last:border-0 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <p className="font-medium">{ct.display_name}</p>
-        <p className="text-muted-foreground text-sm">{ct.description}</p>
+        <div className="flex items-center gap-2">
+          <Icon className="text-muted-foreground size-4" />
+          <p className="font-medium">{plugin.displayName}</p>
+        </div>
+        <p className="text-muted-foreground text-sm">
+          {plugin.description ?? "Plugin integration."}
+        </p>
         {!implemented ? (
-          <p className="text-muted-foreground mt-1 text-xs">Sync and linking are not implemented yet.</p>
+          <p className="text-muted-foreground mt-1 text-xs">
+            Sync and linking are not implemented yet.
+          </p>
         ) : null}
       </div>
       <div className="flex flex-wrap items-center justify-end gap-2">
@@ -57,11 +68,14 @@ function PluginRow({
             Link Google Photos
           </Button>
         ) : null}
-        <Label htmlFor={`sw-${ct.id}`} className="text-muted-foreground text-sm">
+        <Label
+          htmlFor={`sw-${plugin.id}`}
+          className="text-muted-foreground text-sm"
+        >
           Enabled
         </Label>
         <Switch
-          id={`sw-${ct.id}`}
+          id={`sw-${plugin.id}`}
           checked={enabled}
           disabled={!implemented || toggleDisabled}
           onCheckedChange={(c) => {
@@ -87,7 +101,11 @@ export function PluginsPage() {
     if (status === "success") {
       toast.success("Google Photos linked.");
     } else if (status === "error") {
-      toast.error(reason ? `Could not complete linking (${reason}).` : "Could not complete linking.");
+      toast.error(
+        reason
+          ? `Could not complete linking (${reason}).`
+          : "Could not complete linking.",
+      );
     }
     const next = new URLSearchParams(searchParams);
     next.delete("plugin_oauth");
@@ -107,20 +125,14 @@ export function PluginsPage() {
     }
   }
 
-  const typesQuery = useQuery({
-    queryKey: ["plugin_types"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("plugin_types").select("*").order("display_name");
-      if (error) throw error;
-      return (data ?? []) as PluginType[];
-    },
-  });
-
   const userPluginsQuery = useQuery({
     queryKey: ["user_plugins", user?.id],
     queryFn: async () => {
       if (!user) return [];
-      const { data, error } = await supabase.from("user_plugins").select("*").eq("user_id", user.id);
+      const { data, error } = await supabase
+        .from("user_plugins")
+        .select("*")
+        .eq("user_id", user.id);
       if (error) throw error;
       return (data ?? []) as UserPlugin[];
     },
@@ -129,7 +141,9 @@ export function PluginsPage() {
 
   async function toggle(pluginTypeId: string, enabled: boolean) {
     if (!user) return;
-    const up = userPluginsQuery.data?.find((c) => c.plugin_type_id === pluginTypeId);
+    const up = userPluginsQuery.data?.find(
+      (c) => c.plugin_type_id === pluginTypeId,
+    );
     const existingConfig = (up?.config ?? {}) as Record<string, unknown>;
     const config = existingConfig as Json;
     const { error } = await supabase.from("user_plugins").upsert(
@@ -153,23 +167,33 @@ export function PluginsPage() {
         <PageBackButton />
         <FloatingPanel className="p-5 sm:p-6">
           <div className="mb-4">
-            <h1 className="font-display text-foreground text-2xl font-semibold tracking-tight">Plugins</h1>
+            <h1 className="font-display text-foreground text-2xl font-semibold tracking-tight">
+              Plugins
+            </h1>
             <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
-              Choose which integrations are available for your account (for example signing in to Google Photos).
-              Journal-specific options—such as publishing an iCalendar feed—are configured in each journal&apos;s settings.
+              Choose which integrations are available for your account (for
+              example signing in to Google Photos). Journal-specific
+              options—such as publishing an iCalendar feed—are configured in
+              each journal&apos;s settings.
             </p>
           </div>
           <div>
-            {(typesQuery.data ?? []).map((ct) => {
-              const up = userPluginsQuery.data?.find((c) => c.plugin_type_id === ct.id);
+            {pluginList.map((plugin) => {
+              const up = userPluginsQuery.data?.find(
+                (c) => c.plugin_type_id === plugin.id,
+              );
               return (
                 <PluginRow
-                  key={ct.id}
-                  ct={ct}
+                  key={plugin.id}
+                  plugin={plugin}
                   up={up}
-                  onToggle={(en) => void toggle(ct.id, en)}
+                  onToggle={(en) => void toggle(plugin.id, en)}
                   toggleDisabled={!user || userPluginsQuery.isLoading}
-                  onLinkGooglePhotos={ct.id === "google_photos" ? () => void linkGooglePhotos() : undefined}
+                  onLinkGooglePhotos={
+                    plugin.id === "google_photos"
+                      ? () => void linkGooglePhotos()
+                      : undefined
+                  }
                   linkGooglePhotosBusy={oauthBusy}
                 />
               );

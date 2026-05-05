@@ -12,6 +12,9 @@
   "dependencies": {
     "@curolia/plugin-contract": "file:../../plugin-contract"
   },
+  "peerDependencies": {
+    "react": ">=19"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"
   }

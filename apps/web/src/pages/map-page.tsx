@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type SetStateAction,
+} from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -40,15 +47,24 @@ import {
   stripMapBboxFromSearchParams,
   type MapCamera,
 } from "@/lib/map-view-params";
-import { readStoredMapCamera, writeStoredMapCamera } from "@/lib/map-camera-storage";
+import {
+  readStoredMapCamera,
+  writeStoredMapCamera,
+} from "@/lib/map-camera-storage";
 import type { Tag } from "@/types/database";
 
 export function MapPage() {
   const qc = useQueryClient();
   const mapRef = useRef<TraceMapHandle>(null);
   const [searchParams, setSearchParams] = useSearchParams();
-  const bboxFromUrl = useMemo(() => parseMapBboxFromSearchParams(searchParams), [searchParams]);
-  const cameraFromUrl = useMemo(() => parseMapCameraFromSearchParams(searchParams), [searchParams]);
+  const bboxFromUrl = useMemo(
+    () => parseMapBboxFromSearchParams(searchParams),
+    [searchParams],
+  );
+  const cameraFromUrl = useMemo(
+    () => parseMapCameraFromSearchParams(searchParams),
+    [searchParams],
+  );
   const { activeJournalId, loading: journalLoading } = useJournal();
   const resolvedInitialCamera = useMemo((): MapCamera | null => {
     if (cameraFromUrl) return cameraFromUrl;
@@ -61,25 +77,40 @@ export function MapPage() {
     }
     return readStoredMapCamera(activeJournalId);
   }, [cameraFromUrl, bboxFromUrl, activeJournalId]);
-  const sidebarTraceId = useMemo(() => parseSelectedTraceIdFromSearchParams(searchParams), [searchParams]);
+  const sidebarTraceId = useMemo(
+    () => parseSelectedTraceIdFromSearchParams(searchParams),
+    [searchParams],
+  );
   const cameraSyncKey = useMemo(() => {
     if (bboxFromUrl) return `url:bbox:${bboxToSyncKey(bboxFromUrl)}`;
     if (cameraFromUrl) return `url:${cameraToSyncKey(cameraFromUrl)}`;
-    if (resolvedInitialCamera) return `init:${cameraToSyncKey(resolvedInitialCamera)}`;
+    if (resolvedInitialCamera)
+      return `init:${cameraToSyncKey(resolvedInitialCamera)}`;
     return "";
   }, [bboxFromUrl, cameraFromUrl, resolvedInitialCamera]);
-  const cameraIdleTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const cameraIdleTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
   const [formOpen, setFormOpen] = useState(false);
   const [placementActive, setPlacementActive] = useState(false);
-  const [placedCoords, setPlacedCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [anchorScreen, setAnchorScreen] = useState<{ x: number; y: number } | null>(null);
+  const [placedCoords, setPlacedCoords] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+  const [anchorScreen, setAnchorScreen] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
   const [tagDialogOpen, setTagDialogOpen] = useState(false);
   const [tagEditTarget, setTagEditTarget] = useState<Tag | null>(null);
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState(DEFAULT_TRACE_TAG_COLOR);
   const [newTagEmoji, setNewTagEmoji] = useState("📍");
   const [newTraceTagIds, setNewTraceTagIds] = useState<string[]>([]);
-  const filterTagIds = useMemo(() => parseFilterTagIdsFromSearchParams(searchParams), [searchParams]);
+  const filterTagIds = useMemo(
+    () => parseFilterTagIdsFromSearchParams(searchParams),
+    [searchParams],
+  );
   const setFilterTagIds = useCallback(
     (action: SetStateAction<Set<string>>) => {
       setSearchParams(
@@ -115,7 +146,11 @@ export function MapPage() {
           (prev) => {
             const prevNoBbox = stripMapBboxFromSearchParams(prev);
             const parsed = parseMapCameraFromSearchParams(prevNoBbox);
-            if (parsed && cameraToSyncKey(parsed) === cameraToSyncKey(normalized)) return prevNoBbox;
+            if (
+              parsed &&
+              cameraToSyncKey(parsed) === cameraToSyncKey(normalized)
+            )
+              return prevNoBbox;
             return applyMapCameraToSearchParams(prevNoBbox, normalized);
           },
           { replace: true },
@@ -162,7 +197,9 @@ export function MapPage() {
   const previewPin = useMemo((): TraceMapPreviewPin | null => {
     if (!formOpen || !placedCoords) return null;
     const tags = tagsQuery.data ?? [];
-    const ordered = newTraceTagIds.map((id) => tags.find((t) => t.id === id)).filter(Boolean);
+    const ordered = newTraceTagIds
+      .map((id) => tags.find((t) => t.id === id))
+      .filter(Boolean);
     const first = ordered[0];
     return {
       lat: placedCoords.lat,
@@ -178,19 +215,26 @@ export function MapPage() {
       setPlacedCoords(null);
       setAnchorScreen(null);
       setNewTraceTagIds([]);
-      setSearchParams((prev) => applySelectedTraceToSearchParams(prev, id), { replace: true });
+      setSearchParams((prev) => applySelectedTraceToSearchParams(prev, id), {
+        replace: true,
+      });
     },
     [setSearchParams],
   );
 
-  const onPlacementClick = useCallback((lng: number, lat: number) => {
-    setPlacementActive(false);
-    setPlacedCoords({ lat, lng });
-    setSearchParams((prev) => applySelectedTraceToSearchParams(prev, null), { replace: true });
-    const p = mapRef.current?.lngLatToScreen(lng, lat);
-    setAnchorScreen(p ?? null);
-    setFormOpen(true);
-  }, [setSearchParams]);
+  const onPlacementClick = useCallback(
+    (lng: number, lat: number) => {
+      setPlacementActive(false);
+      setPlacedCoords({ lat, lng });
+      setSearchParams((prev) => applySelectedTraceToSearchParams(prev, null), {
+        replace: true,
+      });
+      const p = mapRef.current?.lngLatToScreen(lng, lat);
+      setAnchorScreen(p ?? null);
+      setFormOpen(true);
+    },
+    [setSearchParams],
+  );
 
   const traces = useMemo(() => tracesQuery.data ?? [], [tracesQuery.data]);
 
@@ -201,7 +245,9 @@ export function MapPage() {
     if (tracesQuery.isPending) return;
     if (traces.length === 0) return;
     if (traces.some((t) => t.id === sidebarTraceId)) return;
-    setSearchParams((prev) => applySelectedTraceToSearchParams(prev, null), { replace: true });
+    setSearchParams((prev) => applySelectedTraceToSearchParams(prev, null), {
+      replace: true,
+    });
   }, [sidebarTraceId, traces, tracesQuery.isPending, setSearchParams]);
 
   const formDefaults = useMemo(() => {
@@ -242,7 +288,10 @@ export function MapPage() {
     if (!sidebarTraceId) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        setSearchParams((prev) => applySelectedTraceToSearchParams(prev, null), { replace: true });
+        setSearchParams(
+          (prev) => applySelectedTraceToSearchParams(prev, null),
+          { replace: true },
+        );
       }
     };
     window.addEventListener("keydown", onKey);
@@ -285,7 +334,9 @@ export function MapPage() {
   function toggleAddTracePlacement() {
     setPlacementActive((prev) => {
       if (prev) return false;
-      setSearchParams((p) => applySelectedTraceToSearchParams(p, null), { replace: true });
+      setSearchParams((p) => applySelectedTraceToSearchParams(p, null), {
+        replace: true,
+      });
       return true;
     });
   }
@@ -329,9 +380,18 @@ export function MapPage() {
       {placementActive ? (
         <div className="pointer-events-none absolute top-[4.5rem] left-1/2 z-20 w-[min(100%,22rem)] -translate-x-1/2 px-3 sm:top-[5rem]">
           <FloatingPanel className="pointer-events-auto py-3 text-center shadow-xl">
-            <p className="text-foreground text-sm font-medium">Click the map to place your trace</p>
-            <p className="text-muted-foreground mt-1 text-xs">Press Esc or cancel to stop</p>
-            <Button variant="outline" size="sm" className="mt-3 rounded-xl" onClick={() => setPlacementActive(false)}>
+            <p className="text-foreground text-sm font-medium">
+              Click the map to place your trace
+            </p>
+            <p className="text-muted-foreground mt-1 text-xs">
+              Press Esc or cancel to stop
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3 rounded-xl"
+              onClick={() => setPlacementActive(false)}
+            >
               Cancel
             </Button>
           </FloatingPanel>
@@ -369,7 +429,14 @@ export function MapPage() {
           key={sidebarTraceId}
           traceId={sidebarTraceId}
           journalId={activeJournalId}
-          onClose={() => setSearchParams((prev) => applySelectedTraceToSearchParams(prev, null), { replace: true })}
+          onClose={() =>
+            setSearchParams(
+              (prev) => applySelectedTraceToSearchParams(prev, null),
+              {
+                replace: true,
+              },
+            )
+          }
         />
       ) : null}
 
@@ -407,10 +474,24 @@ export function MapPage() {
           <div className="grid gap-3 py-2">
             <div className="space-y-2">
               <Label htmlFor="tag-name">Name</Label>
-              <Input id="tag-name" value={newTagName} onChange={(e) => setNewTagName(e.target.value)} />
+              <Input
+                id="tag-name"
+                value={newTagName}
+                onChange={(e) => setNewTagName(e.target.value)}
+              />
             </div>
-            <PresetColorPicker id="tag-color" label="Color" value={newTagColor} onChange={setNewTagColor} />
-            <EmojiPicker id="tag-emoji" label="Icon (emoji)" value={newTagEmoji} onChange={setNewTagEmoji} />
+            <PresetColorPicker
+              id="tag-color"
+              label="Color"
+              value={newTagColor}
+              onChange={setNewTagColor}
+            />
+            <EmojiPicker
+              id="tag-emoji"
+              label="Icon (emoji)"
+              value={newTagEmoji}
+              onChange={setNewTagEmoji}
+            />
           </div>
           <DialogFooter>
             <Button
@@ -422,7 +503,9 @@ export function MapPage() {
             >
               Cancel
             </Button>
-            <Button onClick={() => void saveTag()}>{tagEditTarget ? "Save tag" : "Create tag"}</Button>
+            <Button onClick={() => void saveTag()}>
+              {tagEditTarget ? "Save tag" : "Create tag"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

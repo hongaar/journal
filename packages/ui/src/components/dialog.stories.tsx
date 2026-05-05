@@ -1,6 +1,14 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { Button } from "./button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "./dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "./dialog";
 
 const meta = {
   title: "UI/Dialog",
@@ -9,7 +17,8 @@ const meta = {
   parameters: {
     docs: {
       description: {
-        component: "Composed modal primitives. `showCloseButton` is available on `DialogContent` and `DialogFooter`.",
+        component:
+          "Composed modal primitives. `showCloseButton` is available on `DialogContent` and `DialogFooter`.",
       },
     },
   },
@@ -21,7 +30,9 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   render: () => (
     <Dialog>
-      <DialogTrigger render={<Button variant="outline" />}>Open dialog</DialogTrigger>
+      <DialogTrigger render={<Button variant="outline" />}>
+        Open dialog
+      </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Delete trace?</DialogTitle>

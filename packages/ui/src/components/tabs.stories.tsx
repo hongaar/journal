@@ -11,7 +11,10 @@ const meta = {
       options: ["horizontal", "vertical"],
       description: "Tab layout direction.",
     },
-    defaultValue: { control: "text", description: "Initially selected tab value." },
+    defaultValue: {
+      control: "text",
+      description: "Initially selected tab value.",
+    },
   },
 } satisfies Meta<typeof Tabs>;
 

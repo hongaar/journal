@@ -1,6 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { NavLink, useNavigate } from "react-router-dom";
-import { Bell, BookOpen, Check, ChevronDown, Map, Plug, Plus, Settings2, User } from "lucide-react";
+import {
+  Bell,
+  BookOpen,
+  Check,
+  ChevronDown,
+  Map,
+  Plug,
+  Plus,
+  Settings2,
+  User,
+} from "lucide-react";
 import { Button, buttonVariants } from "@curolia/ui/button";
 import {
   DropdownMenu,
@@ -49,17 +59,24 @@ function journalEmoji(journal: Journal) {
 export function FloatingNav() {
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
-  const { journals, activeJournal, setActiveJournalId, createJournal } = useJournal();
+  const { journals, activeJournal, setActiveJournalId, createJournal } =
+    useJournal();
   const [newJournalOpen, setNewJournalOpen] = useState(false);
   const [newJournalName, setNewJournalName] = useState("");
-  const [newJournalIcon, setNewJournalIcon] = useState(() => defaultJournalIcon(false));
+  const [newJournalIcon, setNewJournalIcon] = useState(() =>
+    defaultJournalIcon(false),
+  );
   const [creating, setCreating] = useState(false);
 
   const profileQuery = useQuery({
     queryKey: ["profile", user?.id],
     queryFn: async () => {
       if (!user) return null;
-      const { data, error } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .maybeSingle();
       if (error) throw error;
       return data as Profile | null;
     },
@@ -87,7 +104,10 @@ export function FloatingNav() {
   async function handleCreateJournal() {
     if (!newJournalName.trim()) return;
     setCreating(true);
-    const { error } = await createJournal(newJournalName.trim(), newJournalIcon);
+    const { error } = await createJournal(
+      newJournalName.trim(),
+      newJournalIcon,
+    );
     setCreating(false);
     if (!error) {
       setNewJournalOpen(false);
@@ -124,30 +144,52 @@ export function FloatingNav() {
               )}
               <ChevronDown className="size-4 shrink-0 opacity-60" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className={DROPDOWN_PANEL_WIDE_CLASS}>
+            <DropdownMenuContent
+              align="start"
+              className={DROPDOWN_PANEL_WIDE_CLASS}
+            >
               <DropdownMenuGroup>
                 <DropdownMenuLabel>Journals</DropdownMenuLabel>
                 {journals.map((j) => {
                   const selected = j.id === activeJournal?.id;
                   return (
-                    <div key={j.id} className="flex items-center gap-0.5 rounded-md">
+                    <div
+                      key={j.id}
+                      className="flex items-center gap-0.5 rounded-md"
+                    >
                       <DropdownMenuItem
                         className="min-w-0 flex-1 gap-1.5 pr-2"
                         onClick={() => setActiveJournalId(j.id)}
                       >
-                        <span className="text-base shrink-0 leading-none" aria-hidden>
+                        <span
+                          className="text-base shrink-0 leading-none"
+                          aria-hidden
+                        >
                           {journalEmoji(j)}
                         </span>
-                        <span className={cn("min-w-0 flex-1 truncate", selected && "font-medium")}>
+                        <span
+                          className={cn(
+                            "min-w-0 flex-1 truncate",
+                            selected && "font-medium",
+                          )}
+                        >
                           {j.name}
                           {j.is_personal ? (
-                            <span className="text-muted-foreground ml-1 text-xs font-normal">(personal)</span>
+                            <span className="text-muted-foreground ml-1 text-xs font-normal">
+                              (personal)
+                            </span>
                           ) : null}
                         </span>
                         {selected ? (
-                          <Check className="text-foreground ml-auto size-4 shrink-0" aria-hidden />
+                          <Check
+                            className="text-foreground ml-auto size-4 shrink-0"
+                            aria-hidden
+                          />
                         ) : (
-                          <span className="ml-auto size-4 shrink-0" aria-hidden />
+                          <span
+                            className="ml-auto size-4 shrink-0"
+                            aria-hidden
+                          />
                         )}
                       </DropdownMenuItem>
                       <button
@@ -212,8 +254,12 @@ export function FloatingNav() {
             <DropdownMenuContent align="end" className="w-52">
               <DropdownMenuGroup>
                 <DropdownMenuLabel className="font-normal">
-                  <span className="text-muted-foreground text-xs">Signed in</span>
-                  <span className="block truncate text-sm font-medium">{user?.email ?? "—"}</span>
+                  <span className="text-muted-foreground text-xs">
+                    Signed in
+                  </span>
+                  <span className="block truncate text-sm font-medium">
+                    {user?.email ?? "—"}
+                  </span>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => navigate("/profile")}>
@@ -233,7 +279,10 @@ export function FloatingNav() {
                   Plugins
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem variant="destructive" onClick={() => void signOut()}>
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => void signOut()}
+                >
                   Sign out
                 </DropdownMenuItem>
               </DropdownMenuGroup>
@@ -254,7 +303,9 @@ export function FloatingNav() {
       >
         <DialogContent className="border-[var(--panel-border)] bg-[var(--panel-bg)] backdrop-blur-xl">
           <DialogHeader>
-            <DialogTitle className="font-display text-xl font-semibold">New journal</DialogTitle>
+            <DialogTitle className="font-display text-xl font-semibold">
+              New journal
+            </DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="grid gap-2">
@@ -277,7 +328,10 @@ export function FloatingNav() {
             <Button variant="outline" onClick={() => setNewJournalOpen(false)}>
               Cancel
             </Button>
-            <Button disabled={creating} onClick={() => void handleCreateJournal()}>
+            <Button
+              disabled={creating}
+              onClick={() => void handleCreateJournal()}
+            >
               Create
             </Button>
           </DialogFooter>

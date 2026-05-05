@@ -8,10 +8,17 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { defaultJournalIcon, normalizeJournalIconForPersist } from "@/lib/journal-display-icon";
+import {
+  defaultJournalIcon,
+  normalizeJournalIconForPersist,
+} from "@/lib/journal-display-icon";
 import { supabase } from "@/lib/supabase";
 import type { Journal } from "@/types/database";
-import { useAuth, getStoredActiveJournalId, setStoredActiveJournalId } from "./auth-provider";
+import {
+  useAuth,
+  getStoredActiveJournalId,
+  setStoredActiveJournalId,
+} from "./auth-provider";
 
 type JournalContextValue = {
   journals: Journal[];
@@ -20,7 +27,10 @@ type JournalContextValue = {
   setActiveJournalId: (id: string) => void;
   loading: boolean;
   refetch: () => Promise<void>;
-  createJournal: (name: string, iconEmoji?: string | null) => Promise<{ journal: Journal | null; error: Error | null }>;
+  createJournal: (
+    name: string,
+    iconEmoji?: string | null,
+  ) => Promise<{ journal: Journal | null; error: Error | null }>;
 };
 
 const JournalContext = createContext<JournalContextValue | null>(null);
@@ -39,7 +49,9 @@ async function fetchJournalsForUser(userId: string): Promise<Journal[]> {
   return rows.map((r) => r.journals).filter((j): j is Journal => Boolean(j));
 }
 
-async function fetchProfileDefaultJournal(userId: string): Promise<string | null> {
+async function fetchProfileDefaultJournal(
+  userId: string,
+): Promise<string | null> {
   const { data, error } = await supabase
     .from("profiles")
     .select("default_journal_id")
@@ -52,7 +64,9 @@ async function fetchProfileDefaultJournal(userId: string): Promise<string | null
 export function JournalProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
-  const [activeJournalId, setActiveJournalIdState] = useState<string | null>(null);
+  const [activeJournalId, setActiveJournalIdState] = useState<string | null>(
+    null,
+  );
 
   const journalsQuery = useQuery({
     queryKey: ["journals", user?.id],
@@ -63,7 +77,10 @@ export function JournalProvider({ children }: { children: ReactNode }) {
     enabled: Boolean(user) && !authLoading,
   });
 
-  const journals = useMemo(() => journalsQuery.data ?? [], [journalsQuery.data]);
+  const journals = useMemo(
+    () => journalsQuery.data ?? [],
+    [journalsQuery.data],
+  );
 
   useEffect(() => {
     if (!user || journals.length === 0) {
@@ -107,10 +124,18 @@ export function JournalProvider({ children }: { children: ReactNode }) {
   const createJournal = useCallback(
     async (name: string, iconEmoji?: string | null) => {
       if (!user) return { journal: null, error: new Error("Not signed in") };
-      const icon_emoji = normalizeJournalIconForPersist(iconEmoji ?? defaultJournalIcon(false), false);
+      const icon_emoji = normalizeJournalIconForPersist(
+        iconEmoji ?? defaultJournalIcon(false),
+        false,
+      );
       const { data: journal, error: jErr } = await supabase
         .from("journals")
-        .insert({ name, created_by_user_id: user.id, is_personal: false, icon_emoji })
+        .insert({
+          name,
+          created_by_user_id: user.id,
+          is_personal: false,
+          icon_emoji,
+        })
         .select()
         .single();
       if (jErr || !journal) return { journal: null, error: jErr as Error };
@@ -152,7 +177,9 @@ export function JournalProvider({ children }: { children: ReactNode }) {
     ],
   );
 
-  return <JournalContext.Provider value={value}>{children}</JournalContext.Provider>;
+  return (
+    <JournalContext.Provider value={value}>{children}</JournalContext.Provider>
+  );
 }
 
 export function useJournal() {

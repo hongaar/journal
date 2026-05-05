@@ -8,7 +8,11 @@ export type {
   PluginContributions,
   PluginOAuthDeclaration,
 } from "./contributions";
-export type { PluginDefinition, PluginPackageManifest, PluginRegistry } from "./definition";
+export type {
+  PluginDefinition,
+  PluginPackageManifest,
+  PluginRegistry,
+} from "./definition";
 export {
   journalPluginConfigRecord,
   mergeJournalPluginConfig,

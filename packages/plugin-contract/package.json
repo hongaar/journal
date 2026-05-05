@@ -9,6 +9,9 @@
       "default": "./src/index.ts"
     }
   },
+  "peerDependencies": {
+    "react": ">=19"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"
   }

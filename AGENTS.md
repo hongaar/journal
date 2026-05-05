@@ -11,6 +11,7 @@
   ```
 
   (`npm run db:types` runs `supabase gen types typescript --local > apps/web/src/lib/database.types.ts` and requires local Supabase to be running with migrations applied.)
+
 - Use `npm run db:reset` only when you intentionally want a full local reset, not as the default after routine schema changes.
 
 ## Plugin packages

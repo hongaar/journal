@@ -37,7 +37,11 @@ export function ProfilePage() {
     queryKey: ["profile", user?.id],
     queryFn: async () => {
       if (!user) return null;
-      const { data, error } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .maybeSingle();
       if (error) throw error;
       return data as Profile | null;
     },
@@ -88,10 +92,12 @@ export function ProfilePage() {
     }
     setUploading(true);
     const path = `${user.id}/avatar.${ext}`;
-    const { error: uploadError } = await supabase.storage.from("avatars").upload(path, file, {
-      upsert: true,
-      contentType: file.type || `image/${ext === "jpg" ? "jpeg" : ext}`,
-    });
+    const { error: uploadError } = await supabase.storage
+      .from("avatars")
+      .upload(path, file, {
+        upsert: true,
+        contentType: file.type || `image/${ext === "jpg" ? "jpeg" : ext}`,
+      });
     if (uploadError) {
       setUploading(false);
       setMessage(uploadError.message);
@@ -121,7 +127,9 @@ export function ProfilePage() {
     if (!user) return;
     setMessage(null);
     setUploading(true);
-    const { data: files } = await supabase.storage.from("avatars").list(user.id);
+    const { data: files } = await supabase.storage
+      .from("avatars")
+      .list(user.id);
     if (files?.length) {
       const paths = files.map((f) => `${user.id}/${f.name}`);
       await supabase.storage.from("avatars").remove(paths);
@@ -139,7 +147,9 @@ export function ProfilePage() {
       return;
     }
     setAvatarUrl("");
-    setMessage("Photo removed. Your Gravatar or default icon will show if applicable.");
+    setMessage(
+      "Photo removed. Your Gravatar or default icon will show if applicable.",
+    );
     await qc.invalidateQueries({ queryKey: ["profile", user.id] });
   }
 
@@ -148,13 +158,17 @@ export function ProfilePage() {
       <div className="mx-auto max-w-lg space-y-4">
         <PageBackButton />
         <FloatingPanel className="p-5 sm:p-6">
-          <h1 className="font-display text-foreground text-2xl font-semibold tracking-tight">Profile</h1>
+          <h1 className="font-display text-foreground text-2xl font-semibold tracking-tight">
+            Profile
+          </h1>
           <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
-            Update how you appear in the app. Email is managed by your account provider.
+            Update how you appear in the app. Email is managed by your account
+            provider.
           </p>
           {user?.email ? (
             <p className="text-muted-foreground mt-3 text-sm">
-              Signed in as <span className="text-foreground font-medium">{user.email}</span>
+              Signed in as{" "}
+              <span className="text-foreground font-medium">{user.email}</span>
             </p>
           ) : null}
           <div className="mt-6 grid gap-4">
@@ -196,7 +210,12 @@ export function ProfilePage() {
                       type="button"
                       variant="ghost"
                       className="rounded-xl"
-                      disabled={uploading || profileQuery.isLoading || !user || !avatarUrl.trim()}
+                      disabled={
+                        uploading ||
+                        profileQuery.isLoading ||
+                        !user ||
+                        !avatarUrl.trim()
+                      }
                       onClick={() => void removeAvatar()}
                     >
                       Remove photo
@@ -228,7 +247,11 @@ export function ProfilePage() {
               />
             </div>
             {message ? <p className="text-sm">{message}</p> : null}
-            <Button className="w-fit rounded-xl" disabled={saving || profileQuery.isLoading} onClick={() => void save()}>
+            <Button
+              className="w-fit rounded-xl"
+              disabled={saving || profileQuery.isLoading}
+              onClick={() => void save()}
+            >
               Save changes
             </Button>
           </div>

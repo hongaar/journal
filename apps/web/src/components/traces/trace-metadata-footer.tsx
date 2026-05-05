@@ -1,4 +1,7 @@
-import { formatTraceMetadataTimestamp, traceWasModifiedAfterCreate } from "@/lib/trace-dates";
+import {
+  formatTraceMetadataTimestamp,
+  traceWasModifiedAfterCreate,
+} from "@/lib/trace-dates";
 
 type TraceMetadataFooterProps = {
   createdAt: string;

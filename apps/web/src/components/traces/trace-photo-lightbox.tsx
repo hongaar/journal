@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, ExternalLink, X } from "lucide-react";
-import { photosToLightboxItems, type TracePhotoLightboxItem } from "@/lib/trace-photo-lightbox-items";
+import {
+  photosToLightboxItems,
+  type TracePhotoLightboxItem,
+} from "@/lib/trace-photo-lightbox-items";
 import { useTracePhotosSignedUrls } from "@/lib/use-trace-photos";
 import { Button, buttonVariants } from "@curolia/ui/button";
 import { cn } from "@/lib/utils";
@@ -32,7 +35,9 @@ export function TracePhotoLightbox({
   useEffect(() => {
     if (!open) return;
     if (items.length === 0) return;
-    const idx = initialPhotoId ? items.findIndex((x) => x.id === initialPhotoId) : 0;
+    const idx = initialPhotoId
+      ? items.findIndex((x) => x.id === initialPhotoId)
+      : 0;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- sync slide when gallery opens or items / entry id change
     setIndex(idx >= 0 ? idx : 0);
   }, [open, itemsKey, initialPhotoId, items]);
@@ -97,7 +102,9 @@ export function TracePhotoLightbox({
       <div className="pointer-events-none relative flex h-full min-h-0 flex-col">
         <header className="pointer-events-auto flex shrink-0 items-center justify-between gap-3 px-3 py-3 sm:px-4">
           <div className="text-foreground min-w-0 flex-1 pl-1">
-            {title ? <p className="truncate text-sm font-medium text-white">{title}</p> : null}
+            {title ? (
+              <p className="truncate text-sm font-medium text-white">{title}</p>
+            ) : null}
             {n > 0 ? (
               <p className="text-white/70 text-xs tabular-nums">
                 {safeIndex + 1} / {n}
@@ -134,9 +141,13 @@ export function TracePhotoLightbox({
 
         <div className="relative flex min-h-0 flex-1 items-center justify-center px-2 pb-6 sm:px-6">
           {isLoading && n === 0 ? (
-            <p className="text-muted-foreground pointer-events-auto text-sm">Loading photos…</p>
+            <p className="text-muted-foreground pointer-events-auto text-sm">
+              Loading photos…
+            </p>
           ) : showEmpty ? (
-            <p className="text-muted-foreground pointer-events-auto text-sm">No photos to show.</p>
+            <p className="text-muted-foreground pointer-events-auto text-sm">
+              No photos to show.
+            </p>
           ) : current ? (
             <div className="pointer-events-auto relative flex max-h-full w-full max-w-full items-center justify-center">
               {hasNav ? (
@@ -200,8 +211,13 @@ export function TracePhotoLightboxByTraceId({
   initialPhotoId = null,
   title,
 }: TracePhotoLightboxByTraceIdProps) {
-  const { photos, signedUrlByPhotoId, isLoading } = useTracePhotosSignedUrls(traceId ?? undefined);
-  const items = useMemo(() => photosToLightboxItems(photos, signedUrlByPhotoId), [photos, signedUrlByPhotoId]);
+  const { photos, signedUrlByPhotoId, isLoading } = useTracePhotosSignedUrls(
+    traceId ?? undefined,
+  );
+  const items = useMemo(
+    () => photosToLightboxItems(photos, signedUrlByPhotoId),
+    [photos, signedUrlByPhotoId],
+  );
 
   return (
     <TracePhotoLightbox
@@ -223,7 +239,12 @@ type TracePhotoThumbProps = {
 };
 
 /** Clickable thumbnail that opens the parent-controlled lightbox. */
-export function TracePhotoThumb({ url, alt = "", className, onOpen }: TracePhotoThumbProps) {
+export function TracePhotoThumb({
+  url,
+  alt = "",
+  className,
+  onOpen,
+}: TracePhotoThumbProps) {
   return (
     <button
       type="button"

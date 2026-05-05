@@ -2,7 +2,11 @@ import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/auth-provider";
-import type { JournalInvitation, JournalMemberRole, Profile } from "@/types/database";
+import type {
+  JournalInvitation,
+  JournalMemberRole,
+  Profile,
+} from "@/types/database";
 import { Button } from "@curolia/ui/button";
 import { Input } from "@curolia/ui/input";
 import { Label } from "@curolia/ui/label";
@@ -21,9 +25,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@curolia/ui/dialog";
-import { journalRoleLabel, type InviteJournalRole } from "@/lib/journal-member-roles";
+import {
+  journalRoleLabel,
+  type InviteJournalRole,
+} from "@/lib/journal-member-roles";
 
-type MemberRow = { user_id: string; role: JournalMemberRole; profile: Profile | null };
+type MemberRow = {
+  user_id: string;
+  role: JournalMemberRole;
+  profile: Profile | null;
+};
 
 export function JournalSharingSection({
   journalId,
@@ -55,7 +66,10 @@ export function JournalSharingSection({
       if (error) throw error;
       const ids = (rows ?? []).map((r) => r.user_id);
       if (ids.length === 0) return [] as MemberRow[];
-      const { data: profiles, error: pErr } = await supabase.from("profiles").select("*").in("id", ids);
+      const { data: profiles, error: pErr } = await supabase
+        .from("profiles")
+        .select("*")
+        .in("id", ids);
       if (pErr) throw pErr;
       const byId = new Map((profiles ?? []).map((p) => [p.id, p as Profile]));
       return (rows ?? []).map((r) => ({
@@ -105,15 +119,21 @@ export function JournalSharingSection({
       return;
     }
     if (data) {
-      void qc.invalidateQueries({ queryKey: ["journal_invitations", journalId] });
+      void qc.invalidateQueries({
+        queryKey: ["journal_invitations", journalId],
+      });
       void qc.invalidateQueries({ queryKey: ["notifications", user?.id] });
-      void qc.invalidateQueries({ queryKey: ["notifications_unread", user?.id] });
+      void qc.invalidateQueries({
+        queryKey: ["notifications_unread", user?.id],
+      });
       setInviteEmail("");
     }
   }
 
   async function cancelInvite(id: string) {
-    const { error } = await supabase.rpc("cancel_journal_invitation", { p_invitation_id: id });
+    const { error } = await supabase.rpc("cancel_journal_invitation", {
+      p_invitation_id: id,
+    });
     if (error) {
       setInviteErr(error.message);
       return;
@@ -130,7 +150,9 @@ export function JournalSharingSection({
       setInviteErr(error.message);
       return;
     }
-    void qc.invalidateQueries({ queryKey: ["journal_members_detail", journalId] });
+    void qc.invalidateQueries({
+      queryKey: ["journal_members_detail", journalId],
+    });
   }
 
   async function changeRole(uid: string, role: JournalMemberRole) {
@@ -144,7 +166,9 @@ export function JournalSharingSection({
       setInviteErr(error.message);
       return;
     }
-    void qc.invalidateQueries({ queryKey: ["journal_members_detail", journalId] });
+    void qc.invalidateQueries({
+      queryKey: ["journal_members_detail", journalId],
+    });
   }
 
   async function runTransfer() {
@@ -162,38 +186,59 @@ export function JournalSharingSection({
     }
     setTransferOpen(false);
     setTransferTo("");
-    void qc.invalidateQueries({ queryKey: ["journal_members_detail", journalId] });
-    void qc.invalidateQueries({ queryKey: ["journal_member_role", journalId, user?.id] });
+    void qc.invalidateQueries({
+      queryKey: ["journal_members_detail", journalId],
+    });
+    void qc.invalidateQueries({
+      queryKey: ["journal_member_role", journalId, user?.id],
+    });
     void qc.invalidateQueries({ queryKey: ["journal_plugins", journalId] });
-    void qc.invalidateQueries({ queryKey: ["journal_ical_feed_token", journalId] });
+    void qc.invalidateQueries({
+      queryKey: ["journal_ical_feed_token", journalId],
+    });
     void qc.invalidateQueries({ queryKey: ["journals", user?.id] });
     void qc.invalidateQueries({ queryKey: ["notifications", transferTo] });
-    void qc.invalidateQueries({ queryKey: ["notifications_unread", transferTo] });
+    void qc.invalidateQueries({
+      queryKey: ["notifications_unread", transferTo],
+    });
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-foreground text-sm font-semibold tracking-tight">Sharing</h2>
+        <h2 className="text-foreground text-sm font-semibold tracking-tight">
+          Sharing
+        </h2>
         <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
-          Invite others by email. They must sign in with that email to accept. Connectors stay with each owner;
-          transferring ownership clears all plugins for this journal.
+          Invite others by email. They must sign in with that email to accept.
+          Connectors stay with each owner; transferring ownership clears all
+          plugins for this journal.
         </p>
       </div>
 
-      {inviteErr ? <p className="text-destructive text-sm">{inviteErr}</p> : null}
+      {inviteErr ? (
+        <p className="text-destructive text-sm">{inviteErr}</p>
+      ) : null}
 
       <div className="space-y-3">
-        <h3 className="text-foreground text-xs font-medium uppercase tracking-wide">Members</h3>
+        <h3 className="text-foreground text-xs font-medium uppercase tracking-wide">
+          Members
+        </h3>
         <ul className="divide-y divide-border/60 rounded-xl border border-border/60">
           {membersQuery.isLoading ? (
-            <li className="text-muted-foreground px-3 py-2 text-sm">Loading…</li>
+            <li className="text-muted-foreground px-3 py-2 text-sm">
+              Loading…
+            </li>
           ) : (
             members.map((m) => {
               const isSelf = m.user_id === user?.id;
-              const label = m.profile?.display_name?.trim() || (isSelf ? "You" : "Member");
+              const label =
+                m.profile?.display_name?.trim() || (isSelf ? "You" : "Member");
               return (
-                <li key={m.user_id} className="flex flex-wrap items-center gap-2 px-3 py-2.5 text-sm">
+                <li
+                  key={m.user_id}
+                  className="flex flex-wrap items-center gap-2 px-3 py-2.5 text-sm"
+                >
                   <span className="min-w-0 flex-1 font-medium">
                     {label}
                     {isSelf && user?.email ? (
@@ -202,12 +247,16 @@ export function JournalSharingSection({
                       </span>
                     ) : null}
                   </span>
-                  <span className="text-muted-foreground shrink-0 text-xs">{journalRoleLabel(m.role)}</span>
+                  <span className="text-muted-foreground shrink-0 text-xs">
+                    {journalRoleLabel(m.role)}
+                  </span>
                   {isOwner && !isSelf && m.role !== "owner" ? (
                     <div className="flex shrink-0 flex-wrap items-center gap-1">
                       <Select
                         value={m.role}
-                        onValueChange={(v) => void changeRole(m.user_id, v as JournalMemberRole)}
+                        onValueChange={(v) =>
+                          void changeRole(m.user_id, v as JournalMemberRole)
+                        }
                       >
                         <SelectTrigger className="h-8 w-[9.5rem] rounded-lg text-xs">
                           <SelectValue />
@@ -238,7 +287,9 @@ export function JournalSharingSection({
       {isOwner ? (
         <>
           <div className="space-y-3">
-            <h3 className="text-foreground text-xs font-medium uppercase tracking-wide">Invite by email</h3>
+            <h3 className="text-foreground text-xs font-medium uppercase tracking-wide">
+              Invite by email
+            </h3>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <div className="min-w-0 flex-1 space-y-2">
                 <Label htmlFor="inv-email">Email</Label>
@@ -253,7 +304,10 @@ export function JournalSharingSection({
               </div>
               <div className="w-full space-y-2 sm:w-40">
                 <Label>Access</Label>
-                <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as InviteJournalRole)}>
+                <Select
+                  value={inviteRole}
+                  onValueChange={(v) => setInviteRole(v as InviteJournalRole)}
+                >
                   <SelectTrigger className="rounded-xl">
                     <SelectValue />
                   </SelectTrigger>
@@ -273,18 +327,25 @@ export function JournalSharingSection({
               </Button>
             </div>
             <p className="text-muted-foreground text-xs">
-              If they already have an account, they get an in-app notification. Pending invites work after they sign
-              up with the same email.
+              If they already have an account, they get an in-app notification.
+              Pending invites work after they sign up with the same email.
             </p>
           </div>
 
           {pendingInvites.length > 0 ? (
             <div className="space-y-2">
-              <h3 className="text-foreground text-xs font-medium uppercase tracking-wide">Pending invitations</h3>
+              <h3 className="text-foreground text-xs font-medium uppercase tracking-wide">
+                Pending invitations
+              </h3>
               <ul className="divide-y divide-border/60 rounded-xl border border-border/60">
                 {pendingInvites.map((inv) => (
-                  <li key={inv.id} className="flex flex-wrap items-center gap-2 px-3 py-2 text-sm">
-                    <span className="min-w-0 flex-1 truncate">{inv.invitee_email}</span>
+                  <li
+                    key={inv.id}
+                    className="flex flex-wrap items-center gap-2 px-3 py-2 text-sm"
+                  >
+                    <span className="min-w-0 flex-1 truncate">
+                      {inv.invitee_email}
+                    </span>
                     <span className="text-muted-foreground shrink-0 text-xs">
                       {journalRoleLabel(inv.invited_role)}
                     </span>
@@ -304,10 +365,13 @@ export function JournalSharingSection({
           ) : null}
 
           <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-4">
-            <h3 className="text-foreground text-sm font-medium">Transfer ownership</h3>
+            <h3 className="text-foreground text-sm font-medium">
+              Transfer ownership
+            </h3>
             <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
-              Choose an existing member. You will become a contributor. All journal plugins and calendar feed links
-              for &quot;{journalName}&quot; will be removed.
+              Choose an existing member. You will become a contributor. All
+              journal plugins and calendar feed links for &quot;{journalName}
+              &quot; will be removed.
             </p>
             <Button
               type="button"
@@ -325,32 +389,49 @@ export function JournalSharingSection({
           <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
             <DialogContent className="border-[var(--panel-border)] bg-[var(--panel-bg)] backdrop-blur-xl">
               <DialogHeader>
-                <DialogTitle className="font-display text-xl font-semibold">Transfer ownership</DialogTitle>
+                <DialogTitle className="font-display text-xl font-semibold">
+                  Transfer ownership
+                </DialogTitle>
                 <DialogDescription>
-                  This cannot be undone from here. Connectors and iCal tokens for this journal will be cleared.
+                  This cannot be undone from here. Connectors and iCal tokens
+                  for this journal will be cleared.
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-3 py-2">
                 <Label>New owner</Label>
-                <Select value={transferTo} onValueChange={(v) => setTransferTo(v ?? "")}>
+                <Select
+                  value={transferTo}
+                  onValueChange={(v) => setTransferTo(v ?? "")}
+                >
                   <SelectTrigger className="rounded-xl">
                     <SelectValue placeholder="Choose a member" />
                   </SelectTrigger>
                   <SelectContent>
                     {transferCandidates.map((m) => (
                       <SelectItem key={m.user_id} value={m.user_id}>
-                        {m.profile?.display_name?.trim() || "Member"} ({journalRoleLabel(m.role)})
+                        {m.profile?.display_name?.trim() || "Member"} (
+                        {journalRoleLabel(m.role)})
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {transferErr ? <p className="text-destructive text-sm">{transferErr}</p> : null}
+                {transferErr ? (
+                  <p className="text-destructive text-sm">{transferErr}</p>
+                ) : null}
               </div>
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setTransferOpen(false)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setTransferOpen(false)}
+                >
                   Cancel
                 </Button>
-                <Button type="button" disabled={!transferTo || transferBusy} onClick={() => void runTransfer()}>
+                <Button
+                  type="button"
+                  disabled={!transferTo || transferBusy}
+                  onClick={() => void runTransfer()}
+                >
                   Confirm transfer
                 </Button>
               </DialogFooter>
@@ -358,7 +439,9 @@ export function JournalSharingSection({
           </Dialog>
         </>
       ) : (
-        <p className="text-muted-foreground text-xs">Only the journal owner can invite people or transfer ownership.</p>
+        <p className="text-muted-foreground text-xs">
+          Only the journal owner can invite people or transfer ownership.
+        </p>
       )}
     </div>
   );

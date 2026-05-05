@@ -10,7 +10,9 @@ export function ProtectedLayout() {
   if (loading) {
     return (
       <div className="flex min-h-svh items-center justify-center bg-background p-6">
-        <FloatingPanel className="text-muted-foreground text-sm">Loading…</FloatingPanel>
+        <FloatingPanel className="text-muted-foreground text-sm">
+          Loading…
+        </FloatingPanel>
       </div>
     );
   }

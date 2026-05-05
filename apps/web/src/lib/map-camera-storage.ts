@@ -11,13 +11,16 @@ type StoredPayload = {
 
 function isValidCamera(c: MapCamera): boolean {
   const { lat, lng, zoom } = c;
-  if (!Number.isFinite(lat) || !Number.isFinite(lng) || !Number.isFinite(zoom)) return false;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || !Number.isFinite(zoom))
+    return false;
   if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return false;
   if (zoom < 0 || zoom > 22) return false;
   return true;
 }
 
-export function readStoredMapCamera(journalId: string | null): MapCamera | null {
+export function readStoredMapCamera(
+  journalId: string | null,
+): MapCamera | null {
   if (!journalId) return null;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -25,7 +28,12 @@ export function readStoredMapCamera(journalId: string | null): MapCamera | null 
     const data = JSON.parse(raw) as unknown;
     if (!data || typeof data !== "object") return null;
     const o = data as Partial<StoredPayload>;
-    if (o.v !== 1 || typeof o.journalId !== "string" || o.journalId !== journalId) return null;
+    if (
+      o.v !== 1 ||
+      typeof o.journalId !== "string" ||
+      o.journalId !== journalId
+    )
+      return null;
     const cam = o.camera;
     if (!cam || typeof cam !== "object") return null;
     const camera = cam as MapCamera;
@@ -36,7 +44,10 @@ export function readStoredMapCamera(journalId: string | null): MapCamera | null 
   }
 }
 
-export function writeStoredMapCamera(journalId: string | null, camera: MapCamera): void {
+export function writeStoredMapCamera(
+  journalId: string | null,
+  camera: MapCamera,
+): void {
   if (!journalId) return;
   const normalized = normalizeCameraForUrl(camera);
   if (!isValidCamera(normalized)) return;

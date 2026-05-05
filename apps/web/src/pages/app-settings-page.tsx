@@ -26,7 +26,11 @@ export function AppSettingsPage() {
     queryKey: ["profile", user?.id],
     queryFn: async () => {
       if (!user) return null;
-      const { data, error } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .maybeSingle();
       if (error) throw error;
       return data as Profile | null;
     },
@@ -41,7 +45,9 @@ export function AppSettingsPage() {
     setPushNotif(p.notification_push_enabled ?? false);
   }, [profileQuery.data]);
 
-  const current = (theme === "light" || theme === "dark" ? theme : "system") as ThemeChoice;
+  const current = (
+    theme === "light" || theme === "dark" ? theme : "system"
+  ) as ThemeChoice;
 
   function pick(next: ThemeChoice) {
     setTheme(next);
@@ -78,11 +84,17 @@ export function AppSettingsPage() {
       <div className="mx-auto max-w-lg space-y-4">
         <PageBackButton />
         <FloatingPanel className="p-5 sm:p-6">
-          <h1 className="font-display text-foreground text-2xl font-semibold tracking-tight">Settings</h1>
-          <p className="text-muted-foreground mt-1 text-sm leading-relaxed">Appearance and other preferences.</p>
+          <h1 className="font-display text-foreground text-2xl font-semibold tracking-tight">
+            Settings
+          </h1>
+          <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
+            Appearance and other preferences.
+          </p>
 
           <section className="mt-8">
-            <h2 className="text-foreground text-sm font-semibold tracking-tight">Theme</h2>
+            <h2 className="text-foreground text-sm font-semibold tracking-tight">
+              Theme
+            </h2>
             <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
               Choose a color scheme. System follows your device setting.
             </p>
@@ -99,7 +111,10 @@ export function AppSettingsPage() {
                   type="button"
                   variant={current === id ? "default" : "outline"}
                   size="sm"
-                  className={cn("rounded-xl", current === id && "pointer-events-none")}
+                  className={cn(
+                    "rounded-xl",
+                    current === id && "pointer-events-none",
+                  )}
                   onClick={() => pick(id)}
                 >
                   {label}
@@ -108,16 +123,21 @@ export function AppSettingsPage() {
             </div>
             {current === "system" && resolvedTheme ? (
               <p className="text-muted-foreground mt-3 text-xs">
-                Active appearance: <span className="text-foreground font-medium capitalize">{resolvedTheme}</span>
+                Active appearance:{" "}
+                <span className="text-foreground font-medium capitalize">
+                  {resolvedTheme}
+                </span>
               </p>
             ) : null}
           </section>
 
           <section className="mt-10">
-            <h2 className="text-foreground text-sm font-semibold tracking-tight">Notifications</h2>
+            <h2 className="text-foreground text-sm font-semibold tracking-tight">
+              Notifications
+            </h2>
             <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
-              In-app notifications are always on. Email and push control how we may reach you when delivery is
-              available.
+              In-app notifications are always on. Email and push control how we
+              may reach you when delivery is available.
             </p>
             <div className="mt-4 space-y-4">
               <div className="flex items-center justify-between gap-4">
@@ -125,9 +145,15 @@ export function AppSettingsPage() {
                   <Label htmlFor="notif-email" className="text-sm font-normal">
                     Email
                   </Label>
-                  <p className="text-muted-foreground text-xs">Invitation and activity summaries by email when enabled.</p>
+                  <p className="text-muted-foreground text-xs">
+                    Invitation and activity summaries by email when enabled.
+                  </p>
                 </div>
-                <Switch id="notif-email" checked={emailNotif} onCheckedChange={(c) => setEmailNotif(c === true)} />
+                <Switch
+                  id="notif-email"
+                  checked={emailNotif}
+                  onCheckedChange={(c) => setEmailNotif(c === true)}
+                />
               </div>
               <div className="flex items-center justify-between gap-4">
                 <div className="min-w-0 space-y-0.5">
@@ -135,13 +161,20 @@ export function AppSettingsPage() {
                     Push (native app)
                   </Label>
                   <p className="text-muted-foreground text-xs">
-                    Preference only for now; the native app will use this when push is implemented.
+                    When enabled, mobile app installs can receive invitation
+                    push notifications.
                   </p>
                 </div>
-                <Switch id="notif-push" checked={pushNotif} onCheckedChange={(c) => setPushNotif(c === true)} />
+                <Switch
+                  id="notif-push"
+                  checked={pushNotif}
+                  onCheckedChange={(c) => setPushNotif(c === true)}
+                />
               </div>
             </div>
-            {notifMsg ? <p className="text-muted-foreground mt-3 text-xs">{notifMsg}</p> : null}
+            {notifMsg ? (
+              <p className="text-muted-foreground mt-3 text-xs">{notifMsg}</p>
+            ) : null}
             <Button
               type="button"
               className="mt-4 rounded-xl"

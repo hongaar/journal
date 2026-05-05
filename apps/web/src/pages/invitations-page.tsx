@@ -21,10 +21,14 @@ export function InvitationsPage() {
     if (!token || !user) return;
     let cancelled = false;
     void (async () => {
-      await supabase.rpc("mark_notification_read_by_token", { p_invitation_token: token });
+      await supabase.rpc("mark_notification_read_by_token", {
+        p_invitation_token: token,
+      });
       if (!cancelled) {
         void qc.invalidateQueries({ queryKey: ["notifications", user.id] });
-        void qc.invalidateQueries({ queryKey: ["notifications_unread", user.id] });
+        void qc.invalidateQueries({
+          queryKey: ["notifications_unread", user.id],
+        });
         setReady(true);
       }
     })();
@@ -37,7 +41,12 @@ export function InvitationsPage() {
     if (!token) return;
     setBusy("accept");
     setError(null);
-    const { data: journalId, error: err } = await supabase.rpc("accept_journal_invitation", { p_token: token });
+    const { data: journalId, error: err } = await supabase.rpc(
+      "accept_journal_invitation",
+      {
+        p_token: token,
+      },
+    );
     setBusy(null);
     if (err) {
       setError(err.message);
@@ -47,8 +56,12 @@ export function InvitationsPage() {
     void qc.invalidateQueries({ queryKey: ["notifications", user?.id] });
     void qc.invalidateQueries({ queryKey: ["notifications_unread", user?.id] });
     if (journalId && typeof journalId === "string") {
-      void qc.invalidateQueries({ queryKey: ["journal_members_detail", journalId] });
-      void qc.invalidateQueries({ queryKey: ["journal_invitations", journalId] });
+      void qc.invalidateQueries({
+        queryKey: ["journal_members_detail", journalId],
+      });
+      void qc.invalidateQueries({
+        queryKey: ["journal_invitations", journalId],
+      });
       navigate(`/journals/${journalId}/settings`, { replace: true });
     } else {
       navigate("/", { replace: true });
@@ -59,7 +72,9 @@ export function InvitationsPage() {
     if (!token) return;
     setBusy("decline");
     setError(null);
-    const { error: err } = await supabase.rpc("decline_journal_invitation", { p_token: token });
+    const { error: err } = await supabase.rpc("decline_journal_invitation", {
+      p_token: token,
+    });
     setBusy(null);
     if (err) {
       setError(err.message);
@@ -76,7 +91,10 @@ export function InvitationsPage() {
         <div className="mx-auto max-w-lg space-y-4">
           <PageBackButton />
           <FloatingPanel className="p-6">
-            <p className="text-muted-foreground text-sm">Missing invitation link. Open the link from your email or notification.</p>
+            <p className="text-muted-foreground text-sm">
+              Missing invitation link. Open the link from your email or
+              notification.
+            </p>
           </FloatingPanel>
         </div>
       </div>
@@ -88,13 +106,23 @@ export function InvitationsPage() {
       <div className="mx-auto max-w-lg space-y-4">
         <PageBackButton />
         <FloatingPanel className="p-6">
-          <h1 className="font-display text-foreground text-2xl font-semibold tracking-tight">Curolia journal invitation</h1>
+          <h1 className="font-display text-foreground text-2xl font-semibold tracking-tight">
+            Curolia journal invitation
+          </h1>
           <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
-            {ready ? "You can accept to join this journal or decline." : "Loading…"}
+            {ready
+              ? "You can accept to join this journal or decline."
+              : "Loading…"}
           </p>
-          {error ? <p className="text-destructive mt-3 text-sm">{error}</p> : null}
+          {error ? (
+            <p className="text-destructive mt-3 text-sm">{error}</p>
+          ) : null}
           <div className="mt-6 flex flex-wrap gap-2">
-            <Button className="rounded-xl" disabled={!ready || busy !== null} onClick={() => void accept()}>
+            <Button
+              className="rounded-xl"
+              disabled={!ready || busy !== null}
+              onClick={() => void accept()}
+            >
               {busy === "accept" ? "Accepting…" : "Accept"}
             </Button>
             <Button

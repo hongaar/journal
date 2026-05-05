@@ -1,0 +1,24 @@
+{
+  "name": "Curolia",
+  "short_name": "Curolia",
+  "description": "Curolia journals and maps your adventures.",
+  "theme_color": "#111827",
+  "background_color": "#111827",
+  "display": "standalone",
+  "scope": "/",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "/icons.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

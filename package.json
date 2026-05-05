@@ -11,6 +11,8 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "db:start": "supabase start",
@@ -23,9 +25,13 @@
     "storybook": "npm run storybook -w @curolia/ui",
     "build-storybook": "npm run build-storybook -w @curolia/ui",
     "functions:start": "supabase functions serve",
-    "functions:stop": "pkill -f 'supabase functions serve' || true"
+    "functions:stop": "pkill -f 'supabase functions serve' || true",
+    "mobile:sync": "npm run -w web build && npx cap sync",
+    "mobile:ios": "npx cap open ios",
+    "mobile:android": "npx cap open android"
   },
   "devDependencies": {
+    "prettier": "^3.8.3",
     "supabase": "^2.98.0",
     "turbo": "^2.5.4"
   },

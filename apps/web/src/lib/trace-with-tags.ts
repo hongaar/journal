@@ -1,11 +1,22 @@
 import type { Photo, Trace } from "@/types/database";
 
 export type TraceWithTags = Trace & {
-  trace_tags?: { tag_id: string; tags: { id: string; name: string; color: string; icon_emoji: string } | null }[];
+  trace_tags?: {
+    tag_id: string;
+    tags: {
+      id: string;
+      name: string;
+      color: string;
+      icon_emoji: string;
+    } | null;
+  }[];
   photos?: Pick<Photo, "id" | "storage_path" | "sort_order">[] | null;
 };
 
-export function filterTracesByTags(traces: TraceWithTags[], selectedTagIds: Set<string>) {
+export function filterTracesByTags(
+  traces: TraceWithTags[],
+  selectedTagIds: Set<string>,
+) {
   return traces.filter((t) => {
     if (selectedTagIds.size === 0) return true;
     const tagIds = new Set(

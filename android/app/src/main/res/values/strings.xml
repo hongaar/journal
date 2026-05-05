@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Curolia</string>
+    <string name="title_activity_main">Curolia</string>
+    <string name="package_name">com.curolia.app</string>
+    <string name="custom_url_scheme">com.curolia.app</string>
+</resources>

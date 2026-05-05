@@ -1,6 +1,11 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
-import { EmojiPicker, EmojiPickerContent, EmojiPickerFooter, EmojiPickerSearch } from "./emoji-picker";
+import {
+  EmojiPicker,
+  EmojiPickerContent,
+  EmojiPickerFooter,
+  EmojiPickerSearch,
+} from "./emoji-picker";
 
 const meta = {
   title: "UI/Emoji Picker",
@@ -9,7 +14,8 @@ const meta = {
   parameters: {
     docs: {
       description: {
-        component: "Frimousse-based emoji picker wrapper. Use with search/content/footer composition.",
+        component:
+          "Frimousse-based emoji picker wrapper. Use with search/content/footer composition.",
       },
     },
   },

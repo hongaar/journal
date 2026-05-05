@@ -24,10 +24,16 @@ export default function App() {
           <Route path="profile" element={<ProfilePage />} />
           <Route path="settings" element={<AppSettingsPage />} />
           <Route path="settings/plugins" element={<PluginsPage />} />
-          <Route path="settings/connectors" element={<Navigate to="/settings/plugins" replace />} />
+          <Route
+            path="settings/connectors"
+            element={<Navigate to="/settings/plugins" replace />}
+          />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="invitations" element={<InvitationsPage />} />
-          <Route path="journals/:journalId/settings" element={<JournalSettingsPage />} />
+          <Route
+            path="journals/:journalId/settings"
+            element={<JournalSettingsPage />}
+          />
         </Route>
       </Route>
     </Routes>

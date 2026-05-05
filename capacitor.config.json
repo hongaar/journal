@@ -1,0 +1,8 @@
+{
+  "appId": "com.curolia.app",
+  "appName": "Curolia",
+  "webDir": "apps/web/dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}

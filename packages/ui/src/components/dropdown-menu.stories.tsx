@@ -24,7 +24,8 @@ const meta = {
   parameters: {
     docs: {
       description: {
-        component: "Menu primitives with support for submenus, checkbox items, radio groups, and destructive variants.",
+        component:
+          "Menu primitives with support for submenus, checkbox items, radio groups, and destructive variants.",
       },
     },
   },
@@ -40,16 +41,23 @@ export const Default: Story = {
 
     return (
       <DropdownMenu>
-        <DropdownMenuTrigger render={<Button variant="outline" />}>Open menu</DropdownMenuTrigger>
+        <DropdownMenuTrigger render={<Button variant="outline" />}>
+          Open menu
+        </DropdownMenuTrigger>
         <DropdownMenuContent>
           <DropdownMenuLabel>Trace actions</DropdownMenuLabel>
           <DropdownMenuItem>
             Edit trace
             <DropdownMenuShortcut>E</DropdownMenuShortcut>
           </DropdownMenuItem>
-          <DropdownMenuItem variant="destructive">Delete trace</DropdownMenuItem>
+          <DropdownMenuItem variant="destructive">
+            Delete trace
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuCheckboxItem checked={showImported} onCheckedChange={setShowImported}>
+          <DropdownMenuCheckboxItem
+            checked={showImported}
+            onCheckedChange={setShowImported}
+          >
             Show imported photos
           </DropdownMenuCheckboxItem>
           <DropdownMenuSub>
@@ -57,7 +65,9 @@ export const Default: Story = {
             <DropdownMenuSubContent>
               <DropdownMenuRadioGroup value={sortBy} onValueChange={setSortBy}>
                 <DropdownMenuRadioItem value="date">Date</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="distance">Distance</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="distance">
+                  Distance
+                </DropdownMenuRadioItem>
               </DropdownMenuRadioGroup>
             </DropdownMenuSubContent>
           </DropdownMenuSub>

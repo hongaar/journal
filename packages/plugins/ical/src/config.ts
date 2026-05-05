@@ -5,7 +5,9 @@ export type IcalJournalPluginConfig = {
 
 export const ICAL_PLUGIN_ID = "ical" as const;
 
-export function parseIcalJournalConfig(raw: Record<string, unknown> | undefined | null): IcalJournalPluginConfig {
+export function parseIcalJournalConfig(
+  raw: Record<string, unknown> | undefined | null,
+): IcalJournalPluginConfig {
   if (!raw || typeof raw !== "object") return {};
   return {
     publishFeed: raw.publishFeed === true,

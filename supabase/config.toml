@@ -22,3 +22,6 @@ verify_jwt = false
 [functions.plugin-oauth]
 verify_jwt = false
 
+[functions.push-dispatch]
+verify_jwt = false
+

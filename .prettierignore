@@ -1,0 +1,11 @@
+node_modules
+dist
+.turbo
+coverage
+
+# generated native projects
+android
+ios
+
+# generated static build artifacts
+packages/ui/storybook-static

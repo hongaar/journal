@@ -3,7 +3,10 @@ import { EmojiPicker } from "@/components/traces/emoji-picker";
 import { PresetColorPicker } from "@/components/traces/preset-color-picker";
 import { TraceActionsToolbar } from "@/components/traces/trace-actions-toolbar";
 import { TraceFormDialog } from "@/components/traces/trace-form-dialog";
-import { TracePhotoLightbox, TracePhotoThumb } from "@/components/traces/trace-photo-lightbox";
+import {
+  TracePhotoLightbox,
+  TracePhotoThumb,
+} from "@/components/traces/trace-photo-lightbox";
 import { Button, buttonVariants } from "@curolia/ui/button";
 import {
   Dialog,
@@ -36,13 +39,19 @@ export function BlogPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { activeJournalId, loading: journalLoading } = useJournal();
   const [formOpen, setFormOpen] = useState(false);
-  const [photoLightbox, setPhotoLightbox] = useState<{ traceId: string; photoId: string } | null>(null);
+  const [photoLightbox, setPhotoLightbox] = useState<{
+    traceId: string;
+    photoId: string;
+  } | null>(null);
   const [tagDialogOpen, setTagDialogOpen] = useState(false);
   const [tagEditTarget, setTagEditTarget] = useState<Tag | null>(null);
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState(DEFAULT_TRACE_TAG_COLOR);
   const [newTagEmoji, setNewTagEmoji] = useState("📍");
-  const filterTagIds = useMemo(() => parseFilterTagIdsFromSearchParams(searchParams), [searchParams]);
+  const filterTagIds = useMemo(
+    () => parseFilterTagIdsFromSearchParams(searchParams),
+    [searchParams],
+  );
   const setFilterTagIds = useCallback(
     (action: SetStateAction<Set<string>>) => {
       setSearchParams(
@@ -91,12 +100,16 @@ export function BlogPage() {
   });
 
   const traces = useMemo(() => tracesQuery.data ?? [], [tracesQuery.data]);
-  const visible = useMemo(() => filterTracesByTags(traces, filterTagIds), [traces, filterTagIds]);
-  const visibleTraceIds = useMemo(() => visible.map((t) => t.id), [visible]);
-  const { photosByTraceId, signedUrlByPhotoId } = useJournalTracesPhotosSignedUrls(
-    activeJournalId ?? undefined,
-    visibleTraceIds,
+  const visible = useMemo(
+    () => filterTracesByTags(traces, filterTagIds),
+    [traces, filterTagIds],
   );
+  const visibleTraceIds = useMemo(() => visible.map((t) => t.id), [visible]);
+  const { photosByTraceId, signedUrlByPhotoId } =
+    useJournalTracesPhotosSignedUrls(
+      activeJournalId ?? undefined,
+      visibleTraceIds,
+    );
 
   const blogLightboxItems = useMemo(() => {
     if (!photoLightbox) return [];
@@ -132,7 +145,9 @@ export function BlogPage() {
         setTagDialogOpen(false);
         setTagEditTarget(null);
         await qc.invalidateQueries({ queryKey: ["tags", activeJournalId] });
-        await qc.invalidateQueries({ queryKey: ["traces", activeJournalId, "blog"] });
+        await qc.invalidateQueries({
+          queryKey: ["traces", activeJournalId, "blog"],
+        });
       }
       return;
     }
@@ -187,7 +202,9 @@ export function BlogPage() {
             <p className="text-muted-foreground font-display text-sm font-medium tracking-wide uppercase">
               Journal
             </p>
-            <h1 className="font-display mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Traces</h1>
+            <h1 className="font-display mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+              Traces
+            </h1>
             <p className="text-muted-foreground mt-3 max-w-lg text-sm leading-relaxed">
               Traces are listed in chronological order.
             </p>
@@ -204,7 +221,9 @@ export function BlogPage() {
           ) : (
             <ul className="flex flex-col gap-12 sm:gap-16">
               {visible.map((t) => {
-                const tagRows = (t.trace_tags ?? []).map((tt) => tt.tags).filter(Boolean) as {
+                const tagRows = (t.trace_tags ?? [])
+                  .map((tt) => tt.tags)
+                  .filter(Boolean) as {
                   id: string;
                   name: string;
                   color: string;
@@ -250,18 +269,28 @@ export function BlogPage() {
                         </div>
                       ) : null}
                       {t.description?.trim() ? (
-                        <p className="text-muted-foreground mt-4 text-base leading-relaxed">{t.description.trim()}</p>
+                        <p className="text-muted-foreground mt-4 text-base leading-relaxed">
+                          {t.description.trim()}
+                        </p>
                       ) : null}
                       {tracePhotos.length > 0 ? (
                         <ul className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
                           {tracePhotos.map((p) => {
                             const url = signedUrlByPhotoId[p.id];
                             return url ? (
-                              <li key={p.id} className="overflow-hidden rounded-xl border">
+                              <li
+                                key={p.id}
+                                className="overflow-hidden rounded-xl border"
+                              >
                                 <TracePhotoThumb
                                   url={url}
                                   className="aspect-square size-full"
-                                  onOpen={() => setPhotoLightbox({ traceId: t.id, photoId: p.id })}
+                                  onOpen={() =>
+                                    setPhotoLightbox({
+                                      traceId: t.id,
+                                      photoId: p.id,
+                                    })
+                                  }
                                 />
                               </li>
                             ) : (
@@ -275,7 +304,11 @@ export function BlogPage() {
                       <div className="mt-5">
                         <Link
                           to={`/traces/${t.id}`}
-                          className={buttonVariants({ variant: "outline", size: "sm", className: "rounded-xl" })}
+                          className={buttonVariants({
+                            variant: "outline",
+                            size: "sm",
+                            className: "rounded-xl",
+                          })}
                         >
                           Read more
                         </Link>
@@ -325,7 +358,11 @@ export function BlogPage() {
           <div className="grid gap-3 py-2">
             <div className="space-y-2">
               <Label htmlFor="blog-tag-name">Name</Label>
-              <Input id="blog-tag-name" value={newTagName} onChange={(e) => setNewTagName(e.target.value)} />
+              <Input
+                id="blog-tag-name"
+                value={newTagName}
+                onChange={(e) => setNewTagName(e.target.value)}
+              />
             </div>
             <PresetColorPicker
               id="blog-tag-color"
@@ -350,7 +387,9 @@ export function BlogPage() {
             >
               Cancel
             </Button>
-            <Button onClick={() => void saveTag()}>{tagEditTarget ? "Save tag" : "Create tag"}</Button>
+            <Button onClick={() => void saveTag()}>
+              {tagEditTarget ? "Save tag" : "Create tag"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

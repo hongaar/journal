@@ -10,7 +10,10 @@ import { Button, buttonVariants } from "@curolia/ui/button";
 import { Input } from "@curolia/ui/input";
 import { Label } from "@curolia/ui/label";
 import { EmojiPicker } from "@/components/traces/emoji-picker";
-import { defaultJournalIcon, normalizeJournalIconForPersist } from "@/lib/journal-display-icon";
+import {
+  defaultJournalIcon,
+  normalizeJournalIconForPersist,
+} from "@/lib/journal-display-icon";
 import { cn } from "@/lib/utils";
 import { JournalSharingSection } from "@/components/journal/journal-sharing-section";
 import { JournalPluginsSection } from "@/components/journal/journal-plugins-section";
@@ -26,7 +29,10 @@ export function JournalSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const journal = useMemo(() => journals.find((j) => j.id === journalId) ?? null, [journals, journalId]);
+  const journal = useMemo(
+    () => journals.find((j) => j.id === journalId) ?? null,
+    [journals, journalId],
+  );
 
   const roleQuery = useQuery({
     queryKey: ["journal_member_role", journalId, user?.id],
@@ -61,7 +67,10 @@ export function JournalSettingsPage() {
       .from("journals")
       .update({
         name: name.trim(),
-        icon_emoji: normalizeJournalIconForPersist(iconEmoji, journal.is_personal),
+        icon_emoji: normalizeJournalIconForPersist(
+          iconEmoji,
+          journal.is_personal,
+        ),
         updated_at: new Date().toISOString(),
       })
       .eq("id", journalId);
@@ -76,7 +85,9 @@ export function JournalSettingsPage() {
   if (!journalId) {
     return (
       <div className="flex h-full items-center justify-center p-6">
-        <FloatingPanel className="text-muted-foreground text-sm">Missing journal.</FloatingPanel>
+        <FloatingPanel className="text-muted-foreground text-sm">
+          Missing journal.
+        </FloatingPanel>
       </div>
     );
   }
@@ -84,11 +95,19 @@ export function JournalSettingsPage() {
   if (!journal) {
     return (
       <div className="h-full overflow-y-auto px-3 pt-[4.75rem] pb-10 sm:px-6 sm:pt-[5.25rem]">
-      <div className="mx-auto max-w-lg space-y-4">
-        <PageBackButton />
-        <FloatingPanel className="p-6">
-            <p className="text-muted-foreground text-sm">You do not have access to this journal or it does not exist.</p>
-            <Link className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-4 inline-flex rounded-xl")} to="/">
+        <div className="mx-auto max-w-lg space-y-4">
+          <PageBackButton />
+          <FloatingPanel className="p-6">
+            <p className="text-muted-foreground text-sm">
+              You do not have access to this journal or it does not exist.
+            </p>
+            <Link
+              className={cn(
+                buttonVariants({ variant: "outline", size: "sm" }),
+                "mt-4 inline-flex rounded-xl",
+              )}
+              to="/"
+            >
               Back to map
             </Link>
           </FloatingPanel>
@@ -98,9 +117,13 @@ export function JournalSettingsPage() {
   }
 
   const nameDirty = name.trim() !== journal.name;
-  const iconToSave = normalizeJournalIconForPersist(iconEmoji, journal.is_personal);
+  const iconToSave = normalizeJournalIconForPersist(
+    iconEmoji,
+    journal.is_personal,
+  );
   const iconDirty = iconToSave !== (journal.icon_emoji ?? null);
-  const canSave = isOwner && Boolean(name.trim()) && (nameDirty || iconDirty) && !saving;
+  const canSave =
+    isOwner && Boolean(name.trim()) && (nameDirty || iconDirty) && !saving;
 
   return (
     <div className="h-full overflow-y-auto px-3 pt-[4.75rem] pb-10 sm:px-6 sm:pt-[5.25rem]">
@@ -108,13 +131,19 @@ export function JournalSettingsPage() {
         <PageBackButton />
         <FloatingPanel className="p-5 sm:p-6">
           <div>
-            <h1 className="font-display text-foreground text-2xl font-semibold tracking-tight">Journal settings</h1>
-            <p className="text-muted-foreground mt-1 text-sm">More options will land here later.</p>
+            <h1 className="font-display text-foreground text-2xl font-semibold tracking-tight">
+              Journal settings
+            </h1>
+            <p className="text-muted-foreground mt-1 text-sm">
+              More options will land here later.
+            </p>
           </div>
 
           <div className="mt-8 space-y-4">
             {!isOwner && !roleQuery.isLoading ? (
-              <p className="text-muted-foreground text-xs">Only owners can change the journal name or icon.</p>
+              <p className="text-muted-foreground text-xs">
+                Only owners can change the journal name or icon.
+              </p>
             ) : null}
             <div className="space-y-2">
               <Label htmlFor="jn-name">Journal name</Label>
@@ -134,7 +163,11 @@ export function JournalSettingsPage() {
             />
             {error ? <p className="text-destructive text-sm">{error}</p> : null}
             <div className="flex flex-wrap gap-2">
-              <Button className="rounded-xl" disabled={!canSave} onClick={() => void save()}>
+              <Button
+                className="rounded-xl"
+                disabled={!canSave}
+                onClick={() => void save()}
+              >
                 Save
               </Button>
               {activeJournalId !== journalId ? (
@@ -154,10 +187,18 @@ export function JournalSettingsPage() {
           </div>
         </FloatingPanel>
 
-        <JournalPluginsSection journalId={journalId} isOwner={isOwner} roleLoading={roleQuery.isLoading} />
+        <JournalPluginsSection
+          journalId={journalId}
+          isOwner={isOwner}
+          roleLoading={roleQuery.isLoading}
+        />
 
         <FloatingPanel className="p-5 sm:p-6">
-          <JournalSharingSection journalId={journalId} journalName={journal.name} isOwner={isOwner} />
+          <JournalSharingSection
+            journalId={journalId}
+            journalName={journal.name}
+            isOwner={isOwner}
+          />
         </FloatingPanel>
       </div>
     </div>

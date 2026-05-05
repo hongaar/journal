@@ -8,8 +8,14 @@ const meta = {
   component: Toaster,
   tags: ["autodocs"],
   argTypes: {
-    richColors: { control: "boolean", description: "Enable rich toast colors." },
-    closeButton: { control: "boolean", description: "Show close button on toasts." },
+    richColors: {
+      control: "boolean",
+      description: "Enable rich toast colors.",
+    },
+    closeButton: {
+      control: "boolean",
+      description: "Show close button on toasts.",
+    },
   },
 } satisfies Meta<typeof Toaster>;
 
@@ -21,8 +27,13 @@ export const Default: Story = {
   render: (args) => (
     <div className="space-x-2">
       <Toaster {...args} />
-      <Button onClick={() => toast.success("Plugin connected successfully.")}>Success</Button>
-      <Button variant="outline" onClick={() => toast.error("Could not import selected photo.")}>
+      <Button onClick={() => toast.success("Plugin connected successfully.")}>
+        Success
+      </Button>
+      <Button
+        variant="outline"
+        onClick={() => toast.error("Could not import selected photo.")}
+      >
         Error
       </Button>
     </div>

@@ -13,7 +13,10 @@ const PLACEHOLDER_KEY =
 const url = import.meta.env.VITE_SUPABASE_URL || PLACEHOLDER_URL;
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || PLACEHOLDER_KEY;
 
-if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY) {
+if (
+  !import.meta.env.VITE_SUPABASE_URL ||
+  !import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+) {
   console.warn(
     "Missing VITE_SUPABASE_URL or VITE_SUPABASE_PUBLISHABLE_KEY — using local placeholders until you add apps/web/.env",
   );

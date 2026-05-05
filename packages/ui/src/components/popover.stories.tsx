@@ -1,6 +1,13 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { Button } from "./button";
-import { Popover, PopoverContent, PopoverDescription, PopoverHeader, PopoverTitle, PopoverTrigger } from "./popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverDescription,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from "./popover";
 
 const meta = {
   title: "UI/Popover",
@@ -9,7 +16,8 @@ const meta = {
   parameters: {
     docs: {
       description: {
-        component: "Floating content anchored to a trigger. Positioning props are on `PopoverContent`.",
+        component:
+          "Floating content anchored to a trigger. Positioning props are on `PopoverContent`.",
       },
     },
   },
@@ -21,7 +29,9 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   render: () => (
     <Popover>
-      <PopoverTrigger render={<Button variant="outline" />}>Open popover</PopoverTrigger>
+      <PopoverTrigger render={<Button variant="outline" />}>
+        Open popover
+      </PopoverTrigger>
       <PopoverContent side="bottom" align="start">
         <PopoverHeader>
           <PopoverTitle>Trace actions</PopoverTitle>

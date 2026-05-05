@@ -29,7 +29,10 @@ export const Controlled: Story = {
     const [enabled, setEnabled] = useState(false);
     return (
       <Label className="gap-3">
-        <Switch checked={enabled} onCheckedChange={(v) => setEnabled(v === true)} />
+        <Switch
+          checked={enabled}
+          onCheckedChange={(v) => setEnabled(v === true)}
+        />
         {enabled ? "Enabled" : "Disabled"}
       </Label>
     );

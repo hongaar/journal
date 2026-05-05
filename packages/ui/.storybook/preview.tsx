@@ -5,7 +5,11 @@ import "../../../apps/web/src/index.css";
 const preview: Preview = {
   decorators: [
     (Story) => (
-      <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="light"
+        enableSystem={false}
+      >
         <div className="bg-background text-foreground min-h-[120px] p-4">
           <Story />
         </div>

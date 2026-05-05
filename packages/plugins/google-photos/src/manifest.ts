@@ -1,8 +1,11 @@
 import type { PluginPackageManifest } from "@curolia/plugin-contract";
+import { GooglePhotosIcon } from "./icon";
 
 export const googlePhotosPluginManifest: PluginPackageManifest = {
   id: "google_photos",
   displayName: "Google Photos",
+  description: "Link photos from Google Photos.",
+  icon: GooglePhotosIcon,
   capabilities: ["import_media", "trace_photo_suggestions"] as const,
   implemented: true,
   contributions: {
@@ -23,7 +26,8 @@ export const googlePhotosPluginManifest: PluginPackageManifest = {
       {
         slug: "google-photos",
         verifyJwt: true,
-        description: "Search and import Google Photos library items for a trace.",
+        description:
+          "Search and import Google Photos library items for a trace.",
       },
     ],
   },

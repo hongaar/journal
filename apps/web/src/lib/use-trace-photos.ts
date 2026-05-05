@@ -12,7 +12,11 @@ export function useTracePhotosSignedUrls(traceId: string | undefined) {
     queryKey: ["photos", traceId],
     queryFn: async () => {
       if (!traceId) return [];
-      const { data, error } = await supabase.from("photos").select("*").eq("trace_id", traceId).order("sort_order");
+      const { data, error } = await supabase
+        .from("photos")
+        .select("*")
+        .eq("trace_id", traceId)
+        .order("sort_order");
       if (error) throw error;
       return (data ?? []) as Photo[];
     },
@@ -28,7 +32,9 @@ export function useTracePhotosSignedUrls(traceId: string | undefined) {
       const out: Record<string, string> = {};
       for (const p of photos) {
         if (!p.storage_path) continue;
-        const { data, error } = await supabase.storage.from("trace-photos").createSignedUrl(p.storage_path, 3600);
+        const { data, error } = await supabase.storage
+          .from("trace-photos")
+          .createSignedUrl(p.storage_path, 3600);
         if (!error && data?.signedUrl) out[p.id] = data.signedUrl;
       }
       return out;
@@ -39,13 +45,20 @@ export function useTracePhotosSignedUrls(traceId: string | undefined) {
   return {
     photos,
     signedUrlByPhotoId: signedUrlsQuery.data ?? {},
-    isLoading: photosQuery.isLoading || (photos.length > 0 && signedUrlsQuery.isLoading),
+    isLoading:
+      photosQuery.isLoading || (photos.length > 0 && signedUrlsQuery.isLoading),
   };
 }
 
 /** Photos for many traces at once (e.g. blog list), grouped by trace_id. */
-export function useJournalTracesPhotosSignedUrls(journalId: string | undefined, traceIds: string[]) {
-  const sortedIdsKey = useMemo(() => [...traceIds].sort().join(","), [traceIds]);
+export function useJournalTracesPhotosSignedUrls(
+  journalId: string | undefined,
+  traceIds: string[],
+) {
+  const sortedIdsKey = useMemo(
+    () => [...traceIds].sort().join(","),
+    [traceIds],
+  );
 
   const photosQuery = useQuery({
     queryKey: ["journal-trace-photos", journalId, sortedIdsKey],
@@ -72,7 +85,9 @@ export function useJournalTracesPhotosSignedUrls(journalId: string | undefined, 
       const out: Record<string, string> = {};
       for (const p of photos) {
         if (!p.storage_path) continue;
-        const { data, error } = await supabase.storage.from("trace-photos").createSignedUrl(p.storage_path, 3600);
+        const { data, error } = await supabase.storage
+          .from("trace-photos")
+          .createSignedUrl(p.storage_path, 3600);
         if (!error && data?.signedUrl) out[p.id] = data.signedUrl;
       }
       return out;
@@ -93,6 +108,7 @@ export function useJournalTracesPhotosSignedUrls(journalId: string | undefined, 
   return {
     photosByTraceId,
     signedUrlByPhotoId: signedUrlsQuery.data ?? {},
-    isLoading: photosQuery.isLoading || (photos.length > 0 && signedUrlsQuery.isLoading),
+    isLoading:
+      photosQuery.isLoading || (photos.length > 0 && signedUrlsQuery.isLoading),
   };
 }

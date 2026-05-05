@@ -139,7 +139,10 @@ export function TraceFormDialog({
       setLng(String(trace.lng));
       setLocationLabel(trace.location_label ?? "");
       void (async () => {
-        const { data } = await supabase.from("trace_tags").select("tag_id").eq("trace_id", trace.id);
+        const { data } = await supabase
+          .from("trace_tags")
+          .select("tag_id")
+          .eq("trace_id", trace.id);
         setSelectedTags(new Set((data ?? []).map((r) => r.tag_id)));
       })();
     } else {
@@ -250,12 +253,20 @@ export function TraceFormDialog({
 
       if (!traceId) throw new Error("Missing trace id");
 
-      const { error: dErr } = await supabase.from("trace_tags").delete().eq("trace_id", traceId);
+      const { error: dErr } = await supabase
+        .from("trace_tags")
+        .delete()
+        .eq("trace_id", traceId);
       if (dErr) throw dErr;
 
-      const tagRows = [...selectedTags].map((tag_id) => ({ trace_id: traceId, tag_id }));
+      const tagRows = [...selectedTags].map((tag_id) => ({
+        trace_id: traceId,
+        tag_id,
+      }));
       if (tagRows.length > 0) {
-        const { error: tErr } = await supabase.from("trace_tags").insert(tagRows);
+        const { error: tErr } = await supabase
+          .from("trace_tags")
+          .insert(tagRows);
         if (tErr) throw tErr;
       }
 
@@ -275,7 +286,12 @@ export function TraceFormDialog({
     <div className="grid gap-3 py-2">
       <div className="space-y-2">
         <Label htmlFor={`t-title-${idSuffix}`}>Title</Label>
-        <Input id={`t-title-${idSuffix}`} value={title} onChange={(e) => setTitle(e.target.value)} className="rounded-lg" />
+        <Input
+          id={`t-title-${idSuffix}`}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="rounded-lg"
+        />
       </div>
       <div className="space-y-2">
         <Label htmlFor={`t-desc-${idSuffix}`}>Description</Label>
@@ -312,11 +328,21 @@ export function TraceFormDialog({
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-2">
             <Label htmlFor={`t-lat-${idSuffix}`}>Latitude</Label>
-            <Input id={`t-lat-${idSuffix}`} value={lat} onChange={(e) => setLat(e.target.value)} className="rounded-lg" />
+            <Input
+              id={`t-lat-${idSuffix}`}
+              value={lat}
+              onChange={(e) => setLat(e.target.value)}
+              className="rounded-lg"
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor={`t-lng-${idSuffix}`}>Longitude</Label>
-            <Input id={`t-lng-${idSuffix}`} value={lng} onChange={(e) => setLng(e.target.value)} className="rounded-lg" />
+            <Input
+              id={`t-lng-${idSuffix}`}
+              value={lng}
+              onChange={(e) => setLng(e.target.value)}
+              className="rounded-lg"
+            />
           </div>
         </div>
       ) : null}
@@ -336,7 +362,10 @@ export function TraceFormDialog({
         <Label>Tags</Label>
         <div className="max-h-40 space-y-2 overflow-y-auto rounded-lg border border-border/80 p-2">
           {(tagsQuery.data ?? []).map((tag) => (
-            <label key={tag.id} className="flex cursor-pointer items-center gap-2 text-sm">
+            <label
+              key={tag.id}
+              className="flex cursor-pointer items-center gap-2 text-sm"
+            >
               <Checkbox
                 checked={selectedTags.has(tag.id)}
                 onCheckedChange={(c) => {
@@ -353,7 +382,9 @@ export function TraceFormDialog({
             </label>
           ))}
           {tagsQuery.data?.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No tags yet — add one from the Tags menu.</p>
+            <p className="text-muted-foreground text-sm">
+              No tags yet — add one from the Tags menu.
+            </p>
           ) : null}
         </div>
       </div>
@@ -363,10 +394,18 @@ export function TraceFormDialog({
 
   const formFooter = (
     <div className="flex flex-col-reverse gap-2 border-t border-border/60 pt-3 sm:flex-row sm:justify-end">
-      <Button variant="outline" className="rounded-xl" onClick={() => onOpenChange(false)}>
+      <Button
+        variant="outline"
+        className="rounded-xl"
+        onClick={() => onOpenChange(false)}
+      >
         Cancel
       </Button>
-      <Button disabled={saving} className="rounded-xl" onClick={() => void save()}>
+      <Button
+        disabled={saving}
+        className="rounded-xl"
+        onClick={() => void save()}
+      >
         Save
       </Button>
     </div>
@@ -374,10 +413,15 @@ export function TraceFormDialog({
 
   if (floatingNew && anchorScreen) {
     return (
-      <div ref={floatingRef} className="pointer-events-none z-[45] w-max min-w-0">
+      <div
+        ref={floatingRef}
+        className="pointer-events-none z-[45] w-max min-w-0"
+      >
         <div className="pointer-events-auto relative">
           <FloatingPanel className="max-h-[inherit] min-w-[288px] max-w-sm overflow-y-auto p-4 shadow-2xl">
-            <h2 className="font-display text-foreground mb-1 text-xl font-semibold tracking-tight">New trace</h2>
+            <h2 className="font-display text-foreground mb-1 text-xl font-semibold tracking-tight">
+              New trace
+            </h2>
             {formFields}
             {formFooter}
           </FloatingPanel>
@@ -390,7 +434,9 @@ export function TraceFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto border-[var(--panel-border)] bg-[var(--panel-bg)] backdrop-blur-xl sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-display text-xl font-semibold">{trace ? "Edit trace" : "New trace"}</DialogTitle>
+          <DialogTitle className="font-display text-xl font-semibold">
+            {trace ? "Edit trace" : "New trace"}
+          </DialogTitle>
         </DialogHeader>
         {formFields}
         <DialogFooter>

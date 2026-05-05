@@ -50,11 +50,12 @@ const ROW_SLICES: { s: number; l: number }[] = [
 ];
 
 /** Five rows × eight hue columns (40 fixed tag colors). */
-export const PRESET_TRACE_TAG_COLOR_GRID: string[][] = ROW_SLICES.map(({ s, l }) =>
-  Array.from({ length: HUE_COLUMNS }, (_, col) => {
-    const h = (col / HUE_COLUMNS) * 360;
-    return hslToHex(h, s, l);
-  }),
+export const PRESET_TRACE_TAG_COLOR_GRID: string[][] = ROW_SLICES.map(
+  ({ s, l }) =>
+    Array.from({ length: HUE_COLUMNS }, (_, col) => {
+      const h = (col / HUE_COLUMNS) * 360;
+      return hslToHex(h, s, l);
+    }),
 );
 
 // Keep previous app default in the palette so existing UX stays familiar.

@@ -13,7 +13,13 @@ type PresetColorPickerProps = {
   className?: string;
 };
 
-export function PresetColorPicker({ id, label, value, onChange, className }: PresetColorPickerProps) {
+export function PresetColorPicker({
+  id,
+  label,
+  value,
+  onChange,
+  className,
+}: PresetColorPickerProps) {
   const normalized = value.toLowerCase();
 
   return (
@@ -39,17 +45,28 @@ export function PresetColorPicker({ id, label, value, onChange, className }: Pre
                 style={{ backgroundColor: value }}
                 aria-hidden
               />
-              <span className="text-muted-foreground truncate text-xs tabular-nums">{normalized}</span>
+              <span className="text-muted-foreground truncate text-xs tabular-nums">
+                {normalized}
+              </span>
             </span>
-            <ChevronDown className="text-muted-foreground size-4 shrink-0 opacity-70" aria-hidden />
+            <ChevronDown
+              className="text-muted-foreground size-4 shrink-0 opacity-70"
+              aria-hidden
+            />
           </PopoverTrigger>
           <PopoverContent
             align="start"
             sideOffset={6}
             className="w-[min(calc(100vw-2rem),18rem)] gap-2 p-3"
           >
-            <p className="text-muted-foreground text-xs font-medium">Preset colors</p>
-            <div className="grid grid-cols-8 gap-1.5" role="listbox" aria-label="Color presets">
+            <p className="text-muted-foreground text-xs font-medium">
+              Preset colors
+            </p>
+            <div
+              className="grid grid-cols-8 gap-1.5"
+              role="listbox"
+              aria-label="Color presets"
+            >
               {PRESET_TRACE_TAG_COLOR_GRID.map((row, ri) =>
                 row.map((hex, ci) => {
                   const selected = hex.toLowerCase() === normalized;
@@ -61,7 +78,8 @@ export function PresetColorPicker({ id, label, value, onChange, className }: Pre
                       aria-selected={selected}
                       className={cn(
                         "ring-border size-7 shrink-0 rounded-md ring-1 transition hover:scale-105 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-                        selected && "ring-2 ring-foreground ring-offset-2 ring-offset-popover",
+                        selected &&
+                          "ring-2 ring-foreground ring-offset-2 ring-offset-popover",
                       )}
                       style={{ backgroundColor: hex }}
                       title={hex}

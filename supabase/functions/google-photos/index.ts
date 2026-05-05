@@ -2,25 +2,31 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const GOOGLE_TOKEN = "https://oauth2.googleapis.com/token";
-const PHOTOS_SEARCH = "https://photoslibrary.googleapis.com/v1/mediaItems:search";
+const PHOTOS_SEARCH =
+  "https://photoslibrary.googleapis.com/v1/mediaItems:search";
 
 function cors(): HeadersInit {
   return {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
   };
 }
 
 async function importAesKey(raw: Uint8Array): Promise<CryptoKey> {
-  return crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["encrypt", "decrypt"]);
+  return crypto.subtle.importKey("raw", raw, "AES-GCM", false, [
+    "encrypt",
+    "decrypt",
+  ]);
 }
 
 function getEncryptionKey(): Uint8Array {
   const b64 = Deno.env.get("PLUGIN_OAUTH_ENCRYPTION_KEY") ?? "";
   if (!b64) throw new Error("PLUGIN_OAUTH_ENCRYPTION_KEY is not set");
   const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-  if (bin.length !== 32) throw new Error("PLUGIN_OAUTH_ENCRYPTION_KEY must decode to 32 bytes");
+  if (bin.length !== 32)
+    throw new Error("PLUGIN_OAUTH_ENCRYPTION_KEY must decode to 32 bytes");
   return bin;
 }
 
@@ -30,7 +36,8 @@ function parseBytea(val: unknown): Uint8Array {
     const hex = val.startsWith("\\x") ? val.slice(2) : val.replace(/^\\x/, "");
     if (/^[0-9a-fA-F]+$/.test(hex) && hex.length % 2 === 0) {
       const out = new Uint8Array(hex.length / 2);
-      for (let i = 0; i < out.length; i++) out[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+      for (let i = 0; i < out.length; i++)
+        out[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
       return out;
     }
   }
@@ -82,14 +89,14 @@ async function getGoogleAccessToken(
     access_token_expires_at: string | null;
   };
 
-  const refreshPlain = await decryptSecret(parseBytea(r.refresh_token_ciphertext));
+  const refreshPlain = await decryptSecret(
+    parseBytea(r.refresh_token_ciphertext),
+  );
 
-  const exp = r.access_token_expires_at ? new Date(r.access_token_expires_at) : null;
-  if (
-    exp &&
-    exp > new Date(Date.now() + 60_000) &&
-    r.access_token_ciphertext
-  ) {
+  const exp = r.access_token_expires_at
+    ? new Date(r.access_token_expires_at)
+    : null;
+  if (exp && exp > new Date(Date.now() + 60_000) && r.access_token_ciphertext) {
     try {
       return await decryptSecret(parseBytea(r.access_token_ciphertext));
     } catch {
@@ -122,7 +129,9 @@ async function getGoogleAccessToken(
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const key = await importAesKey(keyRaw);
   const encAt = new TextEncoder().encode(tok.access_token as string);
-  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, encAt));
+  const ct = new Uint8Array(
+    await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, encAt),
+  );
   const accessCt = new Uint8Array(iv.length + ct.length);
   accessCt.set(iv, 0);
   accessCt.set(ct, iv.length);
@@ -193,12 +202,20 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  const accessToken = await getGoogleAccessToken(admin, userId, googleClientId, googleClientSecret);
+  const accessToken = await getGoogleAccessToken(
+    admin,
+    userId,
+    googleClientId,
+    googleClientSecret,
+  );
   if (!accessToken) {
-    return new Response(JSON.stringify({ error: "google_not_linked", suggestions: [] }), {
-      status: 200,
-      headers: { ...cors(), "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ error: "google_not_linked", suggestions: [] }),
+      {
+        status: 200,
+        headers: { ...cors(), "Content-Type": "application/json" },
+      },
+    );
   }
 
   if (body.action === "search") {
@@ -272,7 +289,11 @@ Deno.serve(async (req: Request) => {
         id: string;
         mimeType?: string;
         filename?: string;
-        mediaMetadata?: { creationTime?: string; width?: string; height?: string };
+        mediaMetadata?: {
+          creationTime?: string;
+          width?: string;
+          height?: string;
+        };
         productUrl?: string;
         baseUrl?: string;
       }>;
@@ -280,10 +301,13 @@ Deno.serve(async (req: Request) => {
 
     if (!res.ok) {
       console.error("photos search error", json);
-      return new Response(JSON.stringify({ error: "google_api_error", details: json }), {
-        status: 502,
-        headers: { ...cors(), "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "google_api_error", details: json }),
+        {
+          status: 502,
+          headers: { ...cors(), "Content-Type": "application/json" },
+        },
+      );
     }
 
     const suggestions =
@@ -348,7 +372,9 @@ Deno.serve(async (req: Request) => {
     for (const mediaId of body.mediaItemIds) {
       const metaRes = await fetch(
         `https://photoslibrary.googleapis.com/v1/mediaItems/${mediaId}`,
-        { headers: { Authorization: `Bearer ${accessToken}` } },
+        {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        },
       );
       const meta = (await metaRes.json()) as {
         id?: string;
@@ -366,10 +392,12 @@ Deno.serve(async (req: Request) => {
       const ext = meta.mimeType?.includes("png") ? "png" : "jpg";
       const path = `${t.journal_id}/${t.id}/gp-${mediaId}.${ext}`;
 
-      const { error: upErr } = await admin.storage.from("trace-photos").upload(path, buf, {
-        contentType: meta.mimeType ?? "image/jpeg",
-        upsert: false,
-      });
+      const { error: upErr } = await admin.storage
+        .from("trace-photos")
+        .upload(path, buf, {
+          contentType: meta.mimeType ?? "image/jpeg",
+          upsert: false,
+        });
       if (upErr) {
         console.error(upErr);
         continue;

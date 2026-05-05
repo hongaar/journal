@@ -10,7 +10,9 @@ describe("getGravatarUrl", () => {
 
   it("matches Gravatar SHA-256 example (trim + lowercase)", async () => {
     const url = await getGravatarUrl("MyEmailAddress@example.com");
-    const expectedHex = createHash("sha256").update("myemailaddress@example.com").digest("hex");
+    const expectedHex = createHash("sha256")
+      .update("myemailaddress@example.com")
+      .digest("hex");
     expect(url).toContain(expectedHex);
     expect(url).toContain("d=404");
   });
