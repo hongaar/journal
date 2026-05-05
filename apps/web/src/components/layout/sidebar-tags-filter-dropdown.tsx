@@ -13,7 +13,13 @@ import { cn } from "@/lib/utils";
 import type { Tag } from "@/types/database";
 import { DROPDOWN_PANEL_WIDE_CLASS } from "@/lib/dropdown-panel";
 import { sidebarPickerTriggerClass } from "@/components/layout/sidebar-dropdown-triggers";
-import { Check, ChevronDown, Plus, Settings2, Tag as TagIcon } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  Plus,
+  Settings2,
+  Tag as TagIcon,
+} from "lucide-react";
 
 type SidebarTagsFilterDropdownProps = {
   tags: Tag[];

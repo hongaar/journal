@@ -18,9 +18,8 @@ export type NavigationShellContextValue = {
   openNewJournalDialog: () => void;
 };
 
-const NavigationShellContext = createContext<NavigationShellContextValue | null>(
-  null,
-);
+const NavigationShellContext =
+  createContext<NavigationShellContextValue | null>(null);
 
 function readStoredSidebarOpen(): boolean {
   if (typeof window === "undefined") return false;

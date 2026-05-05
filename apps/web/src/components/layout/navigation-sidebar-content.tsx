@@ -1,5 +1,12 @@
 import { NavLink } from "react-router-dom";
-import { BookOpen, Check, ChevronDown, Map, Plus, Settings2 } from "lucide-react";
+import {
+  BookOpen,
+  Check,
+  ChevronDown,
+  Map,
+  Plus,
+  Settings2,
+} from "lucide-react";
 import { Button, buttonVariants } from "@curolia/ui/button";
 import {
   DropdownMenu,

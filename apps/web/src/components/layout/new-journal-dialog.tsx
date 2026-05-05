@@ -18,7 +18,10 @@ type NewJournalDialogProps = {
   onOpenChange: (open: boolean) => void;
 };
 
-export function NewJournalDialog({ open, onOpenChange }: NewJournalDialogProps) {
+export function NewJournalDialog({
+  open,
+  onOpenChange,
+}: NewJournalDialogProps) {
   const { createJournal } = useJournal();
   const [name, setName] = useState("");
   const [icon, setIcon] = useState(() => defaultJournalIcon(false));
