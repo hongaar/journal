@@ -14,31 +14,16 @@ const config = JSON.parse(await fs.readFile(configPath, "utf8"));
 const logoSourcePath = path.join(brandPkgRoot, "icon.svg");
 const logoSvg = await fs.readFile(logoSourcePath, "utf8");
 
-const faviconOutputPath = path.join(
-  repoRoot,
-  "apps",
-  "web",
-  "public",
-  "favicon.svg",
-);
-const iconsOutputPath = path.join(
-  repoRoot,
-  "apps",
-  "web",
-  "public",
-  "icons.svg",
-);
+const webPublicDir = path.join(repoRoot, "apps", "web", "public");
+await fs.mkdir(webPublicDir, { recursive: true });
+
+const faviconOutputPath = path.join(webPublicDir, "favicon.svg");
+const iconsOutputPath = path.join(webPublicDir, "icons.svg");
 
 await fs.writeFile(faviconOutputPath, logoSvg);
 await fs.writeFile(iconsOutputPath, logoSvg);
 
-const manifestOutputPath = path.join(
-  repoRoot,
-  "apps",
-  "web",
-  "public",
-  "site.webmanifest",
-);
+const manifestOutputPath = path.join(webPublicDir, "site.webmanifest");
 
 const manifest = {
   name: config.web.name,
