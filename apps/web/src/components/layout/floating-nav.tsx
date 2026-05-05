@@ -98,7 +98,6 @@ export function FloatingNav() {
       return data != null;
     },
     enabled: Boolean(user),
-    refetchInterval: 60_000,
   });
 
   async function handleCreateJournal() {
