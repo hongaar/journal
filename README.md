@@ -196,11 +196,21 @@ Create a GitHub Actions environment named `production` and add these secrets bef
   - `VERCEL_TOKEN`
   - `VERCEL_ORG_ID`
   - `VERCEL_PROJECT_ID`
+- Frontend runtime/build env (mirrored from Vercel Production env):
+  - `VITE_SUPABASE_URL`
+  - `VITE_SUPABASE_PUBLISHABLE_KEY`
 
 Optional hardening:
 
 - keep production secrets scoped to the `production` environment (not repo-wide)
 - require manual approval for the `production` environment if you want a deploy gate
+
+### Vercel-to-GitHub env sync (manual)
+
+When env vars are already configured in Vercel UI, copy these frontend vars manually into the GitHub `production` environment secrets:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_PUBLISHABLE_KEY`
 
 ### Plugin OAuth + Edge config (production)
 
@@ -225,8 +235,8 @@ Production checklist:
    - `plugin-oauth` must keep `verify_jwt = false` (provider callback has no JWT).
    - plugin APIs can validate JWT inside handler.
 4. Deploy flow:
-   - Vercel deploys web on push.
    - GitHub workflow runs `functions:sync`, `supabase db push`, and `supabase functions deploy --use-api`.
+   - Then GitHub workflow deploys web to Vercel via `vercel build --prod` + `vercel deploy --prebuilt --prod`.
 
 ## Roadmap
 
