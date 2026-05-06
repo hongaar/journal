@@ -481,7 +481,7 @@ export function MapPage() {
 
       {sidebarTraceId ? (
         <TraceMapSidebar
-          key={`${sidebarTraceId}-${isMobile ? "sm" : "lg"}`}
+          key={isMobile ? "trace-map-sidebar-mobile" : `${sidebarTraceId}-lg`}
           traceId={sidebarTraceId}
           journalId={activeJournalId}
           mapRef={mapRef}

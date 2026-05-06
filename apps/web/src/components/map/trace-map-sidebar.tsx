@@ -379,12 +379,18 @@ export function TraceMapSidebar({
   if (isMobile) {
     return (
       <>
-        <Sheet open modal={false} onOpenChange={(o) => !o && onClose()}>
+        {/* Pointer dismissal off: map marker taps were closing the sheet ~24ms after onSelectTrace (see debug logs). Dismiss empty map via TraceMap.onMapBackgroundClick. */}
+        <Sheet
+          open
+          modal={false}
+          disablePointerDismissal
+          onOpenChange={(o) => !o && onClose()}
+        >
           <SheetContent
             side="bottom"
             showCloseButton={false}
             overlayClassName="pointer-events-none bg-transparent supports-backdrop-filter:backdrop-blur-none"
-            className="pointer-events-auto gap-0 rounded-t-2xl border-[var(--panel-border)] bg-[var(--panel-bg)] p-0 shadow-2xl"
+            className="pointer-events-auto gap-0 rounded-t-2xl border border-[var(--panel-border)] bg-card text-card-foreground shadow-[var(--panel-shadow)] p-0"
           >
             <SheetTitle className="sr-only">{titleText}</SheetTitle>
             <div className="flex max-h-[90dvh] flex-col overflow-hidden px-4 pt-4 pb-6">

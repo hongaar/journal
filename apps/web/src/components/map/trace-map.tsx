@@ -594,12 +594,48 @@ export const TraceMap = forwardRef<TraceMapHandle, TraceMapProps>(
 
       const canvas = map.getCanvas();
 
-      const onClick = (_e: maplibregl.MapMouseEvent) => {
+      const clickHitTraceMarker = (e: maplibregl.MapMouseEvent) => {
+        const orig = e.originalEvent;
+        if (
+          orig &&
+          "target" in orig &&
+          orig.target instanceof Element &&
+          orig.target.closest(".maplibregl-marker")
+        ) {
+          return true;
+        }
+        /*
+         * Touch → synthetic click often reports `target` as the canvas, not the marker.
+         * Hit-test at viewport coords — do not use `rect + e.point` (point is scaled canvas space).
+         */
+        let clientX: number | undefined;
+        let clientY: number | undefined;
+        if (orig instanceof MouseEvent) {
+          clientX = orig.clientX;
+          clientY = orig.clientY;
+        }
+        if (
+          clientX !== undefined &&
+          clientY !== undefined &&
+          Number.isFinite(clientX) &&
+          Number.isFinite(clientY)
+        ) {
+          for (const node of document.elementsFromPoint(clientX, clientY)) {
+            if (node instanceof Element && node.closest(".maplibregl-marker")) {
+              return true;
+            }
+          }
+        }
+        return false;
+      };
+
+      const onClick = (e: maplibregl.MapMouseEvent) => {
         if (placementMode) {
           const fn = onPlacementClickRef.current;
-          if (fn) fn(_e.lngLat.lng, _e.lngLat.lat);
+          if (fn) fn(e.lngLat.lng, e.lngLat.lat);
           return;
         }
+        if (clickHitTraceMarker(e)) return;
         onMapBackgroundClickRef.current?.();
       };
 
