@@ -1,22 +1,20 @@
 import {
-  TracePhotoLightboxByTraceId,
-  TracePhotoThumb,
-} from "@/components/traces/trace-photo-lightbox";
-import { FloatingPanel } from "@/components/layout/floating-panel";
-import { mapAnchorPanelMiddleware } from "@/lib/map-anchor-floating-ui";
-import { supabase } from "@/lib/supabase";
-import { cn, contrastingForeground } from "@/lib/utils";
-import { autoUpdate, computePosition } from "@floating-ui/dom";
-import maplibregl from "maplibre-gl";
-import { useQuery } from "@tanstack/react-query";
-import { filterTracesByTags, type TraceWithTags } from "@/lib/trace-with-tags";
-import {
   cameraToSyncKey,
   isValidMapBbox,
   normalizeCameraForUrl,
   type MapBbox,
   type MapCamera,
 } from "@/lib/map-view-params";
+import { filterTracesByTags, type TraceWithTags } from "@/lib/trace-with-tags";
+import { cn, contrastingForeground } from "@/lib/utils";
+import {
+  autoUpdate,
+  computePosition,
+  flip,
+  offset,
+  shift,
+} from "@floating-ui/dom";
+import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useTheme } from "next-themes";
 import {
@@ -31,9 +29,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 
-const HOVER_PHOTO_COUNT = 2;
 const HOVER_LEAVE_MS = 140;
-const HOVER_DESC_MAX_CHARS = 220;
 
 /** Marker hover preview: screen x/y updated while the map camera moves. */
 type TraceHoverPreview = {
@@ -43,43 +39,6 @@ type TraceHoverPreview = {
   x: number;
   y: number;
 };
-
-function firstPhotosForPreview(trace: TraceWithTags) {
-  const rows = trace.photos ?? [];
-  return [...rows]
-    .filter((p): p is (typeof rows)[number] & { storage_path: string } =>
-      Boolean(p.storage_path),
-    )
-    .sort((a, b) => a.sort_order - b.sort_order)
-    .slice(0, HOVER_PHOTO_COUNT);
-}
-
-function useMarkerHoverPhotoUrls(trace: TraceWithTags | null) {
-  const slice = useMemo(
-    () => (trace ? firstPhotosForPreview(trace) : []),
-    [trace],
-  );
-
-  return useQuery({
-    queryKey: [
-      "map-marker-hover-photo-urls",
-      trace?.id,
-      slice.map((p) => p.id).join("|"),
-    ],
-    queryFn: async () => {
-      const out: string[] = [];
-      for (const p of slice) {
-        const { data, error } = await supabase.storage
-          .from("trace-photos")
-          .createSignedUrl(p.storage_path, 3600);
-        if (!error && data?.signedUrl) out.push(data.signedUrl);
-      }
-      return out;
-    },
-    enabled: Boolean(trace?.id && slice.length > 0),
-    staleTime: 300_000,
-  });
-}
 
 export type { TraceWithTags };
 
@@ -120,6 +79,8 @@ type TraceMapProps = {
   cameraSyncKey?: string;
   /** Fired after pan/zoom settles (moveend); used to persist camera in the address bar. */
   onCameraIdle?: (camera: MapCamera) => void;
+  /** Map canvas click when not in placement mode (e.g. dismiss nav overlay on mobile). */
+  onMapBackgroundClick?: () => void;
 };
 
 const MAP_STYLE_LIGHT = "https://tiles.openfreemap.org/styles/positron";
@@ -215,6 +176,7 @@ export const TraceMap = forwardRef<TraceMapHandle, TraceMapProps>(
       initialBbox = null,
       cameraSyncKey = "",
       onCameraIdle,
+      onMapBackgroundClick,
     },
     ref,
   ) {
@@ -225,10 +187,6 @@ export const TraceMap = forwardRef<TraceMapHandle, TraceMapProps>(
     const [traceHover, setTraceHover] = useState<TraceHoverPreview | null>(
       null,
     );
-    const [mapPhotoLightbox, setMapPhotoLightbox] = useState<{
-      traceId: string;
-      photoId: string;
-    } | null>(null);
     const hoverFloatingRef = useRef<HTMLDivElement>(null);
     const hoverAnchorRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
@@ -251,6 +209,7 @@ export const TraceMap = forwardRef<TraceMapHandle, TraceMapProps>(
     const previewMarkerRef = useRef<maplibregl.Marker | null>(null);
     const onPlacementClickRef = useRef(onPlacementClick);
     const onCameraIdleRef = useRef(onCameraIdle);
+    const onMapBackgroundClickRef = useRef(onMapBackgroundClick);
     /** Last `cameraSyncKey` we applied from props (URL / deep link), not user idle echo. */
     const lastAppliedSyncKeyRef = useRef<string>("");
     /** `cameraToSyncKey(normalizeCameraForUrl(…))` last sent to parent via onCameraIdle — detects idle→URL→props echo. */
@@ -272,10 +231,18 @@ export const TraceMap = forwardRef<TraceMapHandle, TraceMapProps>(
     useLayoutEffect(() => {
       onPlacementClickRef.current = onPlacementClick;
       onCameraIdleRef.current = onCameraIdle;
+      onMapBackgroundClickRef.current = onMapBackgroundClick;
       filteredRef.current = filtered;
       selectedTraceIdRef.current = selectedTraceId;
       latestTraceHoverIdRef.current = traceHover?.trace.id ?? null;
-    }, [onPlacementClick, onCameraIdle, filtered, selectedTraceId, traceHover]);
+    }, [
+      onPlacementClick,
+      onCameraIdle,
+      onMapBackgroundClick,
+      filtered,
+      selectedTraceId,
+      traceHover,
+    ]);
 
     const applyMarkerHoverStack = useCallback((hoveredId: string | null) => {
       for (const t of filteredRef.current) {
@@ -316,14 +283,6 @@ export const TraceMap = forwardRef<TraceMapHandle, TraceMapProps>(
     }, [applyMarkerHoverStack]);
 
     useEffect(() => () => cancelHidePreview(), [cancelHidePreview]);
-
-    const hoverPhotoUrlsQuery = useMarkerHoverPhotoUrls(
-      traceHover?.trace ?? null,
-    );
-    const hoverPreviewPhotos = useMemo(
-      () => (traceHover ? firstPhotosForPreview(traceHover.trace) : []),
-      [traceHover],
-    );
 
     const traceHoverAnchorId = traceHover?.trace.id;
     const traceHoverLng = traceHover?.lng;
@@ -391,7 +350,14 @@ export const TraceMap = forwardRef<TraceMapHandle, TraceMapProps>(
         computePosition(hoverVirtualReference, floating, {
           placement: "right",
           strategy: "fixed",
-          middleware: mapAnchorPanelMiddleware(),
+          middleware: [
+            /* Gap from anchor (marker center); marker face is ~36px — keep tooltip clear of pin. */
+            offset(26),
+            flip({
+              fallbackPlacements: ["left", "top", "bottom"],
+            }),
+            shift({ padding: 12 }),
+          ],
         }).then((data) => {
           const el = hoverFloatingRef.current;
           if (!el) return;
@@ -628,19 +594,23 @@ export const TraceMap = forwardRef<TraceMapHandle, TraceMapProps>(
 
       const canvas = map.getCanvas();
 
-      const onClick = (e: maplibregl.MapMouseEvent) => {
-        if (!placementMode) return;
-        const fn = onPlacementClickRef.current;
-        if (!fn) return;
-        fn(e.lngLat.lng, e.lngLat.lat);
+      const onClick = (_e: maplibregl.MapMouseEvent) => {
+        if (placementMode) {
+          const fn = onPlacementClickRef.current;
+          if (fn) fn(_e.lngLat.lng, _e.lngLat.lat);
+          return;
+        }
+        onMapBackgroundClickRef.current?.();
       };
 
+      map.on("click", onClick);
       if (placementMode) {
-        map.on("click", onClick);
         map.dragRotate.disable();
         map.touchZoomRotate.disableRotation();
         canvas.style.cursor = "crosshair";
       } else {
+        map.dragRotate.enable();
+        map.touchZoomRotate.enable();
         canvas.style.cursor = "";
       }
       return () => {
@@ -780,12 +750,6 @@ export const TraceMap = forwardRef<TraceMapHandle, TraceMapProps>(
     }, [previewPin]);
 
     const hoverTitle = traceHover?.trace.title?.trim() || "Untitled place";
-    const rawDesc = traceHover?.trace.description?.trim() ?? "";
-    const hoverDesc =
-      rawDesc.length > HOVER_DESC_MAX_CHARS
-        ? `${rawDesc.slice(0, HOVER_DESC_MAX_CHARS - 1).trimEnd()}…`
-        : rawDesc;
-    const hoverUrls = hoverPhotoUrlsQuery.data ?? [];
 
     return (
       <>
@@ -800,65 +764,13 @@ export const TraceMap = forwardRef<TraceMapHandle, TraceMapProps>(
         {traceHover ? (
           <div
             ref={hoverFloatingRef}
-            className="pointer-events-none z-[45] w-max min-w-0"
+            className="pointer-events-none z-[45] max-w-[min(16rem,calc(100vw-2rem))] min-w-0"
           >
-            <div
-              className="pointer-events-auto relative"
-              onMouseEnter={cancelHidePreview}
-              onMouseLeave={requestHidePreview}
-            >
-              <FloatingPanel className="max-h-[inherit] min-w-[288px] max-w-sm overflow-y-auto border-[var(--panel-border)] p-4 shadow-2xl">
-                <p className="font-display text-foreground mb-1 text-xl font-normal tracking-tight">
-                  {hoverTitle}
-                </p>
-                {hoverDesc ? (
-                  <p className="text-muted-foreground mt-3 max-h-24 overflow-y-auto text-sm leading-relaxed whitespace-pre-wrap">
-                    {hoverDesc}
-                  </p>
-                ) : null}
-                {hoverPreviewPhotos.length > 0 ? (
-                  <div className="mt-3 flex gap-2">
-                    {hoverPreviewPhotos.map((p, i) => (
-                      <div
-                        key={p.id}
-                        className="bg-muted relative aspect-square min-h-0 flex-1 overflow-hidden rounded-lg"
-                      >
-                        {hoverUrls[i] ? (
-                          <TracePhotoThumb
-                            url={hoverUrls[i]}
-                            className="size-full"
-                            onOpen={() =>
-                              setMapPhotoLightbox({
-                                traceId: traceHover.trace.id,
-                                photoId: p.id,
-                              })
-                            }
-                          />
-                        ) : (
-                          <div className="bg-muted flex size-full min-h-[4.5rem] animate-pulse items-center justify-center" />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-              </FloatingPanel>
+            <div className="border-border/60 bg-muted/95 text-foreground shadow-sm supports-backdrop-filter:backdrop-blur-sm rounded-lg border px-2.5 py-1">
+              <p className="text-sm font-medium leading-snug">{hoverTitle}</p>
             </div>
           </div>
         ) : null}
-        <TracePhotoLightboxByTraceId
-          traceId={mapPhotoLightbox?.traceId ?? null}
-          open={mapPhotoLightbox !== null}
-          onOpenChange={(o) => {
-            if (!o) setMapPhotoLightbox(null);
-          }}
-          initialPhotoId={mapPhotoLightbox?.photoId ?? null}
-          title={
-            mapPhotoLightbox &&
-            traceHover?.trace.id === mapPhotoLightbox.traceId
-              ? traceHover.trace.title?.trim() || "Untitled place"
-              : undefined
-          }
-        />
       </>
     );
   },

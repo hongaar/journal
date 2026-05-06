@@ -1,13 +1,13 @@
-import { FloatingPanel } from "@/components/layout/floating-panel";
 import { Button } from "@curolia/ui/button";
-import { Checkbox } from "@curolia/ui/checkbox";
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@curolia/ui/dialog";
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@curolia/ui/card";
+import { Checkbox } from "@curolia/ui/checkbox";
+import { Dialog, DialogContent } from "@curolia/ui/dialog";
 import { Input } from "@curolia/ui/input";
 import { Label } from "@curolia/ui/label";
 import { Textarea } from "@curolia/ui/textarea";
@@ -18,6 +18,7 @@ import type { Tag, Trace } from "@/types/database";
 import { autoUpdate, computePosition } from "@floating-ui/dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useMaxSm } from "@/hooks/use-max-sm";
 
 type TraceFormDialogProps = {
   open: boolean;
@@ -42,6 +43,7 @@ export function TraceFormDialog({
   anchorScreen = null,
   onNewTraceTagIdsChange,
 }: TraceFormDialogProps) {
+  const isNarrow = useMaxSm();
   const qc = useQueryClient();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -57,7 +59,7 @@ export function TraceFormDialog({
   const floatingRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<{ x: number; y: number } | null>(null);
 
-  const floatingNew = Boolean(open && !trace && anchorScreen);
+  const floatingNew = Boolean(open && !trace && anchorScreen && !isNarrow);
 
   const virtualReference = useMemo(
     () => ({
@@ -112,6 +114,8 @@ export function TraceFormDialog({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [floatingNew, onOpenChange]);
+
+  const dialogTitle = trace ? "Edit trace" : "New trace";
 
   const tagsQuery = useQuery({
     queryKey: ["tags", journalId],
@@ -392,8 +396,8 @@ export function TraceFormDialog({
     </div>
   );
 
-  const formFooter = (
-    <div className="flex flex-col-reverse gap-2 border-t border-border/60 pt-3 sm:flex-row sm:justify-end">
+  const footerActions = (
+    <>
       <Button
         variant="outline"
         className="rounded-xl"
@@ -408,7 +412,23 @@ export function TraceFormDialog({
       >
         Save
       </Button>
-    </div>
+    </>
+  );
+
+  const formShell = (
+    <Card className="border-[var(--panel-border)] bg-[var(--panel-bg)] gap-0 py-0 shadow-[var(--panel-shadow)] backdrop-blur-xl">
+      <CardHeader className="gap-1 border-b border-border/50 px-4 pb-3 pt-4">
+        <CardTitle className="font-display text-xl font-normal tracking-tight">
+          {dialogTitle}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="max-h-[min(70vh,32rem)] min-h-0 overflow-y-auto px-4 pt-4 pb-2">
+        {formFields}
+      </CardContent>
+      <CardFooter className="flex flex-col-reverse gap-2 px-4 py-4 sm:flex-row sm:justify-end">
+        {footerActions}
+      </CardFooter>
+    </Card>
   );
 
   if (floatingNew && anchorScreen) {
@@ -417,14 +437,10 @@ export function TraceFormDialog({
         ref={floatingRef}
         className="pointer-events-none z-[45] w-max min-w-0"
       >
-        <div className="pointer-events-auto relative">
-          <FloatingPanel className="max-h-[inherit] min-w-[288px] max-w-sm overflow-y-auto p-4 shadow-2xl">
-            <h2 className="font-display text-foreground mb-1 text-xl font-normal tracking-tight">
-              New trace
-            </h2>
-            {formFields}
-            {formFooter}
-          </FloatingPanel>
+        <div className="pointer-events-auto relative min-w-[288px] max-w-sm rounded-2xl">
+          <div className="max-h-[min(92dvh,44rem)] min-h-0 overflow-hidden rounded-2xl ring-1 ring-[var(--panel-border)]">
+            {formShell}
+          </div>
         </div>
       </div>
     );
@@ -432,21 +448,8 @@ export function TraceFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto border-[var(--panel-border)] bg-[var(--panel-bg)] backdrop-blur-xl sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="font-display text-xl font-normal">
-            {trace ? "Edit trace" : "New trace"}
-          </DialogTitle>
-        </DialogHeader>
-        {formFields}
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button disabled={saving} onClick={() => void save()}>
-            Save
-          </Button>
-        </DialogFooter>
+      <DialogContent className="max-h-[90vh] w-[calc(100%-2rem)] gap-0 overflow-hidden border-[var(--panel-border)] bg-transparent p-0 shadow-none sm:max-w-md [&>button]:z-50">
+        {formShell}
       </DialogContent>
     </Dialog>
   );

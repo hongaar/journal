@@ -11,6 +11,15 @@ import {
 } from "@/components/traces/trace-photo-lightbox";
 import { Button, buttonVariants } from "@curolia/ui/button";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@curolia/ui/dropdown-menu";
+import {
   Dialog,
   DialogContent,
   DialogFooter,
@@ -25,11 +34,14 @@ import { supabase } from "@/lib/supabase";
 import { photosToLightboxItems } from "@/lib/trace-photo-lightbox-items";
 import { filterTracesByTags, type TraceWithTags } from "@/lib/trace-with-tags";
 import { useJournalTracesPhotosSignedUrls } from "@/lib/use-trace-photos";
-import { contrastingForeground } from "@/lib/utils";
+import { cn, contrastingForeground } from "@/lib/utils";
+import { orderedBlogTraceList } from "@/lib/blog-trace-list-order";
+import { useBlogTraceListOrder } from "@/hooks/use-blog-trace-list-order";
 import { useJournal } from "@/providers/journal-provider";
 import type { Tag } from "@/types/database";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useState, type SetStateAction } from "react";
+import { ChevronDown } from "lucide-react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
 import {
@@ -48,6 +60,8 @@ export function BlogPage() {
     activeJournal,
     loading: journalLoading,
   } = useJournal();
+  const { order: blogListOrder, setOrder: setBlogListOrder } =
+    useBlogTraceListOrder(activeJournalId);
   const [formOpen, setFormOpen] = useState(false);
   const [photoLightbox, setPhotoLightbox] = useState<{
     traceId: string;
@@ -135,7 +149,14 @@ export function BlogPage() {
     () => filterTracesByTags(traces, filterTagIds),
     [traces, filterTagIds],
   );
-  const visibleTraceIds = useMemo(() => visible.map((t) => t.id), [visible]);
+  const orderedVisible = useMemo(
+    () => orderedBlogTraceList(visible, blogListOrder),
+    [visible, blogListOrder],
+  );
+  const visibleTraceIds = useMemo(
+    () => orderedVisible.map((t) => t.id),
+    [orderedVisible],
+  );
   const { photosByTraceId, signedUrlByPhotoId } =
     useJournalTracesPhotosSignedUrls(
       activeJournalId ?? undefined,
@@ -150,9 +171,9 @@ export function BlogPage() {
 
   const blogLightboxTitle = useMemo(() => {
     if (!photoLightbox) return undefined;
-    const t = visible.find((x) => x.id === photoLightbox.traceId);
+    const t = orderedVisible.find((x) => x.id === photoLightbox.traceId);
     return t?.title?.trim() || "Untitled trace";
-  }, [photoLightbox, visible]);
+  }, [photoLightbox, orderedVisible]);
 
   const formDefaults = useMemo(() => {
     if (traces.length === 0) return { lat: 20, lng: 0 };
@@ -221,7 +242,51 @@ export function BlogPage() {
               {activeJournal?.name.trim() || journalSlug || "Journal"}
             </h1>
             <p className="text-muted-foreground mt-3 max-w-lg text-sm leading-relaxed">
-              Traces are listed in chronological order.
+              Traces are listed in{" "}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  type="button"
+                  className={cn(
+                    "text-foreground decoration-border/60 underline-offset-2",
+                    "hover:text-primary focus-visible:ring-ring inline-flex cursor-pointer items-center gap-1 font-medium underline",
+                    "focus-visible:rounded-sm focus-visible:ring-2 focus-visible:outline-none",
+                  )}
+                  aria-label={
+                    blogListOrder === "chronological"
+                      ? "Trace list order: chronological — change sorting"
+                      : "Trace list order: alphabetical — change sorting"
+                  }
+                >
+                  {blogListOrder === "chronological"
+                    ? "chronological order"
+                    : "alphabetical order"}
+                  <ChevronDown
+                    className="size-3.5 shrink-0 opacity-70"
+                    aria-hidden
+                  />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="min-w-[13rem]">
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel>List order</DropdownMenuLabel>
+                    <DropdownMenuRadioGroup
+                      value={blogListOrder}
+                      onValueChange={(v) => {
+                        if (v === "chronological" || v === "alphabetical") {
+                          setBlogListOrder(v);
+                        }
+                      }}
+                    >
+                      <DropdownMenuRadioItem value="chronological">
+                        Chronological
+                      </DropdownMenuRadioItem>
+                      <DropdownMenuRadioItem value="alphabetical">
+                        Alphabetical (by title)
+                      </DropdownMenuRadioItem>
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              .
             </p>
           </header>
 
@@ -235,7 +300,7 @@ export function BlogPage() {
             </FloatingPanel>
           ) : (
             <ul className="flex flex-col gap-12 sm:gap-16">
-              {visible.map((t) => {
+              {orderedVisible.map((t) => {
                 const tagRows = (t.trace_tags ?? [])
                   .map((tt) => tt.tags)
                   .filter(Boolean) as {

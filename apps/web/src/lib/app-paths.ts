@@ -1,4 +1,5 @@
 import type { Journal } from "@/types/database";
+import { MAP_VIEW_PARAM } from "@/lib/map-view-params";
 
 export type JournalViewSegment = "map" | "blog";
 
@@ -32,6 +33,7 @@ export function journalSwitchHref(
   );
   p.delete("filter");
   p.delete("tags");
+  p.delete(MAP_VIEW_PARAM.trace);
   const q = p.toString();
   const base = journalViewHref(segment, slug);
   return q ? `${base}?${q}` : base;

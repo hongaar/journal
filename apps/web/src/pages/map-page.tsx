@@ -54,11 +54,16 @@ import {
   readStoredMapCamera,
   writeStoredMapCamera,
 } from "@/lib/map-camera-storage";
+import { cn } from "@/lib/utils";
 import type { Tag } from "@/types/database";
 import { useJournalSlugRouteSync } from "@/hooks/use-journal-slug-route-sync";
+import { useMaxSm } from "@/hooks/use-max-sm";
+import { useNavigationShell } from "@/providers/navigation-shell-provider";
 
 export function MapPage() {
   const qc = useQueryClient();
+  const { sidebarOpen, setSidebarOpen } = useNavigationShell();
+  const isMobile = useMaxSm();
   const { journalSlug } = useParams<{ journalSlug: string }>();
   useJournalSlugRouteSync(journalSlug);
   const mapRef = useRef<TraceMapHandle>(null);
@@ -246,6 +251,12 @@ export function MapPage() {
     [setSearchParams],
   );
 
+  const onCloseTraceMapPopover = useCallback(() => {
+    setSearchParams((prev) => applySelectedTraceToSearchParams(prev, null), {
+      replace: true,
+    });
+  }, [setSearchParams]);
+
   const onPlacementClick = useCallback(
     (lng: number, lat: number) => {
       setPlacementActive(false);
@@ -261,6 +272,21 @@ export function MapPage() {
   );
 
   const traces = useMemo(() => tracesQuery.data ?? [], [tracesQuery.data]);
+
+  /** Stable marker lng/lat for trace popover while detail query loads (avoids fixed→floating flash). */
+  const tracePopoverListAnchor = useMemo(() => {
+    if (!sidebarTraceId) return null;
+    const t = traces.find((x) => x.id === sidebarTraceId);
+    if (
+      !t ||
+      typeof t.lat !== "number" ||
+      typeof t.lng !== "number" ||
+      !Number.isFinite(t.lat) ||
+      !Number.isFinite(t.lng)
+    )
+      return null;
+    return { lat: t.lat, lng: t.lng };
+  }, [sidebarTraceId, traces]);
 
   useEffect(() => {
     if (!sidebarTraceId) return;
@@ -395,8 +421,41 @@ export function MapPage() {
           initialBbox={bboxFromUrl}
           cameraSyncKey={cameraSyncKey}
           onCameraIdle={onCameraIdle}
+          onMapBackgroundClick={
+            sidebarTraceId ? onCloseTraceMapPopover : undefined
+          }
           className="absolute inset-0 z-0 min-h-0"
         />
+        {/* Stack under mobile nav-dismiss overlay so controls dim + deactivate with the map */}
+        <div className="pointer-events-none absolute inset-0 z-[8]">
+          <MapControlsToolbar
+            mapRef={mapRef}
+            className="pointer-events-auto absolute top-[calc(var(--app-toolbar-h)+0.75rem)] right-3 sm:right-4 sm:top-[calc(var(--app-toolbar-h)+1rem)]"
+          />
+        </div>
+        <div className="pointer-events-none absolute inset-0 z-[8]">
+          <div className="pointer-events-auto absolute right-4 bottom-6 sm:right-6">
+            <AddTraceFab
+              active={placementActive}
+              onClick={toggleAddTracePlacement}
+            />
+          </div>
+        </div>
+        {isMobile ? (
+          <button
+            type="button"
+            tabIndex={sidebarOpen ? 0 : -1}
+            className={cn(
+              "absolute inset-0 z-[25] border-0 bg-black/45 p-0 transition-opacity duration-200 outline-none touch-none",
+              sidebarOpen
+                ? "cursor-default opacity-100"
+                : "pointer-events-none cursor-default opacity-0",
+            )}
+            aria-hidden={!sidebarOpen}
+            aria-label={sidebarOpen ? "Dismiss navigation sidebar" : undefined}
+            onClick={sidebarOpen ? () => setSidebarOpen(false) : undefined}
+          />
+        ) : null}
       </div>
 
       {placementActive ? (
@@ -420,25 +479,13 @@ export function MapPage() {
         </div>
       ) : null}
 
-      <div className="pointer-events-none absolute inset-0 z-10">
-        <MapControlsToolbar
-          mapRef={mapRef}
-          className="pointer-events-auto absolute top-[calc(var(--app-toolbar-h)+0.75rem)] right-3 z-10 sm:right-4 sm:top-[calc(var(--app-toolbar-h)+1rem)]"
-        />
-      </div>
-
-      <div className="pointer-events-none absolute right-4 bottom-6 z-10 sm:right-6">
-        <AddTraceFab
-          active={placementActive}
-          onClick={toggleAddTracePlacement}
-        />
-      </div>
-
       {sidebarTraceId ? (
         <TraceMapSidebar
-          key={sidebarTraceId}
+          key={`${sidebarTraceId}-${isMobile ? "sm" : "lg"}`}
           traceId={sidebarTraceId}
           journalId={activeJournalId}
+          mapRef={mapRef}
+          listAnchorLngLat={tracePopoverListAnchor}
           onClose={() =>
             setSearchParams(
               (prev) => applySelectedTraceToSearchParams(prev, null),

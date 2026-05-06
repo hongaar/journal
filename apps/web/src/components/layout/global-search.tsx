@@ -178,7 +178,6 @@ export function GlobalSearch({ toolbarEmbed = false }: GlobalSearchProps) {
 
   function onPickJournal(j: Journal) {
     if (!j.slug.trim()) return;
-    setActiveJournalId(j.id);
     navigate(journalSwitchHref(j, location.pathname, location.search));
     setOpen(false);
   }

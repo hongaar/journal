@@ -54,7 +54,7 @@ export function NavigationSidebarContent({
   const tagSidebar = useRegisteredTagSidebar();
   const navigate = useNavigate();
   const { pathname, search } = useLocation();
-  const { journals, activeJournal, setActiveJournalId } = useJournal();
+  const { journals, activeJournal } = useJournal();
   const mapTo = activeJournal?.slug
     ? journalViewHref("map", activeJournal.slug)
     : "/";
@@ -117,7 +117,6 @@ export function NavigationSidebarContent({
                     <DropdownMenuItem
                       className="min-w-0 flex-1 gap-1.5 pr-2"
                       onClick={() => {
-                        setActiveJournalId(j.id);
                         navigate(journalSwitchHref(j, pathname, search));
                       }}
                     >

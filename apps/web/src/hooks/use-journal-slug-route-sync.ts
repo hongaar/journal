@@ -3,7 +3,7 @@ import {
   journalViewSegmentFromPathname,
 } from "@/lib/app-paths";
 import { useJournal } from "@/providers/journal-provider";
-import { useEffect, useMemo } from "react";
+import { useLayoutEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 /**
@@ -22,7 +22,7 @@ export function useJournalSlugRouteSync(journalSlug: string | undefined) {
     return journals.find((j) => j.slug.toLowerCase() === needle) ?? null;
   }, [journals, journalSlug]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (loading) return;
     if (journals.length === 0) return;
     if (!journalSlug) return;
