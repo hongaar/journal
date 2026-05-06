@@ -3,16 +3,17 @@ import {
   readBlogTraceListOrder,
   writeBlogTraceListOrder,
 } from "@/lib/blog-trace-list-order";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 export function useBlogTraceListOrder(journalId: string | null) {
   const [order, setOrderState] = useState<BlogTraceListOrder>(() =>
     readBlogTraceListOrder(journalId),
   );
-
-  useEffect(() => {
+  const [prevJournalId, setPrevJournalId] = useState(journalId);
+  if (journalId !== prevJournalId) {
+    setPrevJournalId(journalId);
     setOrderState(readBlogTraceListOrder(journalId));
-  }, [journalId]);
+  }
 
   const setOrder = useCallback(
     (next: BlogTraceListOrder) => {
