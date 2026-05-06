@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@curolia/ui/button";
 import {
   Dialog,
@@ -10,6 +11,7 @@ import {
 import { Input } from "@curolia/ui/input";
 import { Label } from "@curolia/ui/label";
 import { EmojiPicker } from "@/components/traces/emoji-picker";
+import { journalViewHref } from "@/lib/app-paths";
 import { useJournal } from "@/providers/journal-provider";
 import { defaultJournalIcon } from "@/lib/journal-display-icon";
 
@@ -22,6 +24,7 @@ export function NewJournalDialog({
   open,
   onOpenChange,
 }: NewJournalDialogProps) {
+  const navigate = useNavigate();
   const { createJournal } = useJournal();
   const [name, setName] = useState("");
   const [icon, setIcon] = useState(() => defaultJournalIcon(false));
@@ -30,10 +33,11 @@ export function NewJournalDialog({
   async function handleCreate() {
     if (!name.trim()) return;
     setCreating(true);
-    const { error } = await createJournal(name.trim(), icon);
+    const { journal, error } = await createJournal(name.trim(), icon);
     setCreating(false);
-    if (!error) {
+    if (!error && journal?.slug) {
       onOpenChange(false);
+      navigate(journalViewHref("map", journal.slug));
     }
   }
 

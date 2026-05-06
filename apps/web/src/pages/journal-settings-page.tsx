@@ -14,6 +14,7 @@ import {
   defaultJournalIcon,
   normalizeJournalIconForPersist,
 } from "@/lib/journal-display-icon";
+import { journalViewHref } from "@/lib/app-paths";
 import { cn } from "@/lib/utils";
 import { JournalSharingSection } from "@/components/journal/journal-sharing-section";
 import { JournalPluginsSection } from "@/components/journal/journal-plugins-section";
@@ -106,7 +107,11 @@ export function JournalSettingsPage() {
                 buttonVariants({ variant: "outline", size: "sm" }),
                 "mt-4 inline-flex rounded-xl",
               )}
-              to="/"
+              to={
+                journals[0]?.slug
+                  ? journalViewHref("map", journals[0].slug)
+                  : "/"
+              }
             >
               Back to map
             </Link>
@@ -177,7 +182,8 @@ export function JournalSettingsPage() {
                   type="button"
                   onClick={() => {
                     setActiveJournalId(journalId);
-                    navigate("/");
+                    const slug = journal.slug.trim();
+                    navigate(slug ? journalViewHref("map", slug) : "/");
                   }}
                 >
                   Switch to this journal

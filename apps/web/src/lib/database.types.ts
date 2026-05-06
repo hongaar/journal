@@ -182,7 +182,7 @@ export type Database = {
           id: string;
           is_personal: boolean;
           name: string;
-          slug: string | null;
+          slug: string;
           updated_at: string;
         };
         Insert: {
@@ -192,7 +192,8 @@ export type Database = {
           id?: string;
           is_personal?: boolean;
           name: string;
-          slug?: string | null;
+          /** Omitted when `public.journals_set_slug()` assigns from `name`. */
+          slug?: string;
           updated_at?: string;
         };
         Update: {
@@ -202,7 +203,7 @@ export type Database = {
           id?: string;
           is_personal?: boolean;
           name?: string;
-          slug?: string | null;
+          slug?: string;
           updated_at?: string;
         };
         Relationships: [];
@@ -496,6 +497,7 @@ export type Database = {
           id: string;
           journal_id: string;
           name: string;
+          slug: string;
           updated_at: string;
         };
         Insert: {
@@ -505,6 +507,8 @@ export type Database = {
           id?: string;
           journal_id: string;
           name: string;
+          /** Omitted when `public.tags_set_slug()` assigns from `name`. */
+          slug?: string;
           updated_at?: string;
         };
         Update: {
@@ -514,6 +518,7 @@ export type Database = {
           id?: string;
           journal_id?: string;
           name?: string;
+          slug?: string;
           updated_at?: string;
         };
         Relationships: [
@@ -722,6 +727,10 @@ export type Database = {
       };
       is_journal_member: { Args: { p_journal_id: string }; Returns: boolean };
       is_journal_owner: { Args: { p_journal_id: string }; Returns: boolean };
+      journal_claim_slug: {
+        Args: { p_desired: string; p_journal_id: string };
+        Returns: string;
+      };
       journal_member_can_edit: {
         Args: { p_journal_id: string };
         Returns: boolean;
@@ -746,6 +755,11 @@ export type Database = {
       remove_journal_member: {
         Args: { p_journal_id: string; p_user_id: string };
         Returns: undefined;
+      };
+      slugify_text: { Args: { p_raw: string }; Returns: string };
+      tag_claim_slug: {
+        Args: { p_desired: string; p_journal_id: string; p_tag_id: string };
+        Returns: string;
       };
       trace_journal_id: { Args: { p_trace_id: string }; Returns: string };
       transfer_journal_ownership: {

@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { TraceGooglePhotosSuggestions } from "@/components/traces/trace-google-photos-suggestions";
 import {
   TracePhotoLightbox,
   TracePhotoThumb,
 } from "@/components/traces/trace-photo-lightbox";
 import { photosToLightboxItems } from "@/lib/trace-photo-lightbox-items";
-import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Upload } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -19,6 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@curolia/ui/card";
 import { Badge } from "@curolia/ui/badge";
 import { formatTraceLocationLine } from "@/lib/trace-dates";
 import { TraceMetadataFooter } from "@/components/traces/trace-metadata-footer";
+import { journalViewHref } from "@/lib/app-paths";
 import { contrastingForeground } from "@/lib/utils";
 
 type TraceRow = Trace & {
@@ -38,7 +39,7 @@ type TraceRow = Trace & {
 export function TraceDetailPage() {
   const { traceId } = useParams<{ traceId: string }>();
   const navigate = useNavigate();
-  const { activeJournalId } = useJournal();
+  const { journals, activeJournalId } = useJournal();
   const qc = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
   const [photoLightbox, setPhotoLightbox] = useState<{
@@ -140,7 +141,15 @@ export function TraceDetailPage() {
             variant: "outline",
             className: "inline-flex gap-1 rounded-xl",
           })}
-          onClick={() => navigate("/")}
+          onClick={() => {
+            const fromTrace =
+              trace &&
+              journals.find((x) => x.id === trace.journal_id)?.slug?.trim();
+            const slug =
+              fromTrace ||
+              journals.find((x) => x.id === activeJournalId)?.slug?.trim();
+            navigate(slug ? journalViewHref("map", slug) : "/");
+          }}
         >
           Home
         </button>

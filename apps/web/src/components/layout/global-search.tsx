@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
-import { useMatch, useNavigate } from "react-router-dom";
+import { useLocation, useMatch, useNavigate } from "react-router-dom";
 import { buttonVariants } from "@curolia/ui/button";
 import { Input } from "@curolia/ui/input";
 import {
@@ -25,6 +25,7 @@ import {
   normalizeCameraForUrl,
   TRACE_FOCUS_ZOOM,
 } from "@/lib/map-view-params";
+import { journalSwitchHref, mapHrefWithSearch } from "@/lib/app-paths";
 import { searchPhotonPlaces, type PhotonPlace } from "@/lib/photon-geocode";
 import {
   searchTracesInJournals,
@@ -100,7 +101,10 @@ type GlobalSearchProps = {
 
 export function GlobalSearch({ toolbarEmbed = false }: GlobalSearchProps) {
   const navigate = useNavigate();
-  const isMapRoute = Boolean(useMatch({ path: "/", end: true }));
+  const location = useLocation();
+  const homeMatch = useMatch({ path: "/", end: true });
+  const mapJournalMatch = useMatch("/map/:journalSlug");
+  const isMapRoute = Boolean(homeMatch || mapJournalMatch);
   const { journals, activeJournalId, setActiveJournalId } = useJournal();
 
   const [open, setOpen] = useState(false);
@@ -173,7 +177,9 @@ export function GlobalSearch({ toolbarEmbed = false }: GlobalSearchProps) {
   }, [tracesQuery.data, activeJournalId]);
 
   function onPickJournal(j: Journal) {
+    if (!j.slug.trim()) return;
     setActiveJournalId(j.id);
+    navigate(journalSwitchHref(j, location.pathname, location.search));
     setOpen(false);
   }
 
@@ -184,6 +190,12 @@ export function GlobalSearch({ toolbarEmbed = false }: GlobalSearchProps) {
       setActiveJournalId(t.journal_id);
     });
     if (isMapRoute) {
+      const journal = journalById.get(t.journal_id);
+      const slug = journal?.slug?.trim();
+      if (!slug) {
+        setOpen(false);
+        return;
+      }
       const withTrace = applySelectedTraceToSearchParams(
         new URLSearchParams(),
         t.id,
@@ -196,7 +208,7 @@ export function GlobalSearch({ toolbarEmbed = false }: GlobalSearchProps) {
           zoom: TRACE_FOCUS_ZOOM,
         }),
       );
-      navigate(`/?${params.toString()}`);
+      navigate(mapHrefWithSearch(slug, `?${params.toString()}`));
     } else {
       navigate(`/traces/${t.id}`);
     }
@@ -204,6 +216,13 @@ export function GlobalSearch({ toolbarEmbed = false }: GlobalSearchProps) {
   }
 
   function onPickPlace(p: PhotonPlace) {
+    const journal =
+      journals.find((j) => j.id === activeJournalId) ?? journals[0] ?? null;
+    const slug = journal?.slug?.trim();
+    if (!slug) {
+      setOpen(false);
+      return;
+    }
     let params = new URLSearchParams();
     if (p.bbox) {
       params = applyMapBboxToSearchParams(params, p.bbox);
@@ -219,7 +238,7 @@ export function GlobalSearch({ toolbarEmbed = false }: GlobalSearchProps) {
       params,
       normalizeCameraForUrl(center),
     );
-    navigate(`/?${params.toString()}`);
+    navigate(mapHrefWithSearch(slug, `?${params.toString()}`));
     setOpen(false);
   }
 

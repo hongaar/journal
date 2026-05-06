@@ -8,9 +8,27 @@ export const MAP_VIEW_PARAM = {
   bbox: "bbox",
   /** Open map sidebar for this trace (UUID). */
   trace: "trace",
-  /** Comma-separated tag UUIDs (OR filter). */
+  /** Comma-separated URL tag slugs (OR filter within the journal). */
+  filter: "filter",
+  /** Legacy: comma-separated tag UUIDs (still read when present). */
   tags: "tags",
 } as const;
+
+/** Tag slugs persisted in URL `filter=` (aligned with Postgres `tags.slug` check constraint). */
+export const TAG_FILTER_SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+export function parseFilterTagSlugsFromSearchParams(
+  searchParams: URLSearchParams,
+): Set<string> {
+  const raw = searchParams.get(MAP_VIEW_PARAM.filter)?.trim();
+  if (!raw) return new Set();
+  const out = new Set<string>();
+  for (const part of raw.split(",")) {
+    const slug = part.trim().toLowerCase();
+    if (slug && TAG_FILTER_SLUG_RE.test(slug)) out.add(slug);
+  }
+  return out;
+}
 
 /** Zoom used when focusing the map on a single trace (deep links / search). */
 export const TRACE_FOCUS_ZOOM = 10;
@@ -40,22 +58,48 @@ export function parseFilterTagIdsFromSearchParams(
   return out;
 }
 
-/** Set or remove `tags` while keeping other params. */
-export function applyFilterTagIdsToSearchParams(
+/** Resolves UUID `tags` plus slug `filter` into tag ids for the loaded journal tags list. */
+export function resolveFilterTagIdsFromSearchParams(
+  searchParams: URLSearchParams,
+  tags: { id: string; slug: string }[],
+): Set<string> {
+  const fromUuid = parseFilterTagIdsFromSearchParams(searchParams);
+  const slugSet = parseFilterTagSlugsFromSearchParams(searchParams);
+  const out = new Set<string>(fromUuid);
+  for (const t of tags) {
+    if (slugSet.has(t.slug.toLowerCase())) out.add(t.id);
+  }
+  return out;
+}
+
+/** Persist filter as lowercase tag slugs; drops legacy UUID `tags` key. */
+export function applyFilterTagsToSearchParams(
   searchParams: URLSearchParams,
   tagIds: Set<string>,
+  tags: { id: string; slug: string }[],
 ): URLSearchParams {
   const next = new URLSearchParams(searchParams);
-  if (tagIds.size === 0) {
-    next.delete(MAP_VIEW_PARAM.tags);
-    return next;
-  }
-  const sorted = [...tagIds].filter((id) => TRACE_ID_PARAM_RE.test(id)).sort();
-  if (sorted.length === 0) {
-    next.delete(MAP_VIEW_PARAM.tags);
-    return next;
-  }
-  next.set(MAP_VIEW_PARAM.tags, sorted.join(","));
+  next.delete(MAP_VIEW_PARAM.tags);
+  next.delete(MAP_VIEW_PARAM.filter);
+  if (tagIds.size === 0) return next;
+  const slugById = new Map(tags.map((t) => [t.id, t.slug]));
+  const slugs = [...tagIds]
+    .map((id) => slugById.get(id))
+    .filter((s): s is string => Boolean(s && TAG_FILTER_SLUG_RE.test(s)))
+    .map((s) => s.toLowerCase());
+  slugs.sort();
+  if (slugs.length === 0) return next;
+  next.set(MAP_VIEW_PARAM.filter, slugs.join(","));
+  return next;
+}
+
+/** Removes tag filter keys (used when switching journals). */
+export function stripJournalTagFiltersFromSearchParams(
+  searchParams: URLSearchParams,
+): URLSearchParams {
+  const next = new URLSearchParams(searchParams);
+  next.delete(MAP_VIEW_PARAM.filter);
+  next.delete(MAP_VIEW_PARAM.tags);
   return next;
 }
 

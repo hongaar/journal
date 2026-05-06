@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { journalViewHref } from "@/lib/app-paths";
 import { useAuth } from "@/providers/auth-provider";
+import { useJournal } from "@/providers/journal-provider";
 import { FloatingPanel } from "@/components/layout/floating-panel";
 import { PageBackButton } from "@/components/layout/page-back-button";
 import { Button } from "@curolia/ui/button";
@@ -11,6 +13,7 @@ export function InvitationsPage() {
   const [params] = useSearchParams();
   const token = params.get("token");
   const { user } = useAuth();
+  const { activeJournal } = useJournal();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [busy, setBusy] = useState<"accept" | "decline" | null>(null);
@@ -64,7 +67,8 @@ export function InvitationsPage() {
       });
       navigate(`/journals/${journalId}/settings`, { replace: true });
     } else {
-      navigate("/", { replace: true });
+      const slug = activeJournal?.slug?.trim();
+      navigate(slug ? journalViewHref("map", slug) : "/", { replace: true });
     }
   }
 

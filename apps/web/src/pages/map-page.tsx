@@ -6,7 +6,7 @@ import {
   useState,
   type SetStateAction,
 } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useJournal } from "@/providers/journal-provider";
@@ -35,14 +35,15 @@ import { PresetColorPicker } from "@/components/traces/preset-color-picker";
 import { EmojiPicker } from "@/components/traces/emoji-picker";
 import { DEFAULT_TRACE_TAG_COLOR } from "@/lib/preset-trace-tag-colors";
 import { FloatingPanel } from "@/components/layout/floating-panel";
+import { JournalViewInitialLoader } from "@/components/layout/journal-view-initial-loader";
 import {
-  applyFilterTagIdsToSearchParams,
+  applyFilterTagsToSearchParams,
   applyMapCameraToSearchParams,
   applySelectedTraceToSearchParams,
   bboxToSyncKey,
   cameraToSyncKey,
   normalizeCameraForUrl,
-  parseFilterTagIdsFromSearchParams,
+  resolveFilterTagIdsFromSearchParams,
   parseMapBboxFromSearchParams,
   parseMapCameraFromSearchParams,
   parseSelectedTraceIdFromSearchParams,
@@ -54,9 +55,12 @@ import {
   writeStoredMapCamera,
 } from "@/lib/map-camera-storage";
 import type { Tag } from "@/types/database";
+import { useJournalSlugRouteSync } from "@/hooks/use-journal-slug-route-sync";
 
 export function MapPage() {
   const qc = useQueryClient();
+  const { journalSlug } = useParams<{ journalSlug: string }>();
+  useJournalSlugRouteSync(journalSlug);
   const mapRef = useRef<TraceMapHandle>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const bboxFromUrl = useMemo(
@@ -109,23 +113,6 @@ export function MapPage() {
   const [newTagColor, setNewTagColor] = useState(DEFAULT_TRACE_TAG_COLOR);
   const [newTagEmoji, setNewTagEmoji] = useState("📍");
   const [newTraceTagIds, setNewTraceTagIds] = useState<string[]>([]);
-  const filterTagIds = useMemo(
-    () => parseFilterTagIdsFromSearchParams(searchParams),
-    [searchParams],
-  );
-  const setFilterTagIds = useCallback(
-    (action: SetStateAction<Set<string>>) => {
-      setSearchParams(
-        (prev) => {
-          const current = parseFilterTagIdsFromSearchParams(prev);
-          const next = typeof action === "function" ? action(current) : action;
-          return applyFilterTagIdsToSearchParams(prev, next);
-        },
-        { replace: true },
-      );
-    },
-    [setSearchParams],
-  );
   const onNewTraceTagIdsChange = useCallback((ids: string[]) => {
     setNewTraceTagIds(ids);
   }, []);
@@ -192,8 +179,27 @@ export function MapPage() {
     enabled: Boolean(activeJournalId) && !journalLoading,
   });
 
+  const tags = useMemo(() => tagsQuery.data ?? [], [tagsQuery.data]);
+  const filterTagIds = useMemo(
+    () => resolveFilterTagIdsFromSearchParams(searchParams, tags),
+    [searchParams, tags],
+  );
+  const setFilterTagIds = useCallback(
+    (action: SetStateAction<Set<string>>) => {
+      setSearchParams(
+        (prev) => {
+          const current = resolveFilterTagIdsFromSearchParams(prev, tags);
+          const next = typeof action === "function" ? action(current) : action;
+          return applyFilterTagsToSearchParams(prev, next, tags);
+        },
+        { replace: true },
+      );
+    },
+    [tags, setSearchParams],
+  );
+
   useMountTagSidebarRegistration({
-    tags: tagsQuery.data ?? [],
+    tags,
     filterTagIds,
     setFilterTagIds,
     onNewTag: () => {
@@ -359,15 +365,13 @@ export function MapPage() {
     });
   }
 
-  if (journalLoading || !activeJournalId) {
+  if (journalLoading || (Boolean(activeJournalId) && tracesQuery.isPending)) {
+    return <JournalViewInitialLoader />;
+  }
+
+  if (!activeJournalId) {
     return (
-      <div className="flex h-full items-center justify-center p-6">
-        <FloatingPanel className="max-w-sm text-center">
-          <p className="text-muted-foreground text-sm">
-            {!activeJournalId ? "No journal available." : "Loading journal…"}
-          </p>
-        </FloatingPanel>
-      </div>
+      <JournalViewInitialLoader label="No journal available." busy={false} />
     );
   }
 

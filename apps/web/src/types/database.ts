@@ -24,7 +24,7 @@ export type Profile = {
 export type Journal = {
   id: string;
   name: string;
-  slug: string | null;
+  slug: string;
   is_personal: boolean;
   /** When null, UI uses defaultJournalIcon(is_personal). */
   icon_emoji: string | null;
@@ -71,6 +71,8 @@ export type Tag = {
   id: string;
   journal_id: string;
   name: string;
+  /** URL-safe slug, unique within the journal. */
+  slug: string;
   color: string;
   icon_emoji: string;
   created_at: string;

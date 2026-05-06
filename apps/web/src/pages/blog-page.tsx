@@ -1,4 +1,5 @@
 import { FloatingPanel } from "@/components/layout/floating-panel";
+import { JournalViewInitialLoader } from "@/components/layout/journal-view-initial-loader";
 import { EmojiPicker } from "@/components/traces/emoji-picker";
 import { PresetColorPicker } from "@/components/traces/preset-color-picker";
 import { AddTraceFab } from "@/components/traces/add-trace-fab";
@@ -18,10 +19,6 @@ import {
 } from "@curolia/ui/dialog";
 import { Input } from "@curolia/ui/input";
 import { Label } from "@curolia/ui/label";
-import {
-  applyFilterTagIdsToSearchParams,
-  parseFilterTagIdsFromSearchParams,
-} from "@/lib/map-view-params";
 import { formatTraceDateRange } from "@/lib/trace-dates";
 import { DEFAULT_TRACE_TAG_COLOR } from "@/lib/preset-trace-tag-colors";
 import { supabase } from "@/lib/supabase";
@@ -33,12 +30,24 @@ import { useJournal } from "@/providers/journal-provider";
 import type { Tag } from "@/types/database";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useState, type SetStateAction } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
+
+import {
+  applyFilterTagsToSearchParams,
+  resolveFilterTagIdsFromSearchParams,
+} from "@/lib/map-view-params";
+import { useJournalSlugRouteSync } from "@/hooks/use-journal-slug-route-sync";
 
 export function BlogPage() {
   const qc = useQueryClient();
+  const { journalSlug } = useParams<{ journalSlug: string }>();
+  useJournalSlugRouteSync(journalSlug);
   const [searchParams, setSearchParams] = useSearchParams();
-  const { activeJournalId, loading: journalLoading } = useJournal();
+  const {
+    activeJournalId,
+    activeJournal,
+    loading: journalLoading,
+  } = useJournal();
   const [formOpen, setFormOpen] = useState(false);
   const [photoLightbox, setPhotoLightbox] = useState<{
     traceId: string;
@@ -49,24 +58,6 @@ export function BlogPage() {
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState(DEFAULT_TRACE_TAG_COLOR);
   const [newTagEmoji, setNewTagEmoji] = useState("📍");
-  const filterTagIds = useMemo(
-    () => parseFilterTagIdsFromSearchParams(searchParams),
-    [searchParams],
-  );
-  const setFilterTagIds = useCallback(
-    (action: SetStateAction<Set<string>>) => {
-      setSearchParams(
-        (prev) => {
-          const current = parseFilterTagIdsFromSearchParams(prev);
-          const next = typeof action === "function" ? action(current) : action;
-          return applyFilterTagIdsToSearchParams(prev, next);
-        },
-        { replace: true },
-      );
-    },
-    [setSearchParams],
-  );
-
   const tracesQuery = useQuery({
     queryKey: ["traces", activeJournalId, "blog"],
     queryFn: async () => {
@@ -100,8 +91,27 @@ export function BlogPage() {
     enabled: Boolean(activeJournalId) && !journalLoading,
   });
 
+  const tags = useMemo(() => tagsQuery.data ?? [], [tagsQuery.data]);
+  const filterTagIds = useMemo(
+    () => resolveFilterTagIdsFromSearchParams(searchParams, tags),
+    [searchParams, tags],
+  );
+  const setFilterTagIds = useCallback(
+    (action: SetStateAction<Set<string>>) => {
+      setSearchParams(
+        (prev) => {
+          const current = resolveFilterTagIdsFromSearchParams(prev, tags);
+          const next = typeof action === "function" ? action(current) : action;
+          return applyFilterTagsToSearchParams(prev, next, tags);
+        },
+        { replace: true },
+      );
+    },
+    [tags, setSearchParams],
+  );
+
   useMountTagSidebarRegistration({
-    tags: tagsQuery.data ?? [],
+    tags,
     filterTagIds,
     setFilterTagIds,
     onNewTag: () => {
@@ -185,15 +195,13 @@ export function BlogPage() {
     }
   }
 
-  if (journalLoading || !activeJournalId) {
+  if (journalLoading || (Boolean(activeJournalId) && tracesQuery.isPending)) {
+    return <JournalViewInitialLoader />;
+  }
+
+  if (!activeJournalId) {
     return (
-      <div className="flex h-full items-center justify-center p-6">
-        <FloatingPanel className="max-w-sm text-center">
-          <p className="text-muted-foreground text-sm">
-            {!activeJournalId ? "No journal available." : "Loading journal…"}
-          </p>
-        </FloatingPanel>
-      </div>
+      <JournalViewInitialLoader label="No journal available." busy={false} />
     );
   }
 
@@ -210,7 +218,7 @@ export function BlogPage() {
               Journal
             </p>
             <h1 className="font-display mt-2 text-3xl font-normal tracking-tight sm:text-4xl">
-              Traces
+              {activeJournal?.name.trim() || journalSlug || "Journal"}
             </h1>
             <p className="text-muted-foreground mt-3 max-w-lg text-sm leading-relaxed">
               Traces are listed in chronological order.

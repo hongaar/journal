@@ -160,7 +160,10 @@ export function JournalProvider({ children }: { children: ReactNode }) {
       activeJournal,
       activeJournalId,
       setActiveJournalId,
-      loading: journalsQuery.isLoading || authLoading,
+      loading:
+        authLoading ||
+        journalsQuery.isPending ||
+        (journals.length > 0 && activeJournalId === null),
       refetch: async () => {
         await journalsQuery.refetch();
       },

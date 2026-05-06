@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   BookOpen,
   Check,
@@ -27,6 +27,7 @@ import { NotificationsPopover } from "@/components/layout/notifications-popover"
 import { DROPDOWN_PANEL_WIDE_CLASS } from "@/lib/dropdown-panel";
 import { sidebarPickerTriggerClass } from "@/components/layout/sidebar-dropdown-triggers";
 import { SidebarTagsFilterDropdown } from "@/components/layout/sidebar-tags-filter-dropdown";
+import { journalSwitchHref, journalViewHref } from "@/lib/app-paths";
 
 const navRowClass = ({ isActive }: { isActive: boolean }) =>
   cn(
@@ -51,7 +52,15 @@ export function NavigationSidebarContent({
   onOpenJournalSettings,
 }: NavigationSidebarContentProps) {
   const tagSidebar = useRegisteredTagSidebar();
+  const navigate = useNavigate();
+  const { pathname, search } = useLocation();
   const { journals, activeJournal, setActiveJournalId } = useJournal();
+  const mapTo = activeJournal?.slug
+    ? journalViewHref("map", activeJournal.slug)
+    : "/";
+  const blogTo = activeJournal?.slug
+    ? journalViewHref("blog", activeJournal.slug)
+    : "/";
 
   return (
     <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 pb-6 pt-[calc(var(--app-toolbar-h)+0.5rem)]">
@@ -59,11 +68,11 @@ export function NavigationSidebarContent({
         <div className="text-muted-foreground px-3 pt-2 text-xs font-medium tracking-wide uppercase">
           View
         </div>
-        <NavLink to="/" className={navRowClass} end>
+        <NavLink to={mapTo} className={navRowClass} end>
           <Map className="size-4 opacity-80" />
           Map
         </NavLink>
-        <NavLink to="/blog" className={navRowClass}>
+        <NavLink to={blogTo} className={navRowClass}>
           <BookOpen className="size-4 opacity-80" />
           Blog
         </NavLink>
@@ -109,6 +118,7 @@ export function NavigationSidebarContent({
                       className="min-w-0 flex-1 gap-1.5 pr-2"
                       onClick={() => {
                         setActiveJournalId(j.id);
+                        navigate(journalSwitchHref(j, pathname, search));
                       }}
                     >
                       <span

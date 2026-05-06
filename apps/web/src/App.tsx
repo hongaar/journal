@@ -11,6 +11,10 @@ import { AppSettingsPage } from "@/pages/app-settings-page";
 import { JournalSettingsPage } from "@/pages/journal-settings-page";
 import { InvitationsPage } from "@/pages/invitations-page";
 import { NotificationsPage } from "@/pages/notifications-page";
+import {
+  BlogHomeRedirectPage,
+  HomeRedirectPage,
+} from "@/pages/home-redirect-page";
 
 export default function App() {
   return (
@@ -18,8 +22,10 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route element={<ProtectedLayout />}>
         <Route element={<AppShell />}>
-          <Route index element={<MapPage />} />
-          <Route path="blog" element={<BlogPage />} />
+          <Route index element={<HomeRedirectPage />} />
+          <Route path="map/:journalSlug" element={<MapPage />} />
+          <Route path="blog" element={<BlogHomeRedirectPage />} />
+          <Route path="blog/:journalSlug" element={<BlogPage />} />
           <Route path="traces/:traceId" element={<TraceDetailPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="settings" element={<AppSettingsPage />} />
