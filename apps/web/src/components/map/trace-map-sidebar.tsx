@@ -379,11 +379,12 @@ export function TraceMapSidebar({
   if (isMobile) {
     return (
       <>
-        <Sheet open onOpenChange={(o) => !o && onClose()}>
+        <Sheet open modal={false} onOpenChange={(o) => !o && onClose()}>
           <SheetContent
             side="bottom"
             showCloseButton={false}
-            className="gap-0 rounded-t-2xl border-[var(--panel-border)] bg-[var(--panel-bg)] p-0 shadow-2xl"
+            overlayClassName="pointer-events-none bg-transparent supports-backdrop-filter:backdrop-blur-none"
+            className="pointer-events-auto gap-0 rounded-t-2xl border-[var(--panel-border)] bg-[var(--panel-bg)] p-0 shadow-2xl"
           >
             <SheetTitle className="sr-only">{titleText}</SheetTitle>
             <div className="flex max-h-[90dvh] flex-col overflow-hidden px-4 pt-4 pb-6">
