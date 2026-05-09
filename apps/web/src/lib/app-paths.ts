@@ -39,6 +39,14 @@ export function journalSwitchHref(
   return q ? `${base}?${q}` : base;
 }
 
+/** Stable trace detail URL: `/traces/:journalSlug/:traceSlug`. */
+export function traceDetailHref(
+  journalSlug: string,
+  traceSlug: string,
+): string {
+  return `/traces/${journalSlug.trim()}/${traceSlug.trim()}`;
+}
+
 export function mapHrefWithSearch(
   journalSlug: string,
   searchParamsStr: string,

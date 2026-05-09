@@ -6,7 +6,7 @@ export const MAP_VIEW_PARAM = {
   zoom: "zoom",
   /** West,south,east,north (WGS84), optional — fit map to this extent. */
   bbox: "bbox",
-  /** Open map sidebar for this trace (UUID). */
+  /** Open map sidebar for this trace (slug preferred; UUID still accepted). */
   trace: "trace",
   /** Comma-separated URL tag slugs (OR filter within the journal). */
   filter: "filter",
@@ -36,13 +36,34 @@ export const TRACE_FOCUS_ZOOM = 10;
 export const TRACE_ID_PARAM_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export function parseSelectedTraceIdFromSearchParams(
+/** Raw value for `?trace=` — UUID or trace slug (within the active journal). */
+export function parseSelectedTraceTokenFromSearchParams(
   searchParams: URLSearchParams,
 ): string | null {
   const raw = searchParams.get(MAP_VIEW_PARAM.trace)?.trim();
   if (!raw) return null;
-  if (!TRACE_ID_PARAM_RE.test(raw)) return null;
-  return raw;
+  if (TRACE_ID_PARAM_RE.test(raw)) return raw;
+  const slug = raw.toLowerCase();
+  if (TAG_FILTER_SLUG_RE.test(slug)) return slug;
+  return null;
+}
+
+/** @deprecated Use parseSelectedTraceTokenFromSearchParams — accepts slug or UUID. */
+export function parseSelectedTraceIdFromSearchParams(
+  searchParams: URLSearchParams,
+): string | null {
+  return parseSelectedTraceTokenFromSearchParams(searchParams);
+}
+
+export function resolveTraceIdFromMapToken<
+  T extends { id: string; slug: string },
+>(token: string | null, traces: T[]): string | null {
+  if (!token) return null;
+  const byId = traces.find((t) => t.id.toLowerCase() === token.toLowerCase());
+  if (byId) return byId.id;
+  const slug = token.toLowerCase();
+  const bySlug = traces.find((t) => t.slug.toLowerCase() === slug);
+  return bySlug?.id ?? null;
 }
 
 export function parseFilterTagIdsFromSearchParams(
@@ -103,16 +124,16 @@ export function stripJournalTagFiltersFromSearchParams(
   return next;
 }
 
-/** Set or remove `trace` while keeping other params (e.g. camera). */
+/** Set or remove `trace` while keeping other params (e.g. camera). Pass trace slug or legacy UUID. */
 export function applySelectedTraceToSearchParams(
   searchParams: URLSearchParams,
-  traceId: string | null,
+  traceSlugOrId: string | null,
 ): URLSearchParams {
   const next = new URLSearchParams(searchParams);
-  if (traceId == null || traceId === "") {
+  if (traceSlugOrId == null || traceSlugOrId === "") {
     next.delete(MAP_VIEW_PARAM.trace);
   } else {
-    next.set(MAP_VIEW_PARAM.trace, traceId);
+    next.set(MAP_VIEW_PARAM.trace, traceSlugOrId);
   }
   return next;
 }

@@ -574,6 +574,7 @@ export type Database = {
           lng: number;
           location_label: string | null;
           modified_by_user_id: string | null;
+          slug: string;
           title: string | null;
           updated_at: string;
         };
@@ -589,6 +590,8 @@ export type Database = {
           lng: number;
           location_label?: string | null;
           modified_by_user_id?: string | null;
+          /** Omitted when `public.traces_set_slug()` assigns from `title`. */
+          slug?: string;
           title?: string | null;
           updated_at?: string;
         };
@@ -604,6 +607,7 @@ export type Database = {
           lng?: number;
           location_label?: string | null;
           modified_by_user_id?: string | null;
+          slug?: string;
           title?: string | null;
           updated_at?: string;
         };
@@ -759,6 +763,10 @@ export type Database = {
       slugify_text: { Args: { p_raw: string }; Returns: string };
       tag_claim_slug: {
         Args: { p_desired: string; p_journal_id: string; p_tag_id: string };
+        Returns: string;
+      };
+      trace_claim_slug: {
+        Args: { p_desired: string; p_journal_id: string; p_trace_id: string };
         Returns: string;
       };
       trace_journal_id: { Args: { p_trace_id: string }; Returns: string };

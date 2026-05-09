@@ -15,6 +15,7 @@ import {
   BlogHomeRedirectPage,
   HomeRedirectPage,
 } from "@/pages/home-redirect-page";
+import { TraceLegacyRedirectPage } from "@/pages/trace-legacy-redirect-page";
 
 export default function App() {
   return (
@@ -26,7 +27,14 @@ export default function App() {
           <Route path="map/:journalSlug" element={<MapPage />} />
           <Route path="blog" element={<BlogHomeRedirectPage />} />
           <Route path="blog/:journalSlug" element={<BlogPage />} />
-          <Route path="traces/:traceId" element={<TraceDetailPage />} />
+          <Route
+            path="traces/:journalSlug/:traceSlug"
+            element={<TraceDetailPage />}
+          />
+          <Route
+            path="traces/:legacyTraceId"
+            element={<TraceLegacyRedirectPage />}
+          />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="settings" element={<AppSettingsPage />} />
           <Route path="settings/plugins" element={<PluginsPage />} />

@@ -49,6 +49,7 @@ import {
   resolveFilterTagIdsFromSearchParams,
 } from "@/lib/map-view-params";
 import { useJournalSlugRouteSync } from "@/hooks/use-journal-slug-route-sync";
+import { traceDetailHref } from "@/lib/app-paths";
 
 export function BlogPage() {
   const qc = useQueryClient();
@@ -62,6 +63,9 @@ export function BlogPage() {
   } = useJournal();
   const { order: blogListOrder, setOrder: setBlogListOrder } =
     useBlogTraceListOrder(activeJournalId);
+
+  const blogJournalSlug =
+    journalSlug?.trim() || activeJournal?.slug?.trim() || "";
   const [formOpen, setFormOpen] = useState(false);
   const [photoLightbox, setPhotoLightbox] = useState<{
     traceId: string;
@@ -325,7 +329,11 @@ export function BlogPage() {
                         className={`font-display text-2xl font-normal tracking-tight sm:text-[1.75rem] ${t.date ? "mt-2" : ""}`}
                       >
                         <Link
-                          to={`/traces/${t.id}`}
+                          to={
+                            blogJournalSlug
+                              ? traceDetailHref(blogJournalSlug, t.slug)
+                              : "#"
+                          }
                           className="hover:text-primary decoration-border/60 underline-offset-4 transition-colors hover:underline"
                         >
                           {t.title?.trim() || "Untitled trace"}
@@ -383,7 +391,11 @@ export function BlogPage() {
                       ) : null}
                       <div className="mt-5">
                         <Link
-                          to={`/traces/${t.id}`}
+                          to={
+                            blogJournalSlug
+                              ? traceDetailHref(blogJournalSlug, t.slug)
+                              : "#"
+                          }
                           className={buttonVariants({
                             variant: "outline",
                             size: "sm",

@@ -37,7 +37,10 @@ type TraceRow = Trace & {
 };
 
 export function TraceDetailPage() {
-  const { traceId } = useParams<{ traceId: string }>();
+  const { journalSlug, traceSlug } = useParams<{
+    journalSlug: string;
+    traceSlug: string;
+  }>();
   const navigate = useNavigate();
   const { journals, activeJournalId } = useJournal();
   const qc = useQueryClient();
@@ -46,10 +49,19 @@ export function TraceDetailPage() {
     photoId: string;
   } | null>(null);
 
+  const journalForRoute = useMemo(
+    () =>
+      journals.find(
+        (j) => j.slug.toLowerCase() === journalSlug?.trim().toLowerCase(),
+      ) ?? null,
+    [journals, journalSlug],
+  );
+
   const traceQuery = useQuery({
-    queryKey: ["trace", traceId],
+    queryKey: ["trace", journalForRoute?.id, traceSlug],
     queryFn: async () => {
-      if (!traceId) return null;
+      if (!journalForRoute || !traceSlug?.trim()) return null;
+      const slugNorm = traceSlug.trim().toLowerCase();
       const { data, error } = await supabase
         .from("traces")
         .select(
@@ -58,15 +70,19 @@ export function TraceDetailPage() {
           creator:profiles!traces_created_by_user_id_fkey ( display_name ),
           modifier:profiles!traces_modified_by_user_id_fkey ( display_name )`,
         )
-        .eq("id", traceId)
+        .eq("journal_id", journalForRoute.id)
+        .eq("slug", slugNorm)
         .maybeSingle();
       if (error) throw error;
       return data as TraceRow | null;
     },
-    enabled: Boolean(traceId),
+    enabled: Boolean(journalForRoute && traceSlug?.trim()),
   });
 
-  const { photos, signedUrlByPhotoId } = useTracePhotosSignedUrls(traceId);
+  const traceIdResolved = traceQuery.data?.id;
+
+  const { photos, signedUrlByPhotoId } =
+    useTracePhotosSignedUrls(traceIdResolved);
 
   const trace = traceQuery.data;
   const wrongJournal =
@@ -109,8 +125,8 @@ export function TraceDetailPage() {
       });
       if (insErr) console.error(insErr);
     }
-    await qc.invalidateQueries({ queryKey: ["photos", traceId] });
-    await qc.invalidateQueries({ queryKey: ["photo-urls", traceId] });
+    await qc.invalidateQueries({ queryKey: ["photos", trace.id] });
+    await qc.invalidateQueries({ queryKey: ["photo-urls", trace.id] });
     if (activeJournalId) {
       await qc.invalidateQueries({
         queryKey: ["journal-trace-photos", activeJournalId],

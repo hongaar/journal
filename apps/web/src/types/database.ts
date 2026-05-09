@@ -43,6 +43,8 @@ export type JournalMember = {
 export type Trace = {
   id: string;
   journal_id: string;
+  /** URL-safe slug, unique within the journal. */
+  slug: string;
   title: string | null;
   description: string | null;
   /** Friendly place text from reverse geocoding (optional). */
@@ -177,12 +179,15 @@ export type Database = {
         Insert: Omit<
           Trace,
           | "id"
+          | "slug"
           | "created_at"
           | "updated_at"
           | "created_by_user_id"
           | "modified_by_user_id"
         > & {
           id?: string;
+          /** Omitted when `public.traces_set_slug()` assigns from `title`. */
+          slug?: string;
           created_by_user_id?: string | null;
           modified_by_user_id?: string | null;
         };

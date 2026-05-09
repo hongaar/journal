@@ -25,7 +25,11 @@ import {
   normalizeCameraForUrl,
   TRACE_FOCUS_ZOOM,
 } from "@/lib/map-view-params";
-import { journalSwitchHref, mapHrefWithSearch } from "@/lib/app-paths";
+import {
+  journalSwitchHref,
+  mapHrefWithSearch,
+  traceDetailHref,
+} from "@/lib/app-paths";
 import { searchPhotonPlaces, type PhotonPlace } from "@/lib/photon-geocode";
 import {
   searchTracesInJournals,
@@ -197,7 +201,7 @@ export function GlobalSearch({ toolbarEmbed = false }: GlobalSearchProps) {
       }
       const withTrace = applySelectedTraceToSearchParams(
         new URLSearchParams(),
-        t.id,
+        t.slug,
       );
       const params = applyMapCameraToSearchParams(
         withTrace,
@@ -209,7 +213,9 @@ export function GlobalSearch({ toolbarEmbed = false }: GlobalSearchProps) {
       );
       navigate(mapHrefWithSearch(slug, `?${params.toString()}`));
     } else {
-      navigate(`/traces/${t.id}`);
+      const journal = journalById.get(t.journal_id);
+      const js = journal?.slug?.trim();
+      navigate(js ? traceDetailHref(js, t.slug) : "/");
     }
     setOpen(false);
   }

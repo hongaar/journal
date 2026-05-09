@@ -46,7 +46,8 @@ import {
   resolveFilterTagIdsFromSearchParams,
   parseMapBboxFromSearchParams,
   parseMapCameraFromSearchParams,
-  parseSelectedTraceIdFromSearchParams,
+  parseSelectedTraceTokenFromSearchParams,
+  resolveTraceIdFromMapToken,
   stripMapBboxFromSearchParams,
   type MapCamera,
 } from "@/lib/map-view-params";
@@ -76,7 +77,11 @@ export function MapPage() {
     () => parseMapCameraFromSearchParams(searchParams),
     [searchParams],
   );
-  const { activeJournalId, loading: journalLoading } = useJournal();
+  const {
+    activeJournalId,
+    activeJournal,
+    loading: journalLoading,
+  } = useJournal();
   const resolvedInitialCamera = useMemo((): MapCamera | null => {
     if (cameraFromUrl) return cameraFromUrl;
     if (bboxFromUrl) {
@@ -88,10 +93,6 @@ export function MapPage() {
     }
     return readStoredMapCamera(activeJournalId);
   }, [cameraFromUrl, bboxFromUrl, activeJournalId]);
-  const sidebarTraceId = useMemo(
-    () => parseSelectedTraceIdFromSearchParams(searchParams),
-    [searchParams],
-  );
   const cameraSyncKey = useMemo(() => {
     if (bboxFromUrl) return `url:bbox:${bboxToSyncKey(bboxFromUrl)}`;
     if (cameraFromUrl) return `url:${cameraToSyncKey(cameraFromUrl)}`;
@@ -223,6 +224,17 @@ export function MapPage() {
     },
   });
 
+  const traces = useMemo(() => tracesQuery.data ?? [], [tracesQuery.data]);
+
+  const sidebarTraceToken = useMemo(
+    () => parseSelectedTraceTokenFromSearchParams(searchParams),
+    [searchParams],
+  );
+  const sidebarTraceId = useMemo(
+    () => resolveTraceIdFromMapToken(sidebarTraceToken, traces),
+    [sidebarTraceToken, traces],
+  );
+
   const previewPin = useMemo((): TraceMapPreviewPin | null => {
     if (!formOpen || !placedCoords) return null;
     const tags = tagsQuery.data ?? [];
@@ -244,11 +256,13 @@ export function MapPage() {
       setPlacedCoords(null);
       setAnchorScreen(null);
       setNewTraceTagIds([]);
-      setSearchParams((prev) => applySelectedTraceToSearchParams(prev, id), {
+      const row = traces.find((x) => x.id === id);
+      const token = row?.slug ?? id;
+      setSearchParams((prev) => applySelectedTraceToSearchParams(prev, token), {
         replace: true,
       });
     },
-    [setSearchParams],
+    [setSearchParams, traces],
   );
 
   const onCloseTraceMapPopover = useCallback(() => {
@@ -271,8 +285,6 @@ export function MapPage() {
     [setSearchParams],
   );
 
-  const traces = useMemo(() => tracesQuery.data ?? [], [tracesQuery.data]);
-
   /** Stable marker lng/lat for trace popover while detail query loads (avoids fixed→floating flash). */
   const tracePopoverListAnchor = useMemo(() => {
     if (!sidebarTraceId) return null;
@@ -289,16 +301,16 @@ export function MapPage() {
   }, [sidebarTraceId, traces]);
 
   useEffect(() => {
-    if (!sidebarTraceId) return;
-    // While the active journal's traces are still loading, do not strip ?trace= — the id may
+    if (!sidebarTraceToken) return;
+    // While the active journal's traces are still loading, do not strip ?trace= — the token may
     // belong to the new journal (e.g. global search) and is not in the previous list yet.
     if (tracesQuery.isPending) return;
     if (traces.length === 0) return;
-    if (traces.some((t) => t.id === sidebarTraceId)) return;
+    if (resolveTraceIdFromMapToken(sidebarTraceToken, traces)) return;
     setSearchParams((prev) => applySelectedTraceToSearchParams(prev, null), {
       replace: true,
     });
-  }, [sidebarTraceId, traces, tracesQuery.isPending, setSearchParams]);
+  }, [sidebarTraceToken, traces, tracesQuery.isPending, setSearchParams]);
 
   const formDefaults = useMemo(() => {
     if (placedCoords) return placedCoords;
@@ -335,7 +347,7 @@ export function MapPage() {
   }, [placementActive]);
 
   useEffect(() => {
-    if (!sidebarTraceId) return;
+    if (!sidebarTraceToken) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setSearchParams(
@@ -346,7 +358,7 @@ export function MapPage() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [sidebarTraceId, setSearchParams]);
+  }, [sidebarTraceToken, setSearchParams]);
 
   async function saveTag() {
     if (!activeJournalId || !newTagName.trim()) return;
@@ -484,6 +496,9 @@ export function MapPage() {
           key={isMobile ? "trace-map-sidebar-mobile" : `${sidebarTraceId}-lg`}
           traceId={sidebarTraceId}
           journalId={activeJournalId}
+          journalSlug={
+            journalSlug?.trim() || activeJournal?.slug?.trim() || null
+          }
           mapRef={mapRef}
           listAnchorLngLat={tracePopoverListAnchor}
           onClose={() =>

@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 export type TraceSearchRow = {
   id: string;
   journal_id: string;
+  slug: string;
   title: string | null;
   description: string | null;
   location_label: string | null;
@@ -32,7 +33,7 @@ export async function searchTracesInJournals(
   const { data, error } = await supabase
     .from("traces")
     .select(
-      "id, journal_id, title, description, location_label, lat, lng, date",
+      "id, journal_id, slug, title, description, location_label, lat, lng, date",
     )
     .in("journal_id", journalIds)
     .or(

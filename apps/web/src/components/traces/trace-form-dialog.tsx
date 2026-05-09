@@ -275,7 +275,7 @@ export function TraceFormDialog({
       }
 
       await qc.invalidateQueries({ queryKey: ["traces", journalId] });
-      if (trace) await qc.invalidateQueries({ queryKey: ["trace", trace.id] });
+      if (trace) await qc.invalidateQueries({ queryKey: ["trace"] });
       onOpenChange(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed");

@@ -1,12 +1,13 @@
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import {
-  BookOpen,
-  Check,
-  ChevronDown,
-  Map,
-  Plus,
-  Settings2,
-} from "lucide-react";
+import { NotificationsPopover } from "@/components/layout/notifications-popover";
+import { sidebarPickerTriggerClass } from "@/components/layout/sidebar-dropdown-triggers";
+import { SidebarTagsFilterDropdown } from "@/components/layout/sidebar-tags-filter-dropdown";
+import { journalSwitchHref, journalViewHref } from "@/lib/app-paths";
+import { DROPDOWN_PANEL_WIDE_CLASS } from "@/lib/dropdown-panel";
+import { defaultJournalIcon } from "@/lib/journal-display-icon";
+import { cn } from "@/lib/utils";
+import { useJournal } from "@/providers/journal-provider";
+import { useRegisteredTagSidebar } from "@/providers/tag-sidebar-provider";
+import type { Journal } from "@/types/database";
 import { Button, buttonVariants } from "@curolia/ui/button";
 import {
   DropdownMenu,
@@ -18,16 +19,15 @@ import {
   DropdownMenuTrigger,
 } from "@curolia/ui/dropdown-menu";
 import { Separator } from "@curolia/ui/separator";
-import { cn } from "@/lib/utils";
-import { useJournal } from "@/providers/journal-provider";
-import { useRegisteredTagSidebar } from "@/providers/tag-sidebar-provider";
-import type { Journal } from "@/types/database";
-import { defaultJournalIcon } from "@/lib/journal-display-icon";
-import { NotificationsPopover } from "@/components/layout/notifications-popover";
-import { DROPDOWN_PANEL_WIDE_CLASS } from "@/lib/dropdown-panel";
-import { sidebarPickerTriggerClass } from "@/components/layout/sidebar-dropdown-triggers";
-import { SidebarTagsFilterDropdown } from "@/components/layout/sidebar-tags-filter-dropdown";
-import { journalSwitchHref, journalViewHref } from "@/lib/app-paths";
+import {
+  BookOpen,
+  Check,
+  ChevronDown,
+  Map,
+  Plus,
+  Settings2,
+} from "lucide-react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 
 const navRowClass = ({ isActive }: { isActive: boolean }) =>
   cn(
@@ -199,7 +199,7 @@ export function NavigationSidebarContent({
       {userId ? (
         <>
           <Separator />
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-2">
             <span className="text-muted-foreground px-3 text-xs font-medium tracking-wide uppercase">
               Activity
             </span>

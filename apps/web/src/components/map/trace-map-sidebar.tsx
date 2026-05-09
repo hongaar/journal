@@ -28,12 +28,15 @@ import {
 } from "@/components/traces/trace-photo-lightbox";
 import { photosToLightboxItems } from "@/lib/trace-photo-lightbox-items";
 import { useMaxSm } from "@/hooks/use-max-sm";
+import { traceDetailHref } from "@/lib/app-paths";
 
 type TraceSidebarRow = TraceWithTags;
 
 type TraceMapSidebarProps = {
   traceId: string;
   journalId: string | null;
+  /** Journal URL segment for `/traces/:journalSlug/:traceSlug`. */
+  journalSlug: string | null;
   mapRef: RefObject<TraceMapHandle | null>;
   /** Marker position from map list detail (immediate); avoids fixed-panel flash before trace query resolves. */
   listAnchorLngLat?: { lat: number; lng: number } | null;
@@ -57,6 +60,7 @@ function validLngLat(
 export function TraceMapSidebar({
   traceId,
   journalId,
+  journalSlug,
   mapRef,
   listAnchorLngLat = null,
   onClose,
@@ -330,7 +334,11 @@ export function TraceMapSidebar({
           ) : null}
           <div className="mt-auto flex flex-col gap-3">
             <Link
-              to={`/traces/${trace.id}`}
+              to={
+                journalSlug?.trim()
+                  ? traceDetailHref(journalSlug.trim(), trace.slug)
+                  : "#"
+              }
               className={buttonVariants({
                 variant: "secondary",
                 size: "sm",
