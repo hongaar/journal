@@ -1,3 +1,26 @@
+import { FloatingPanel } from "@/components/layout/floating-panel";
+import type { TraceMapHandle } from "@/components/map/trace-map";
+import { TraceFormDialog } from "@/components/traces/trace-form-dialog";
+import {
+  TracePhotoLightbox,
+  TracePhotoThumb,
+} from "@/components/traces/trace-photo-lightbox";
+import { useMaxSm } from "@/hooks/use-max-sm";
+import { traceDetailHref } from "@/lib/app-paths";
+import { mapAnchorPanelMiddleware } from "@/lib/map-anchor-floating-ui";
+import { supabase } from "@/lib/supabase";
+import { formatTraceDateRange } from "@/lib/trace-dates";
+import { photosToLightboxItems } from "@/lib/trace-photo-lightbox-items";
+import type { TraceWithTags } from "@/lib/trace-with-tags";
+import { useTracePhotosSignedUrls } from "@/lib/use-trace-photos";
+import { cn, contrastingForeground } from "@/lib/utils";
+import type { Trace } from "@/types/database";
+import { Badge } from "@curolia/ui/badge";
+import { Button, buttonVariants } from "@curolia/ui/button";
+import { Sheet, SheetContent, SheetTitle } from "@curolia/ui/sheet";
+import { autoUpdate, computePosition } from "@floating-ui/dom";
+import { useQuery } from "@tanstack/react-query";
+import { Pencil, X } from "lucide-react";
 import {
   useLayoutEffect,
   useMemo,
@@ -6,29 +29,6 @@ import {
   type RefObject,
 } from "react";
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { ChevronRight, Pencil, X } from "lucide-react";
-import { autoUpdate, computePosition } from "@floating-ui/dom";
-import { supabase } from "@/lib/supabase";
-import { Badge } from "@curolia/ui/badge";
-import { Button, buttonVariants } from "@curolia/ui/button";
-import { Sheet, SheetContent, SheetTitle } from "@curolia/ui/sheet";
-import { FloatingPanel } from "@/components/layout/floating-panel";
-import { TraceFormDialog } from "@/components/traces/trace-form-dialog";
-import { formatTraceLocationLine } from "@/lib/trace-dates";
-import { mapAnchorPanelMiddleware } from "@/lib/map-anchor-floating-ui";
-import { contrastingForeground, cn } from "@/lib/utils";
-import type { Trace } from "@/types/database";
-import type { TraceWithTags } from "@/lib/trace-with-tags";
-import { useTracePhotosSignedUrls } from "@/lib/use-trace-photos";
-import type { TraceMapHandle } from "@/components/map/trace-map";
-import {
-  TracePhotoLightbox,
-  TracePhotoThumb,
-} from "@/components/traces/trace-photo-lightbox";
-import { photosToLightboxItems } from "@/lib/trace-photo-lightbox-items";
-import { useMaxSm } from "@/hooks/use-max-sm";
-import { traceDetailHref } from "@/lib/app-paths";
 
 type TraceSidebarRow = TraceWithTags;
 
@@ -231,6 +231,11 @@ export function TraceMapSidebar({
     ? "Loading…"
     : trace?.title || "Untitled place";
 
+  const traceDateSubtitle =
+    trace && !wrongJournal
+      ? formatTraceDateRange(trace.date, trace.end_date)
+      : "";
+
   const body = (
     <div className="flex min-h-0 flex-col gap-3 overflow-y-auto pt-2">
       <div className="flex items-start justify-between gap-2">
@@ -271,19 +276,8 @@ export function TraceMapSidebar({
         </p>
       ) : (
         <>
-          <p className="text-muted-foreground text-sm">
-            {formatTraceLocationLine(
-              trace.date,
-              trace.end_date,
-              trace.lat,
-              trace.lng,
-              4,
-            )}
-          </p>
-          {trace.location_label ? (
-            <p className="text-muted-foreground text-sm leading-snug">
-              {trace.location_label}
-            </p>
+          {traceDateSubtitle ? (
+            <p className="text-muted-foreground text-sm">{traceDateSubtitle}</p>
           ) : null}
           {tagBadges.length > 0 ? (
             <div className="flex flex-wrap gap-1">
@@ -309,9 +303,6 @@ export function TraceMapSidebar({
           ) : null}
           {photos.length > 0 ? (
             <div className="min-h-0 shrink-0">
-              <p className="text-muted-foreground mb-1.5 text-xs font-medium tracking-wide uppercase">
-                Photos
-              </p>
               <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {photos.map((p) => {
                   const url = signedUrlByPhotoId[p.id];
@@ -341,12 +332,11 @@ export function TraceMapSidebar({
               }
               className={buttonVariants({
                 variant: "secondary",
-                size: "sm",
+                size: "lg",
                 className: "inline-flex gap-2 rounded-xl",
               })}
             >
-              <ChevronRight className="size-4" />
-              View more
+              View trace
             </Link>
           </div>
           <TracePhotoLightbox

@@ -90,13 +90,14 @@ npx turbo run functions:sync
 npm run functions:start -w @curolia/supabase
 ```
 
-2. Set local function secrets for the dispatcher:
+2. Set local function secrets for the dispatcher. The Supabase CLI has **no** `secrets set --local`; use an env file next to the functions instead:
 
-```bash
-cd packages/supabase && npx supabase secrets set --local \
-  PUSH_DISPATCH_SECRET=<random-long-secret> \
-  FCM_SERVER_KEY=<firebase-server-key>
-```
+   ```bash
+   cp packages/supabase/supabase/functions/.env.example packages/supabase/supabase/functions/.env
+   # Edit `.env`: set PUSH_DISPATCH_SECRET and FCM_SERVER_KEY
+   ```
+
+   Restart **`npm run functions:start -w @curolia/supabase`** (or your dev stack) after changing `packages/supabase/supabase/functions/.env`.
 
 3. Apply migrations and regenerate DB types:
 
@@ -147,15 +148,26 @@ VITE_SUPABASE_URL=http://127.0.0.1:54321
 VITE_SUPABASE_PUBLISHABLE_KEY=<local anon/publishable key from `npm run db:status -w @curolia/supabase`>
 ```
 
-3. Set local function secrets (required for OAuth):
+3. Set local function secrets (required for OAuth). Use **`packages/supabase/supabase/functions/.env`** (same file as push secrets above — see `.env.example`). The CLI does **not** support `supabase secrets set --local`.
 
-```bash
-cd packages/supabase && npx supabase secrets set --local \
-  PLUGIN_OAUTH_ENCRYPTION_KEY=<base64 32-byte key> \
-  GOOGLE_CLIENT_ID=<google oauth client id> \
-  GOOGLE_CLIENT_SECRET=<google oauth client secret> \
-  PUBLIC_APP_ORIGIN=http://127.0.0.1:5173
-```
+   Generate `PLUGIN_OAUTH_ENCRYPTION_KEY` (32 random bytes, Base64-encoded) with:
+
+   ```bash
+   openssl rand -base64 32
+   ```
+
+   Add to `.env` (along with any push vars you use):
+
+   ```bash
+   PLUGIN_OAUTH_ENCRYPTION_KEY=<paste output of openssl rand -base64 32>
+   GOOGLE_CLIENT_ID=<google oauth client id>
+   GOOGLE_CLIENT_SECRET=<google oauth client secret>
+   PUBLIC_APP_ORIGIN=http://127.0.0.1:5173
+   ```
+
+   Restart **`npm run functions:start -w @curolia/supabase`** after editing `.env`.
+
+   **Google error `redirect_uri=http://kong:8000/...`:** locally, Edge sometimes sees `SUPABASE_URL` as the internal Docker gateway (`kong`). The function maps that to **`http://127.0.0.1:54321`** for the OAuth callback URL so it matches Google Cloud. If your API port differs, set **`SUPABASE_PUBLIC_PORT`** or **`PLUGIN_OAUTH_CALLBACK_URL`** (full callback URL) in the same `.env`.
 
 4. In Google Cloud console:
    - Enable Google Photos Library API.
@@ -224,7 +236,13 @@ When env vars are already configured in Vercel UI, copy these frontend vars manu
 
 ### Plugin OAuth + Edge config (production)
 
-Set all OAuth and plugin runtime secrets in Supabase project secrets (not in Vercel browser env):
+Set all OAuth and plugin runtime secrets in Supabase project secrets (not in Vercel browser env).
+
+Generate `PLUGIN_OAUTH_ENCRYPTION_KEY` (32 random bytes, Base64-encoded) with:
+
+```bash
+openssl rand -base64 32
+```
 
 ```bash
 cd packages/supabase && npx supabase secrets set \

@@ -84,6 +84,10 @@ export default defineConfig({
         repoRoot,
         "packages/plugins/ical/src/index.ts",
       ),
+      "@curolia/plugin-oauth": path.resolve(
+        repoRoot,
+        "packages/plugins/oauth/src/index.ts",
+      ),
     },
   },
   server: {

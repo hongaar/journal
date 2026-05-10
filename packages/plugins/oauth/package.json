@@ -1,0 +1,19 @@
+{
+  "name": "@curolia/plugin-oauth",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./oauth-companion-scopes": {
+      "types": "./src/oauth-companion-scopes.ts",
+      "default": "./src/oauth-companion-scopes.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  }
+}

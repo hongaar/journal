@@ -50,6 +50,21 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  --animate-curolia-splash: curolia-splash-pulse 2.85s ease-in-out infinite;
+
+  @keyframes curolia-splash-pulse {
+    0%,
+    100% {
+      opacity: 0.65;
+      transform: scale(1);
+    }
+
+    50% {
+      opacity: 1;
+      transform: scale(1.06);
+    }
+  }
 }
 
 /* Parchment + atlas field-journal (light) */
@@ -166,3 +181,42 @@
 }
 
 /* Map controls offset from FloatingNav toolbar height (--app-toolbar-h). */
+
+/* MapLibre: always-visible attribution, bottom-right, minimal chrome (no compact toggle). */
+[data-curolia-trace-map] .maplibregl-ctrl-bottom-right {
+  margin: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+}
+
+[data-curolia-trace-map] .maplibregl-ctrl-attrib {
+  margin: 0;
+  padding: 2px 5px 3px;
+  border-radius: 0;
+  font-size: 9px;
+  line-height: 1.25;
+  max-width: min(62vw, 18rem);
+  white-space: normal;
+  background: oklch(0.98 0.01 95 / 0.92);
+  color: oklch(0.28 0.04 260);
+  box-shadow: none;
+}
+
+.dark [data-curolia-trace-map] .maplibregl-ctrl-attrib {
+  background: oklch(0.2 0.03 260 / 0.92);
+  color: oklch(0.88 0.02 95);
+}
+
+[data-curolia-trace-map] .maplibregl-ctrl-attrib.maplibregl-compact {
+  min-height: unset;
+}
+
+[data-curolia-trace-map] button.maplibregl-ctrl-attrib-button {
+  display: none !important;
+}
+
+[data-curolia-trace-map] .maplibregl-ctrl-attrib a {
+  font-size: inherit;
+  color: inherit;
+  text-decoration: underline;
+}

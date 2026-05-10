@@ -19,14 +19,7 @@ import {
   DropdownMenuTrigger,
 } from "@curolia/ui/dropdown-menu";
 import { Separator } from "@curolia/ui/separator";
-import {
-  BookOpen,
-  Check,
-  ChevronDown,
-  Map,
-  Plus,
-  Settings2,
-} from "lucide-react";
+import { BookOpen, Check, ChevronDown, Map, Pencil, Plus } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 
 const navRowClass = ({ isActive }: { isActive: boolean }) =>
@@ -152,7 +145,7 @@ export function NavigationSidebarContent({
                       type="button"
                       variant="ghost"
                       size="icon"
-                      title="Journal settings"
+                      title="Edit journal"
                       className="text-muted-foreground hover:text-foreground size-8 shrink-0 rounded-md"
                       onClick={(e) => {
                         e.preventDefault();
@@ -160,7 +153,7 @@ export function NavigationSidebarContent({
                         onOpenJournalSettings(j.id);
                       }}
                     >
-                      <Settings2 className="size-4" />
+                      <Pencil className="size-4" aria-hidden />
                     </Button>
                   </div>
                 );

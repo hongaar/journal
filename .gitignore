@@ -5,6 +5,7 @@ dist
 .env
 .env.*
 !.env.example
+!packages/supabase/supabase/functions/.env.example
 .DS_Store
 coverage
 *.log

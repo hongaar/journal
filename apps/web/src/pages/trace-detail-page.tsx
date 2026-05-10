@@ -1,26 +1,36 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { TraceGooglePhotosSuggestions } from "@/components/traces/trace-google-photos-suggestions";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   TracePhotoLightbox,
   TracePhotoThumb,
 } from "@/components/traces/trace-photo-lightbox";
 import { photosToLightboxItems } from "@/lib/trace-photo-lightbox-items";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Pencil, Upload } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Pencil, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useJournal } from "@/providers/journal-provider";
 import type { Trace } from "@/types/database";
 import { useTracePhotosSignedUrls } from "@/lib/use-trace-photos";
 import { TraceFormDialog } from "@/components/traces/trace-form-dialog";
+import { TraceLinksList } from "@/components/traces/trace-links-list";
 import { PageBackButton } from "@/components/layout/page-back-button";
 import { Button, buttonVariants } from "@curolia/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@curolia/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@curolia/ui/card";
 import { Badge } from "@curolia/ui/badge";
-import { formatTraceLocationLine } from "@/lib/trace-dates";
+import { formatTraceDateRange } from "@/lib/trace-dates";
 import { TraceMetadataFooter } from "@/components/traces/trace-metadata-footer";
 import { journalViewHref } from "@/lib/app-paths";
 import { contrastingForeground } from "@/lib/utils";
+import { toast } from "sonner";
 
 type TraceRow = Trace & {
   trace_tags?: {
@@ -42,9 +52,11 @@ export function TraceDetailPage() {
     traceSlug: string;
   }>();
   const navigate = useNavigate();
-  const { journals, activeJournalId } = useJournal();
   const qc = useQueryClient();
+  const { journals, activeJournalId } = useJournal();
   const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [photoLightbox, setPhotoLightbox] = useState<{
     photoId: string;
   } | null>(null);
@@ -103,40 +115,6 @@ export function TraceDetailPage() {
     [photos, signedUrlByPhotoId],
   );
 
-  async function onUploadPhotos(files: FileList | null) {
-    if (!files?.length || !trace || !activeJournalId) return;
-    let sort = photos.length;
-    for (const file of Array.from(files)) {
-      const path = `${activeJournalId}/${trace.id}/${crypto.randomUUID()}-${file.name.replace(/[^\w.-]+/g, "_")}`;
-      const { error: upErr } = await supabase.storage
-        .from("trace-photos")
-        .upload(path, file, {
-          upsert: false,
-        });
-      if (upErr) {
-        console.error(upErr);
-        continue;
-      }
-      const { error: insErr } = await supabase.from("photos").insert({
-        journal_id: activeJournalId,
-        trace_id: trace.id,
-        storage_path: path,
-        sort_order: sort++,
-      });
-      if (insErr) console.error(insErr);
-    }
-    await qc.invalidateQueries({ queryKey: ["photos", trace.id] });
-    await qc.invalidateQueries({ queryKey: ["photo-urls", trace.id] });
-    if (activeJournalId) {
-      await qc.invalidateQueries({
-        queryKey: ["journal-trace-photos", activeJournalId],
-      });
-      await qc.invalidateQueries({
-        queryKey: ["photo-urls-batch", activeJournalId],
-      });
-    }
-  }
-
   if (traceQuery.isLoading) {
     return (
       <div className="flex h-full items-center justify-center p-6">
@@ -173,6 +151,35 @@ export function TraceDetailPage() {
     );
   }
 
+  const traceDateSubtitle = formatTraceDateRange(trace.date, trace.end_date);
+
+  async function confirmDeleteTrace() {
+    if (!trace || !journalForRoute) return;
+    setDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("traces")
+        .delete()
+        .eq("id", trace.id);
+      if (error) throw error;
+      await qc.invalidateQueries({ queryKey: ["traces", trace.journal_id] });
+      await qc.invalidateQueries({ queryKey: ["trace"] });
+      await qc.invalidateQueries({
+        queryKey: ["journal-trace-photos", trace.journal_id],
+      });
+      setPhotoLightbox(null);
+      setDeleteOpen(false);
+      toast.success("Trace deleted");
+      navigate(journalViewHref("map", journalForRoute.slug));
+    } catch (e) {
+      toast.error(
+        e instanceof Error ? e.message : "Could not delete this trace.",
+      );
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <div className="h-full overflow-y-auto px-3 pt-[4.75rem] pb-10 sm:px-6 sm:pt-[5.25rem]">
       <div className="mx-auto max-w-2xl space-y-4">
@@ -183,18 +190,9 @@ export function TraceDetailPage() {
               <CardTitle className="font-display text-2xl font-normal tracking-tight">
                 {trace.title || "Untitled place"}
               </CardTitle>
-              <p className="text-muted-foreground mt-1 text-sm">
-                {formatTraceLocationLine(
-                  trace.date,
-                  trace.end_date,
-                  trace.lat,
-                  trace.lng,
-                  5,
-                )}
-              </p>
-              {trace.location_label ? (
-                <p className="text-muted-foreground mt-1 text-sm leading-snug">
-                  {trace.location_label}
+              {traceDateSubtitle ? (
+                <p className="text-muted-foreground mt-1 text-sm">
+                  {traceDateSubtitle}
                 </p>
               ) : null}
               <div className="mt-2 flex flex-wrap gap-1">
@@ -213,60 +211,53 @@ export function TraceDetailPage() {
                 ))}
               </div>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-xl"
-              onClick={() => setEditOpen(true)}
-            >
-              <Pencil className="size-4" />
-              Edit
-            </Button>
+            <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-start">
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-xl"
+                onClick={() => setEditOpen(true)}
+              >
+                <Pencil className="size-4" aria-hidden />
+                Edit
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-xl border-destructive/50 text-destructive hover:bg-destructive/10"
+                onClick={() => setDeleteOpen(true)}
+              >
+                <Trash2 className="size-4" aria-hidden />
+                Delete
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             {trace.description ? (
               <p className="text-sm whitespace-pre-wrap">{trace.description}</p>
             ) : null}
-            <div>
-              <h3 className="mb-2 text-sm font-medium">Photos</h3>
-              <div className="flex flex-wrap gap-2">
-                {photos.map((p) => {
-                  const url = signedUrlByPhotoId[p.id];
-                  return url ? (
-                    <TracePhotoThumb
-                      key={p.id}
-                      url={url}
-                      className="h-24 w-24 shrink-0 overflow-hidden rounded-md border"
-                      onOpen={() => setPhotoLightbox({ photoId: p.id })}
-                    />
-                  ) : (
-                    <div
-                      key={p.id}
-                      className="text-muted-foreground flex h-24 w-24 items-center justify-center rounded-md border text-xs"
-                    >
-                      …
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="mt-2">
-                <label className="inline-flex cursor-pointer items-center gap-2 text-sm">
-                  <Upload className="size-4" />
-                  <span>Upload photos</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    className="sr-only"
-                    onChange={(e) => void onUploadPhotos(e.target.files)}
+            <div className="flex flex-wrap gap-2">
+              {photos.map((p) => {
+                const url = signedUrlByPhotoId[p.id];
+                return url ? (
+                  <TracePhotoThumb
+                    key={p.id}
+                    url={url}
+                    className="h-24 w-24 shrink-0 overflow-hidden rounded-md border"
+                    onOpen={() => setPhotoLightbox({ photoId: p.id })}
                   />
-                </label>
-              </div>
-              <TraceGooglePhotosSuggestions
-                traceId={trace.id}
-                journalId={trace.journal_id}
-              />
+                ) : (
+                  <div
+                    key={p.id}
+                    className="text-muted-foreground flex h-24 w-24 items-center justify-center rounded-md border text-xs"
+                  >
+                    …
+                  </div>
+                );
+              })}
             </div>
+            <TraceLinksList traceId={trace.id} />
             <TraceMetadataFooter
               createdAt={trace.created_at}
               updatedAt={trace.updated_at}
@@ -281,6 +272,47 @@ export function TraceDetailPage() {
           journalId={trace.journal_id}
           trace={trace}
         />
+        <Dialog
+          open={deleteOpen}
+          onOpenChange={(open) => {
+            if (!open && deleting) return;
+            setDeleteOpen(open);
+          }}
+        >
+          <DialogContent
+            showCloseButton={!deleting}
+            className="border-[var(--panel-border)] bg-[var(--panel-bg)] backdrop-blur-xl sm:max-w-md"
+          >
+            <DialogHeader>
+              <DialogTitle className="font-display text-xl font-normal">
+                Delete trace?
+              </DialogTitle>
+              <DialogDescription>
+                This removes the trace from your journal. This cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="border-border/40 sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-xl"
+                disabled={deleting}
+                onClick={() => setDeleteOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                className="rounded-xl"
+                disabled={deleting}
+                onClick={() => void confirmDeleteTrace()}
+              >
+                {deleting ? "Deleting…" : "Delete trace"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         <TracePhotoLightbox
           open={photoLightbox !== null}
           onOpenChange={(o) => {

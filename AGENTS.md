@@ -36,4 +36,6 @@
 
   before `npm run functions:start -w @curolia/supabase` / remote `supabase functions deploy`.
 
+  **`functions:sync`** also runs **`packages/supabase/scripts/extract-plugin-oauth-registry.ts`** (via **`tsx`**) so **`scopes-registry.gen.ts`** is built from each plugin package’s **`pluginManifest.contributions.oauth`**. Companion scopes merged at authorize time (e.g. Google OIDC `openid` / `email` / `profile`) live in **`@curolia/plugin-oauth`** (**`oauth-companion-scopes.ts`**); Strip step in the extractor must match that module.
+
 - **Web UI** may stay in `apps/web` initially; packages should still export **manifest + config parsers** so behavior and declarations stay with the plugin. Prefer moving React panels into the plugin package when they stabilize (with `react` as a `peerDependency`).

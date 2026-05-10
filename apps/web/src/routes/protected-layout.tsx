@@ -1,20 +1,14 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "@/providers/auth-provider";
 import { JournalProvider } from "@/providers/journal-provider";
-import { FloatingPanel } from "@/components/layout/floating-panel";
+import { CuroliaLoadingSplash } from "@/components/layout/curolia-loading-splash";
 
 export function ProtectedLayout() {
   const { user, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
-    return (
-      <div className="flex min-h-svh items-center justify-center bg-background p-6">
-        <FloatingPanel className="text-muted-foreground text-sm">
-          Loading…
-        </FloatingPanel>
-      </div>
-    );
+    return <CuroliaLoadingSplash className="min-h-svh" statusLabel="Loading" />;
   }
 
   if (!user) {

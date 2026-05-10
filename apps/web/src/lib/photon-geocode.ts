@@ -208,3 +208,40 @@ export async function reversePhotonLocationLabel(
   const label = photonLabel(f.properties).trim();
   return label || null;
 }
+
+/**
+ * Reverse geocode: full place line plus a short default title (most specific segment).
+ */
+export async function reversePhotonPlaceDetails(
+  lat: number,
+  lng: number,
+): Promise<{ fullLabel: string | null; shortTitle: string | null }> {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return { fullLabel: null, shortTitle: null };
+  }
+
+  const url = new URL("https://photon.komoot.io/reverse");
+  url.searchParams.set("lat", String(lat));
+  url.searchParams.set("lon", String(lng));
+  url.searchParams.set("lang", "en");
+
+  const res = await fetch(url.toString());
+  if (!res.ok) return { fullLabel: null, shortTitle: null };
+
+  const data = (await res.json()) as PhotonResponse;
+  const f = data.features?.[0];
+  const props = f?.properties;
+  if (!f?.geometry?.coordinates || !props) {
+    return { fullLabel: null, shortTitle: null };
+  }
+
+  const fullLabel = photonLabel(props).trim() || null;
+  const shortTitle =
+    (
+      photonPrimaryTitle("", props, fullLabel ?? "") ||
+      fullLabel ||
+      ""
+    ).trim() || null;
+
+  return { fullLabel, shortTitle };
+}

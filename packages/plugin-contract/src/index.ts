@@ -13,6 +13,13 @@ export type {
   PluginPackageManifest,
   PluginRegistry,
 } from "./definition";
+export type {
+  PluginAccountPanelProps,
+  PluginAccountSettingsComponent,
+  PluginOAuthLinkStatusResult,
+  PluginOAuthShellHandlers,
+  PluginUserPluginSnapshot,
+} from "./account-panel";
 export {
   journalPluginConfigRecord,
   mergeJournalPluginConfig,

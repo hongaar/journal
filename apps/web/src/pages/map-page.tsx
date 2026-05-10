@@ -13,14 +13,12 @@ import { useJournal } from "@/providers/journal-provider";
 import { MapControlsToolbar } from "@/components/map/map-controls-toolbar";
 import { AddTraceFab } from "@/components/traces/add-trace-fab";
 import { useMountTagSidebarRegistration } from "@/providers/tag-sidebar-provider";
-import {
-  TraceMap,
-  type TraceMapHandle,
-  type TraceMapPreviewPin,
-} from "@/components/map/trace-map";
+import { TraceMap, type TraceMapHandle } from "@/components/map/trace-map";
 import type { TraceWithTags } from "@/lib/trace-with-tags";
 import { TraceMapSidebar } from "@/components/map/trace-map-sidebar";
 import { TraceFormDialog } from "@/components/traces/trace-form-dialog";
+import { TraceMapQuickAddDialog } from "@/components/traces/trace-map-quick-add-dialog";
+import { reversePhotonPlaceDetails } from "@/lib/photon-geocode";
 import { Button } from "@curolia/ui/button";
 import {
   Dialog,
@@ -34,7 +32,6 @@ import { Label } from "@curolia/ui/label";
 import { PresetColorPicker } from "@/components/traces/preset-color-picker";
 import { EmojiPicker } from "@/components/traces/emoji-picker";
 import { DEFAULT_TRACE_TAG_COLOR } from "@/lib/preset-trace-tag-colors";
-import { FloatingPanel } from "@/components/layout/floating-panel";
 import { JournalViewInitialLoader } from "@/components/layout/journal-view-initial-loader";
 import {
   applyFilterTagsToSearchParams,
@@ -56,7 +53,8 @@ import {
   writeStoredMapCamera,
 } from "@/lib/map-camera-storage";
 import { cn } from "@/lib/utils";
-import type { Tag } from "@/types/database";
+import type { Tag, Trace } from "@/types/database";
+import { toast } from "sonner";
 import { useJournalSlugRouteSync } from "@/hooks/use-journal-slug-route-sync";
 import { useMaxSm } from "@/hooks/use-max-sm";
 import { useNavigationShell } from "@/providers/navigation-shell-provider";
@@ -103,26 +101,18 @@ export function MapPage() {
   const cameraIdleTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   );
-  const [formOpen, setFormOpen] = useState(false);
   const [placementActive, setPlacementActive] = useState(false);
-  const [placedCoords, setPlacedCoords] = useState<{
-    lat: number;
-    lng: number;
-  } | null>(null);
-  const [anchorScreen, setAnchorScreen] = useState<{
+  const [quickAddTrace, setQuickAddTrace] = useState<Trace | null>(null);
+  const [quickAddAnchorScreen, setQuickAddAnchorScreen] = useState<{
     x: number;
     y: number;
   } | null>(null);
+  const [fullEditTrace, setFullEditTrace] = useState<Trace | null>(null);
   const [tagDialogOpen, setTagDialogOpen] = useState(false);
   const [tagEditTarget, setTagEditTarget] = useState<Tag | null>(null);
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState(DEFAULT_TRACE_TAG_COLOR);
   const [newTagEmoji, setNewTagEmoji] = useState("📍");
-  const [newTraceTagIds, setNewTraceTagIds] = useState<string[]>([]);
-  const onNewTraceTagIdsChange = useCallback((ids: string[]) => {
-    setNewTraceTagIds(ids);
-  }, []);
-
   useEffect(() => {
     return () => clearTimeout(cameraIdleTimerRef.current);
   }, []);
@@ -235,27 +225,10 @@ export function MapPage() {
     [sidebarTraceToken, traces],
   );
 
-  const previewPin = useMemo((): TraceMapPreviewPin | null => {
-    if (!formOpen || !placedCoords) return null;
-    const tags = tagsQuery.data ?? [];
-    const ordered = newTraceTagIds
-      .map((id) => tags.find((t) => t.id === id))
-      .filter(Boolean);
-    const first = ordered[0];
-    return {
-      lat: placedCoords.lat,
-      lng: placedCoords.lng,
-      color: first?.color ?? null,
-      icon: first?.icon_emoji ?? "📍",
-    };
-  }, [formOpen, placedCoords, newTraceTagIds, tagsQuery.data]);
-
   const onSelectTrace = useCallback(
     (id: string) => {
-      setFormOpen(false);
-      setPlacedCoords(null);
-      setAnchorScreen(null);
-      setNewTraceTagIds([]);
+      setQuickAddTrace(null);
+      setQuickAddAnchorScreen(null);
       const row = traces.find((x) => x.id === id);
       const token = row?.slug ?? id;
       setSearchParams((prev) => applySelectedTraceToSearchParams(prev, token), {
@@ -272,17 +245,41 @@ export function MapPage() {
   }, [setSearchParams]);
 
   const onPlacementClick = useCallback(
-    (lng: number, lat: number) => {
-      setPlacementActive(false);
-      setPlacedCoords({ lat, lng });
+    async (lng: number, lat: number) => {
+      if (!activeJournalId) return;
       setSearchParams((prev) => applySelectedTraceToSearchParams(prev, null), {
         replace: true,
       });
-      const p = mapRef.current?.lngLatToScreen(lng, lat);
-      setAnchorScreen(p ?? null);
-      setFormOpen(true);
+
+      try {
+        const { fullLabel, shortTitle } = await reversePhotonPlaceDetails(
+          lat,
+          lng,
+        );
+        const { data: row, error } = await supabase
+          .from("traces")
+          .insert({
+            journal_id: activeJournalId,
+            title: shortTitle || null,
+            location_label: fullLabel?.trim() || null,
+            lat,
+            lng,
+          })
+          .select("*")
+          .single();
+        if (error) throw error;
+        await qc.invalidateQueries({ queryKey: ["traces", activeJournalId] });
+
+        const p = mapRef.current?.lngLatToScreen(lng, lat);
+        setQuickAddAnchorScreen(p ?? null);
+        setQuickAddTrace(row as Trace);
+      } catch (e) {
+        toast.error(
+          e instanceof Error ? e.message : "Could not create trace here.",
+        );
+      }
     },
-    [setSearchParams],
+    [activeJournalId, qc, setSearchParams],
   );
 
   /** Stable marker lng/lat for trace popover while detail query loads (avoids fixed→floating flash). */
@@ -312,19 +309,14 @@ export function MapPage() {
     });
   }, [sidebarTraceToken, traces, tracesQuery.isPending, setSearchParams]);
 
-  const formDefaults = useMemo(() => {
-    if (placedCoords) return placedCoords;
-    if (traces.length === 0) return { lat: 20, lng: 0 };
-    return { lat: traces[0].lat, lng: traces[0].lng };
-  }, [placedCoords, traces]);
-
   useEffect(() => {
-    if (!formOpen || !placedCoords) return;
+    if (!quickAddTrace) return;
+    const { lat, lng } = quickAddTrace;
     const map = mapRef.current;
     if (!map) return;
     const upd = () => {
-      const p = map.lngLatToScreen(placedCoords.lng, placedCoords.lat);
-      if (p) setAnchorScreen(p);
+      const p = map.lngLatToScreen(lng, lat);
+      if (p) setQuickAddAnchorScreen(p);
     };
     upd();
     const raf = requestAnimationFrame(upd);
@@ -335,7 +327,7 @@ export function MapPage() {
       unsub();
       window.removeEventListener("resize", upd);
     };
-  }, [formOpen, placedCoords]);
+  }, [quickAddTrace]);
 
   useEffect(() => {
     if (!placementActive) return;
@@ -425,7 +417,7 @@ export function MapPage() {
           traces={traces}
           selectedTagIds={filterTagIds}
           selectedTraceId={sidebarTraceId}
-          previewPin={previewPin}
+          previewPin={null}
           onSelectTrace={onSelectTrace}
           placementMode={placementActive}
           onPlacementClick={onPlacementClick}
@@ -471,23 +463,10 @@ export function MapPage() {
       </div>
 
       {placementActive ? (
-        <div className="pointer-events-none absolute top-[calc(var(--app-toolbar-h)+2.75rem)] left-1/2 z-20 w-[min(100%,22rem)] -translate-x-1/2 px-3">
-          <FloatingPanel className="pointer-events-auto py-3 text-center shadow-xl">
-            <p className="text-foreground text-sm font-medium">
-              Click the map to place your trace
-            </p>
-            <p className="text-muted-foreground mt-1 text-xs">
-              Press Esc or cancel to stop
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-3 rounded-xl"
-              onClick={() => setPlacementActive(false)}
-            >
-              Cancel
-            </Button>
-          </FloatingPanel>
+        <div className="pointer-events-none absolute bottom-4 left-1/2 z-20 flex max-w-[min(calc(100vw-2rem),22rem)] -translate-x-1/2 justify-center px-4">
+          <p className="border-border/50 bg-background/92 text-foreground supports-backdrop-filter:backdrop-blur-sm rounded-xl border px-4 py-2.5 text-center text-xs leading-snug font-medium shadow-lg">
+            Tap the map to add a trace · Esc or Stop adding to cancel
+          </p>
         </div>
       ) : null}
 
@@ -512,23 +491,30 @@ export function MapPage() {
         />
       ) : null}
 
-      <TraceFormDialog
-        open={formOpen}
-        onOpenChange={(open) => {
-          setFormOpen(open);
-          if (!open) {
-            setPlacedCoords(null);
-            setAnchorScreen(null);
-            setPlacementActive(false);
-            setNewTraceTagIds([]);
+      <TraceMapQuickAddDialog
+        open={Boolean(quickAddTrace)}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            setQuickAddTrace(null);
+            setQuickAddAnchorScreen(null);
           }
         }}
         journalId={activeJournalId}
-        trace={null}
-        defaultLat={formDefaults.lat}
-        defaultLng={formDefaults.lng}
-        anchorScreen={formOpen && placedCoords ? anchorScreen : null}
-        onNewTraceTagIdsChange={onNewTraceTagIdsChange}
+        trace={quickAddTrace}
+        anchorScreen={quickAddTrace ? quickAddAnchorScreen : null}
+        onEdit={(t) => {
+          setQuickAddTrace(null);
+          setQuickAddAnchorScreen(null);
+          setFullEditTrace(t);
+        }}
+      />
+      <TraceFormDialog
+        open={Boolean(fullEditTrace)}
+        onOpenChange={(open) => {
+          if (!open) setFullEditTrace(null);
+        }}
+        journalId={activeJournalId}
+        trace={fullEditTrace}
       />
       <Dialog
         open={tagDialogOpen}

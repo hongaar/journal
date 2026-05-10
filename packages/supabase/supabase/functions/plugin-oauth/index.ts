@@ -1,14 +1,35 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import {
+  authorizeScopesSpaceSeparated,
+  pluginOAuthScopesFor,
+} from "./scopes-registry.gen.ts";
 
 const GOOGLE_AUTH = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN = "https://oauth2.googleapis.com/token";
-const PHOTOS_SCOPE = "https://www.googleapis.com/auth/photoslibrary.readonly";
+
+/** OAuth provider id for the Google authorize/token endpoints (PKCE flow in this function). */
+const GOOGLE_OAUTH_PROVIDER_ID = "google";
+
+function supportsGooglePluginOAuth(pluginTypeId: string): boolean {
+  const scopes = pluginOAuthScopesFor(pluginTypeId, GOOGLE_OAUTH_PROVIDER_ID);
+  return Boolean(scopes?.length);
+}
 
 type StartBody = {
   action: "start";
   plugin_type_id: string;
   redirect_after?: string;
+};
+
+type UnlinkBody = {
+  action: "unlink";
+  plugin_type_id: string;
+};
+
+type LinkStatusBody = {
+  action: "link_status";
+  plugin_type_id: string;
 };
 
 function cors(): HeadersInit {
@@ -49,11 +70,23 @@ async function importAesKey(raw: Uint8Array): Promise<CryptoKey> {
 }
 
 function getEncryptionKey(): Uint8Array {
-  const b64 = Deno.env.get("PLUGIN_OAUTH_ENCRYPTION_KEY") ?? "";
+  let b64 = (Deno.env.get("PLUGIN_OAUTH_ENCRYPTION_KEY") ?? "").trim();
   if (!b64) throw new Error("PLUGIN_OAUTH_ENCRYPTION_KEY is not set");
-  const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-  if (bin.length !== 32)
-    throw new Error("PLUGIN_OAUTH_ENCRYPTION_KEY must decode to 32 bytes");
+  // Accept URL-safe base64 and fix padding so decode matches google-photos Edge function.
+  b64 = b64.replace(/-/g, "+").replace(/_/g, "/");
+  const pad = b64.length % 4;
+  if (pad) b64 += "=".repeat(4 - pad);
+  let bin: Uint8Array;
+  try {
+    bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+  } catch {
+    throw new Error("PLUGIN_OAUTH_ENCRYPTION_KEY is not valid base64");
+  }
+  if (bin.length !== 32) {
+    throw new Error(
+      `PLUGIN_OAUTH_ENCRYPTION_KEY must decode to 32 bytes (got ${bin.length}); use: openssl rand -base64 32`,
+    );
+  }
   return bin;
 }
 
@@ -72,11 +105,37 @@ async function encryptSecret(plaintext: string): Promise<Uint8Array> {
   return out;
 }
 
+/**
+ * PostgREST serializes `Uint8Array` in JSON as `{"0":n,...}`, which does not
+ * round-trip as Postgres `bytea`. Send hex text (`\\x...`) instead.
+ */
+function byteaInsertValue(buf: Uint8Array): string {
+  let hex = "";
+  for (let i = 0; i < buf.length; i++) {
+    hex += buf[i]!.toString(16).padStart(2, "0");
+  }
+  return "\\x" + hex;
+}
+
 function callbackUrl(): string {
-  const base = Deno.env.get("SUPABASE_URL") ?? "";
-  const override = Deno.env.get("PLUGIN_OAUTH_CALLBACK_URL");
-  if (override) return override;
-  return `${base.replace(/\/$/, "")}/functions/v1/plugin-oauth?action=callback`;
+  const explicit = Deno.env.get("PLUGIN_OAUTH_CALLBACK_URL");
+  if (explicit) return explicit;
+
+  let base = (Deno.env.get("SUPABASE_URL") ?? "").replace(/\/$/, "");
+  // Local `supabase functions serve` often sets SUPABASE_URL to the internal API gateway
+  // (e.g. http://kong:8000). Google OAuth requires redirect_uri to exactly match a
+  // browser-reachable URL registered in Cloud Console — not the Docker hostname.
+  try {
+    const u = new URL(base || "http://invalid");
+    if (u.hostname === "kong") {
+      const port = Deno.env.get("SUPABASE_PUBLIC_PORT") ?? "54321";
+      base = `http://127.0.0.1:${port}`;
+    }
+  } catch {
+    /* fall through */
+  }
+
+  return `${base}/functions/v1/plugin-oauth?action=callback`;
 }
 
 async function handleStart(body: StartBody, jwt: string): Promise<Response> {
@@ -99,7 +158,7 @@ async function handleStart(body: StartBody, jwt: string): Promise<Response> {
     });
   }
 
-  if (body.plugin_type_id !== "google_photos") {
+  if (!supportsGooglePluginOAuth(body.plugin_type_id)) {
     return new Response(
       JSON.stringify({ error: "unsupported plugin_type_id" }),
       {
@@ -157,11 +216,15 @@ async function handleStart(body: StartBody, jwt: string): Promise<Response> {
   }
 
   const redirectUri = callbackUrl();
+  const scope = authorizeScopesSpaceSeparated(
+    body.plugin_type_id,
+    GOOGLE_OAUTH_PROVIDER_ID,
+  );
   const params = new URLSearchParams({
     client_id: googleClientId,
     redirect_uri: redirectUri,
     response_type: "code",
-    scope: PHOTOS_SCOPE,
+    scope,
     state,
     code_challenge: codeChallenge,
     code_challenge_method: "S256",
@@ -174,6 +237,182 @@ async function handleStart(body: StartBody, jwt: string): Promise<Response> {
     status: 200,
     headers: { ...cors(), "Content-Type": "application/json" },
   });
+}
+
+async function handleUnlink(body: UnlinkBody, jwt: string): Promise<Response> {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+  if (!jwt) {
+    return new Response(JSON.stringify({ error: "missing Authorization" }), {
+      status: 401,
+      headers: { ...cors(), "Content-Type": "application/json" },
+    });
+  }
+
+  if (body.action !== "unlink" || !body.plugin_type_id) {
+    return new Response(JSON.stringify({ error: "invalid body" }), {
+      status: 400,
+      headers: { ...cors(), "Content-Type": "application/json" },
+    });
+  }
+
+  if (!supportsGooglePluginOAuth(body.plugin_type_id)) {
+    return new Response(
+      JSON.stringify({ error: "unsupported plugin_type_id" }),
+      {
+        status: 400,
+        headers: { ...cors(), "Content-Type": "application/json" },
+      },
+    );
+  }
+
+  const userClient = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: `Bearer ${jwt}` } },
+  });
+  const { data: userData, error: userErr } = await userClient.auth.getUser(jwt);
+  if (userErr || !userData.user) {
+    return new Response(JSON.stringify({ error: "invalid session" }), {
+      status: 401,
+      headers: { ...cors(), "Content-Type": "application/json" },
+    });
+  }
+  const userId = userData.user.id;
+
+  const admin = createClient(supabaseUrl, serviceKey);
+  const { error: delErr } = await admin
+    .from("user_plugin_oauth_tokens")
+    .delete()
+    .eq("user_id", userId)
+    .eq("plugin_type_id", body.plugin_type_id);
+
+  if (delErr) {
+    console.error(delErr);
+    return new Response(JSON.stringify({ error: "unlink_failed" }), {
+      status: 500,
+      headers: { ...cors(), "Content-Type": "application/json" },
+    });
+  }
+
+  const { data: upRow } = await admin
+    .from("user_plugins")
+    .select("config")
+    .eq("user_id", userId)
+    .eq("plugin_type_id", body.plugin_type_id)
+    .maybeSingle();
+
+  const prevRaw = upRow?.config;
+  const prev =
+    prevRaw &&
+    typeof prevRaw === "object" &&
+    prevRaw !== null &&
+    !Array.isArray(prevRaw)
+      ? { ...(prevRaw as Record<string, unknown>) }
+      : {};
+  delete prev.oauth;
+
+  const { error: upErr } = await admin
+    .from("user_plugins")
+    .update({
+      config: prev,
+      status: "pending",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId)
+    .eq("plugin_type_id", body.plugin_type_id);
+
+  if (upErr) console.error(upErr);
+
+  return new Response(JSON.stringify({ ok: true }), {
+    status: 200,
+    headers: { ...cors(), "Content-Type": "application/json" },
+  });
+}
+
+async function handleLinkStatus(
+  body: LinkStatusBody,
+  jwt: string,
+): Promise<Response> {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+  if (!jwt) {
+    return new Response(JSON.stringify({ error: "missing Authorization" }), {
+      status: 401,
+      headers: { ...cors(), "Content-Type": "application/json" },
+    });
+  }
+
+  if (body.action !== "link_status" || !body.plugin_type_id) {
+    return new Response(JSON.stringify({ error: "invalid body" }), {
+      status: 400,
+      headers: { ...cors(), "Content-Type": "application/json" },
+    });
+  }
+
+  if (!supportsGooglePluginOAuth(body.plugin_type_id)) {
+    return new Response(
+      JSON.stringify({ error: "unsupported plugin_type_id" }),
+      {
+        status: 400,
+        headers: { ...cors(), "Content-Type": "application/json" },
+      },
+    );
+  }
+
+  const userClient = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: `Bearer ${jwt}` } },
+  });
+  const { data: userData, error: userErr } = await userClient.auth.getUser(jwt);
+  if (userErr || !userData.user) {
+    return new Response(JSON.stringify({ error: "invalid session" }), {
+      status: 401,
+      headers: { ...cors(), "Content-Type": "application/json" },
+    });
+  }
+  const userId = userData.user.id;
+
+  const admin = createClient(supabaseUrl, serviceKey);
+  const { data: tok } = await admin
+    .from("user_plugin_oauth_tokens")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("plugin_type_id", body.plugin_type_id)
+    .maybeSingle();
+
+  const { data: up } = await admin
+    .from("user_plugins")
+    .select("config, status")
+    .eq("user_id", userId)
+    .eq("plugin_type_id", body.plugin_type_id)
+    .maybeSingle();
+
+  const cfg = up?.config;
+  let email: string | null = null;
+  let sub: string | null = null;
+  if (cfg && typeof cfg === "object" && cfg !== null && !Array.isArray(cfg)) {
+    const oauth = (cfg as Record<string, unknown>).oauth;
+    if (oauth && typeof oauth === "object" && oauth !== null) {
+      const o = oauth as Record<string, unknown>;
+      if (typeof o.email === "string") email = o.email;
+      if (typeof o.sub === "string") sub = o.sub;
+    }
+  }
+
+  return new Response(
+    JSON.stringify({
+      linked: Boolean(tok),
+      email,
+      sub,
+      status: up?.status ?? null,
+    }),
+    {
+      status: 200,
+      headers: { ...cors(), "Content-Type": "application/json" },
+    },
+  );
 }
 
 async function handleCallback(req: Request, url: URL): Promise<Response> {
@@ -293,8 +532,8 @@ async function handleCallback(req: Request, url: URL): Promise<Response> {
     user_id: p.user_id,
     plugin_type_id: p.plugin_type_id,
     provider: "google",
-    refresh_token_ciphertext: refreshCt,
-    access_token_ciphertext: accessCt,
+    refresh_token_ciphertext: byteaInsertValue(refreshCt),
+    access_token_ciphertext: accessCt ? byteaInsertValue(accessCt) : null,
     access_token_expires_at: accessExpires,
     updated_at: new Date().toISOString(),
     revoked_at: null,
@@ -316,13 +555,50 @@ async function handleCallback(req: Request, url: URL): Promise<Response> {
     });
   }
 
+  const { data: existingUp } = await admin
+    .from("user_plugins")
+    .select("config")
+    .eq("user_id", p.user_id)
+    .eq("plugin_type_id", p.plugin_type_id)
+    .maybeSingle();
+
+  const oauthMeta: Record<string, unknown> = {
+    provider: "google",
+    linked_at: new Date().toISOString(),
+  };
+  if (accessToken) {
+    try {
+      const ui = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (ui.ok) {
+        const j = (await ui.json()) as Record<string, unknown>;
+        if (typeof j.email === "string") oauthMeta.email = j.email;
+        if (typeof j.picture === "string") oauthMeta.picture = j.picture;
+        if (typeof j.sub === "string") oauthMeta.sub = j.sub;
+      }
+    } catch (e) {
+      console.error("google userinfo failed", e);
+    }
+  }
+
+  const prevRaw = existingUp?.config;
+  const prevConfig =
+    prevRaw &&
+    typeof prevRaw === "object" &&
+    prevRaw !== null &&
+    !Array.isArray(prevRaw)
+      ? { ...(prevRaw as Record<string, unknown>) }
+      : {};
+  const nextConfig = { ...prevConfig, oauth: oauthMeta };
+
   await admin.from("user_plugins").upsert(
     {
       user_id: p.user_id,
       plugin_type_id: p.plugin_type_id,
       enabled: true,
       status: "connected",
-      config: {},
+      config: nextConfig,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "user_id,plugin_type_id" },
@@ -349,8 +625,21 @@ Deno.serve(async (req: Request) => {
     try {
       const authHeader = req.headers.get("Authorization");
       const jwt = authHeader?.replace(/^Bearer\s+/i, "") ?? "";
-      const body = (await req.json()) as StartBody;
-      if (body.action === "start") return await handleStart(body, jwt);
+      const body = (await req.json()) as Record<string, unknown>;
+      const action = body.action;
+      if (action === "start") {
+        return await handleStart(body as StartBody, jwt);
+      }
+      if (action === "unlink") {
+        return await handleUnlink(body as UnlinkBody, jwt);
+      }
+      if (action === "link_status") {
+        return await handleLinkStatus(body as LinkStatusBody, jwt);
+      }
+      return new Response(JSON.stringify({ error: "unknown_action" }), {
+        status: 400,
+        headers: { ...cors(), "Content-Type": "application/json" },
+      });
     } catch (e) {
       console.error(e);
       return new Response(JSON.stringify({ error: "bad_json" }), {

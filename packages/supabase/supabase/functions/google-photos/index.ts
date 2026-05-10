@@ -2,8 +2,9 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const GOOGLE_TOKEN = "https://oauth2.googleapis.com/token";
-const PHOTOS_SEARCH =
-  "https://photoslibrary.googleapis.com/v1/mediaItems:search";
+const PHOTOSPICKER_SESSIONS = "https://photospicker.googleapis.com/v1/sessions";
+const PHOTOSPICKER_MEDIA_ITEMS =
+  "https://photospicker.googleapis.com/v1/mediaItems";
 
 function cors(): HeadersInit {
   return {
@@ -22,25 +23,62 @@ async function importAesKey(raw: Uint8Array): Promise<CryptoKey> {
 }
 
 function getEncryptionKey(): Uint8Array {
-  const b64 = Deno.env.get("PLUGIN_OAUTH_ENCRYPTION_KEY") ?? "";
+  let b64 = (Deno.env.get("PLUGIN_OAUTH_ENCRYPTION_KEY") ?? "").trim();
   if (!b64) throw new Error("PLUGIN_OAUTH_ENCRYPTION_KEY is not set");
-  const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-  if (bin.length !== 32)
-    throw new Error("PLUGIN_OAUTH_ENCRYPTION_KEY must decode to 32 bytes");
+  b64 = b64.replace(/-/g, "+").replace(/_/g, "/");
+  const pad = b64.length % 4;
+  if (pad) b64 += "=".repeat(4 - pad);
+  let bin: Uint8Array;
+  try {
+    bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+  } catch {
+    throw new Error("PLUGIN_OAUTH_ENCRYPTION_KEY is not valid base64");
+  }
+  if (bin.length !== 32) {
+    throw new Error(
+      `PLUGIN_OAUTH_ENCRYPTION_KEY must decode to 32 bytes (got ${bin.length}); use: openssl rand -base64 32`,
+    );
+  }
   return bin;
 }
 
+function hexToBytes(hex: string): Uint8Array {
+  const out = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < out.length; i++) {
+    out[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  }
+  return out;
+}
+
+/** Decode Postgres `bytea` as returned over PostgREST / supabase-js (hex, base64, or binary). */
 function parseBytea(val: unknown): Uint8Array {
   if (val instanceof Uint8Array) return val;
+  if (val instanceof ArrayBuffer) return new Uint8Array(val);
+  if (Array.isArray(val) && val.every((x) => typeof x === "number")) {
+    return new Uint8Array(val as number[]);
+  }
   if (typeof val === "string") {
-    const hex = val.startsWith("\\x") ? val.slice(2) : val.replace(/^\\x/, "");
-    if (/^[0-9a-fA-F]+$/.test(hex) && hex.length % 2 === 0) {
-      const out = new Uint8Array(hex.length / 2);
-      for (let i = 0; i < out.length; i++)
-        out[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
-      return out;
+    const s = val.trim();
+    if (s.startsWith("\\x")) {
+      const hex = s.slice(2);
+      if (/^[0-9a-fA-F]+$/.test(hex) && hex.length % 2 === 0) {
+        return hexToBytes(hex);
+      }
+    }
+    if (/^[0-9a-fA-F]+$/.test(s) && s.length % 2 === 0 && s.length >= 2) {
+      return hexToBytes(s);
+    }
+    try {
+      let b64 = s.replace(/-/g, "+").replace(/_/g, "/");
+      const p = b64.length % 4;
+      if (p) b64 += "=".repeat(4 - p);
+      const bin = atob(b64);
+      return Uint8Array.from(bin, (c) => c.charCodeAt(0));
+    } catch {
+      /* fall through */
     }
   }
+  console.error("parseBytea: unsupported shape", typeof val);
   throw new Error("unsupported bytea format");
 }
 
@@ -53,6 +91,18 @@ async function decryptSecret(ct: Uint8Array): Promise<string> {
   return new TextDecoder().decode(pt);
 }
 
+/**
+ * PostgREST serializes `Uint8Array` in JSON as `{"0":n,...}`, which does not
+ * round-trip as Postgres `bytea`. Send hex text (`\\x...`) instead.
+ */
+function byteaInsertValue(buf: Uint8Array): string {
+  let hex = "";
+  for (let i = 0; i < buf.length; i++) {
+    hex += buf[i]!.toString(16).padStart(2, "0");
+  }
+  return "\\x" + hex;
+}
+
 type TraceRow = {
   id: string;
   journal_id: string;
@@ -62,16 +112,46 @@ type TraceRow = {
   lng: number;
 };
 
+type PickerMediaItem = {
+  id: string;
+  createTime?: string;
+  type?: string;
+  mediaFile?: {
+    baseUrl: string;
+    mimeType?: string;
+    filename?: string;
+  };
+};
+
 type Body =
-  | { action: "search"; traceId: string }
-  | { action: "import"; traceId: string; mediaItemIds: string[] };
+  | {
+      action: "import";
+      traceId: string;
+      mediaItemIds: string[];
+      pickerSessionId: string;
+    }
+  | { action: "picker_create"; traceId?: string }
+  | { action: "picker_session"; sessionId: string }
+  | { action: "picker_list"; sessionId: string }
+  | {
+      action: "picker_thumbnails";
+      sessionId: string;
+      mediaItemIds: string[];
+    };
+
+type GoogleTokenResult =
+  | { ok: true; accessToken: string }
+  | {
+      ok: false;
+      reason: "not_linked" | "decrypt_failed" | "refresh_failed";
+    };
 
 async function getGoogleAccessToken(
   admin: ReturnType<typeof createClient>,
   userId: string,
   googleClientId: string,
   googleClientSecret: string,
-): Promise<string | null> {
+): Promise<GoogleTokenResult> {
   const { data: row, error } = await admin
     .from("user_plugin_oauth_tokens")
     .select(
@@ -81,7 +161,7 @@ async function getGoogleAccessToken(
     .eq("plugin_type_id", "google_photos")
     .maybeSingle();
 
-  if (error || !row) return null;
+  if (error || !row) return { ok: false, reason: "not_linked" };
 
   const r = row as {
     refresh_token_ciphertext: unknown;
@@ -89,16 +169,29 @@ async function getGoogleAccessToken(
     access_token_expires_at: string | null;
   };
 
-  const refreshPlain = await decryptSecret(
-    parseBytea(r.refresh_token_ciphertext),
-  );
+  let refreshBuf: Uint8Array;
+  try {
+    refreshBuf = parseBytea(r.refresh_token_ciphertext);
+  } catch (e) {
+    console.error("refresh_token bytea parse failed", e);
+    return { ok: false, reason: "decrypt_failed" };
+  }
+
+  let refreshPlain: string;
+  try {
+    refreshPlain = await decryptSecret(refreshBuf);
+  } catch (e) {
+    console.error("refresh_token decrypt failed", e);
+    return { ok: false, reason: "decrypt_failed" };
+  }
 
   const exp = r.access_token_expires_at
     ? new Date(r.access_token_expires_at)
     : null;
   if (exp && exp > new Date(Date.now() + 60_000) && r.access_token_ciphertext) {
     try {
-      return await decryptSecret(parseBytea(r.access_token_ciphertext));
+      const at = await decryptSecret(parseBytea(r.access_token_ciphertext));
+      return { ok: true, accessToken: at };
     } catch {
       /* fall through to refresh */
     }
@@ -119,7 +212,7 @@ async function getGoogleAccessToken(
   const tok = (await res.json()) as Record<string, unknown>;
   if (!res.ok || typeof tok.access_token !== "string") {
     console.error("refresh failed", tok);
-    return null;
+    return { ok: false, reason: "refresh_failed" };
   }
 
   const expiresIn = Number(tok.expires_in ?? 3600);
@@ -139,19 +232,142 @@ async function getGoogleAccessToken(
   await admin
     .from("user_plugin_oauth_tokens")
     .update({
-      access_token_ciphertext: accessCt,
+      access_token_ciphertext: byteaInsertValue(accessCt),
       access_token_expires_at: accessExpires,
       updated_at: new Date().toISOString(),
     })
     .eq("user_id", userId)
     .eq("plugin_type_id", "google_photos");
 
-  return tok.access_token as string;
+  return { ok: true, accessToken: tok.access_token as string };
 }
 
-function ymdParts(ymd: string): { year: number; month: number; day: number } {
-  const [y, m, d] = ymd.split("-").map(Number);
-  return { year: y, month: m, day: d };
+async function traceContextForUser(
+  admin: ReturnType<typeof createClient>,
+  userId: string,
+  traceId: string,
+): Promise<
+  | {
+      trace: TraceRow;
+      hint: {
+        startDate: string;
+        endDate: string;
+        lat: number;
+        lng: number;
+      };
+    }
+  | { error: "trace_not_found" | "forbidden" }
+> {
+  const { data: trace, error: te } = await admin
+    .from("traces")
+    .select("id, journal_id, date, end_date, lat, lng")
+    .eq("id", traceId)
+    .maybeSingle();
+
+  if (te || !trace) return { error: "trace_not_found" };
+
+  const t = trace as TraceRow;
+  const { data: mem } = await admin
+    .from("journal_members")
+    .select("user_id")
+    .eq("journal_id", t.journal_id)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (!mem) return { error: "forbidden" };
+
+  const startDate = t.date ?? new Date().toISOString().slice(0, 10);
+  const endDate = t.end_date ?? startDate;
+
+  return {
+    trace: t,
+    hint: {
+      startDate,
+      endDate,
+      lat: t.lat,
+      lng: t.lng,
+    },
+  };
+}
+
+async function listPickerMediaPage(
+  accessToken: string,
+  sessionId: string,
+  pageToken?: string,
+): Promise<{ items: PickerMediaItem[]; nextPageToken?: string }> {
+  const u = new URL(PHOTOSPICKER_MEDIA_ITEMS);
+  u.searchParams.set("sessionId", sessionId);
+  u.searchParams.set("pageSize", "100");
+  if (pageToken) u.searchParams.set("pageToken", pageToken);
+  const res = await fetch(u.toString(), {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const json = (await res.json()) as {
+    mediaItems?: PickerMediaItem[];
+    nextPageToken?: string;
+  };
+  if (!res.ok) {
+    console.error("picker mediaItems.list failed", json);
+    throw new Error("picker_list_failed");
+  }
+  return {
+    items: json.mediaItems ?? [],
+    nextPageToken: json.nextPageToken,
+  };
+}
+
+async function listAllPickerMedia(
+  accessToken: string,
+  sessionId: string,
+): Promise<PickerMediaItem[]> {
+  const out: PickerMediaItem[] = [];
+  let pageToken: string | undefined;
+  do {
+    const { items, nextPageToken } = await listPickerMediaPage(
+      accessToken,
+      sessionId,
+      pageToken,
+    );
+    out.push(...items);
+    pageToken = nextPageToken;
+  } while (pageToken);
+  return out;
+}
+
+/** Google Photos Picker `baseUrl` requests require an OAuth bearer. */
+async function fetchGooglePhotoBytes(
+  accessToken: string,
+  baseUrl: string,
+  sizeParam: string,
+): Promise<Uint8Array | null> {
+  const imgRes = await fetch(`${baseUrl}${sizeParam}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!imgRes.ok) return null;
+  return new Uint8Array(await imgRes.arrayBuffer());
+}
+
+async function thumbDataUrl(
+  accessToken: string,
+  baseUrl: string,
+): Promise<string | undefined> {
+  const buf = await fetchGooglePhotoBytes(accessToken, baseUrl, "=w320-h320-c");
+  if (!buf) return undefined;
+  let binary = "";
+  for (let i = 0; i < buf.byteLength; i++)
+    binary += String.fromCharCode(buf[i]!);
+  const b64 = btoa(binary);
+  return `data:image/jpeg;base64,${b64}`;
+}
+
+async function deletePickerSession(
+  accessToken: string,
+  sessionId: string,
+): Promise<void> {
+  await fetch(`${PHOTOSPICKER_SESSIONS}/${encodeURIComponent(sessionId)}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
 }
 
 Deno.serve(async (req: Request) => {
@@ -202,13 +418,39 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  const accessToken = await getGoogleAccessToken(
+  const gt = await getGoogleAccessToken(
     admin,
     userId,
     googleClientId,
     googleClientSecret,
   );
-  if (!accessToken) {
+  if (!gt.ok) {
+    if (gt.reason === "decrypt_failed") {
+      return new Response(
+        JSON.stringify({
+          error: "oauth_decrypt_failed",
+          message:
+            "Stored tokens could not be decrypted. Use the same PLUGIN_OAUTH_ENCRYPTION_KEY in every Edge env as when you linked, or unlink Google Photos under Settings → Plugins and link again.",
+        }),
+        {
+          status: 503,
+          headers: { ...cors(), "Content-Type": "application/json" },
+        },
+      );
+    }
+    if (gt.reason === "refresh_failed") {
+      return new Response(
+        JSON.stringify({
+          error: "google_refresh_failed",
+          message:
+            "Google rejected the refresh token. Unlink and link Google Photos again.",
+        }),
+        {
+          status: 502,
+          headers: { ...cors(), "Content-Type": "application/json" },
+        },
+      );
+    }
     return new Response(
       JSON.stringify({ error: "google_not_linked", suggestions: [] }),
       {
@@ -217,92 +459,112 @@ Deno.serve(async (req: Request) => {
       },
     );
   }
+  const accessToken = gt.accessToken;
 
-  if (body.action === "search") {
-    const { data: trace, error: te } = await admin
-      .from("traces")
-      .select("id, journal_id, date, end_date, lat, lng")
-      .eq("id", body.traceId)
-      .maybeSingle();
+  if (body.action === "picker_create") {
+    let pickerHint: {
+      startDate: string;
+      endDate: string;
+      lat: number;
+      lng: number;
+    } | null = null;
 
-    if (te || !trace) {
-      return new Response(JSON.stringify({ error: "trace_not_found" }), {
-        status: 404,
-        headers: { ...cors(), "Content-Type": "application/json" },
-      });
+    if (body.traceId) {
+      const ctx = await traceContextForUser(admin, userId, body.traceId);
+      if ("error" in ctx) {
+        const status = ctx.error === "trace_not_found" ? 404 : 403;
+        return new Response(JSON.stringify({ error: ctx.error }), {
+          status,
+          headers: { ...cors(), "Content-Type": "application/json" },
+        });
+      }
+      pickerHint = ctx.hint;
     }
 
-    const t = trace as TraceRow;
-    const { data: mem } = await admin
-      .from("journal_members")
-      .select("user_id")
-      .eq("journal_id", t.journal_id)
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (!mem) {
-      return new Response(JSON.stringify({ error: "forbidden" }), {
-        status: 403,
-        headers: { ...cors(), "Content-Type": "application/json" },
-      });
-    }
-
-    const startDate = t.date ?? new Date().toISOString().slice(0, 10);
-    const endDate = t.end_date ?? startDate;
-    const sd = ymdParts(startDate);
-    const ed = ymdParts(endDate);
-
-    const radiusM = 15_000;
-    const searchBody = {
-      filters: {
-        dateFilter: {
-          ranges: [
-            {
-              startDate: sd,
-              endDate: ed,
-            },
-          ],
-        },
-        locationFilter: {
-          locations: [
-            {
-              latLng: { latitude: t.lat, longitude: t.lng },
-              radius: { value: radiusM, unit: "METERS" as const },
-            },
-          ],
-        },
-      },
-      pageSize: 24,
-    };
-
-    const res = await fetch(PHOTOS_SEARCH, {
+    const res = await fetch(PHOTOSPICKER_SESSIONS, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(searchBody),
+      body: "{}",
     });
-
     const json = (await res.json()) as {
-      mediaItems?: Array<{
-        id: string;
-        mimeType?: string;
-        filename?: string;
-        mediaMetadata?: {
-          creationTime?: string;
-          width?: string;
-          height?: string;
-        };
-        productUrl?: string;
-        baseUrl?: string;
-      }>;
+      id?: string;
+      pickerUri?: string;
+      expireTime?: string;
     };
-
-    if (!res.ok) {
-      console.error("photos search error", json);
+    if (!res.ok || !json.id || !json.pickerUri) {
+      console.error("picker sessions.create failed", json);
       return new Response(
-        JSON.stringify({ error: "google_api_error", details: json }),
+        JSON.stringify({
+          error: "picker_session_create_failed",
+          details: json,
+        }),
+        {
+          status: 502,
+          headers: { ...cors(), "Content-Type": "application/json" },
+        },
+      );
+    }
+    return new Response(
+      JSON.stringify({
+        sessionId: json.id,
+        pickerUri: json.pickerUri,
+        expireTime: json.expireTime ?? null,
+        pickerHint,
+      }),
+      {
+        status: 200,
+        headers: { ...cors(), "Content-Type": "application/json" },
+      },
+    );
+  }
+
+  if (body.action === "picker_session") {
+    if (!body.sessionId) {
+      return new Response(JSON.stringify({ error: "missing_session_id" }), {
+        status: 400,
+        headers: { ...cors(), "Content-Type": "application/json" },
+      });
+    }
+    const res = await fetch(
+      `${PHOTOSPICKER_SESSIONS}/${encodeURIComponent(body.sessionId)}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+    );
+    const json = (await res.json()) as Record<string, unknown>;
+    if (!res.ok) {
+      return new Response(
+        JSON.stringify({ error: "picker_session_failed", details: json }),
+        {
+          status: 502,
+          headers: { ...cors(), "Content-Type": "application/json" },
+        },
+      );
+    }
+    return new Response(JSON.stringify(json), {
+      status: 200,
+      headers: { ...cors(), "Content-Type": "application/json" },
+    });
+  }
+
+  if (body.action === "picker_list") {
+    if (!body.sessionId) {
+      return new Response(JSON.stringify({ error: "missing_session_id" }), {
+        status: 400,
+        headers: { ...cors(), "Content-Type": "application/json" },
+      });
+    }
+    let items: PickerMediaItem[];
+    try {
+      items = await listAllPickerMedia(accessToken, body.sessionId);
+    } catch {
+      return new Response(
+        JSON.stringify({
+          error: "picker_list_failed",
+          message:
+            "Could not list picked items. Finish picking in Google Photos first, then try again.",
+        }),
         {
           status: 502,
           headers: { ...cors(), "Content-Type": "application/json" },
@@ -310,19 +572,65 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const suggestions =
-      json.mediaItems?.map((m) => ({
-        externalId: m.id,
-        title: m.filename ?? null,
-        capturedAt: m.mediaMetadata?.creationTime ?? null,
-        thumbnailUrl: m.baseUrl ? `${m.baseUrl}=w320-h320-c` : undefined,
-        meta: {
-          productUrl: m.productUrl ?? null,
-          mimeType: m.mimeType ?? null,
-        },
-      })) ?? [];
+    const suggestions = items.map((m) => ({
+      externalId: m.id,
+      title: m.mediaFile?.filename ?? null,
+      capturedAt: m.createTime ?? null,
+      meta: {
+        mimeType: m.mediaFile?.mimeType ?? null,
+        picker: true,
+        mediaType: m.type ?? null,
+      },
+    }));
 
     return new Response(JSON.stringify({ suggestions }), {
+      status: 200,
+      headers: { ...cors(), "Content-Type": "application/json" },
+    });
+  }
+
+  if (body.action === "picker_thumbnails") {
+    if (!body.sessionId || !Array.isArray(body.mediaItemIds)) {
+      return new Response(
+        JSON.stringify({ error: "missing_session_or_media_ids" }),
+        {
+          status: 400,
+          headers: { ...cors(), "Content-Type": "application/json" },
+        },
+      );
+    }
+    const ids = body.mediaItemIds
+      .filter((x): x is string => typeof x === "string")
+      .slice(0, 24);
+
+    let items: PickerMediaItem[];
+    try {
+      items = await listAllPickerMedia(accessToken, body.sessionId);
+    } catch {
+      return new Response(
+        JSON.stringify({
+          error: "picker_thumbnails_failed",
+          message:
+            "Could not load picked items for thumbnails. Finish picking first.",
+        }),
+        {
+          status: 502,
+          headers: { ...cors(), "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    const byId = new Map(items.map((i) => [i.id, i]));
+    const thumbnails: Record<string, string> = {};
+    for (const id of ids) {
+      const m = byId.get(id);
+      const base = m?.mediaFile?.baseUrl;
+      if (!base || m?.type === "VIDEO") continue;
+      const dataUrl = await thumbDataUrl(accessToken, base);
+      if (dataUrl) thumbnails[id] = dataUrl;
+    }
+
+    return new Response(JSON.stringify({ thumbnails }), {
       status: 200,
       headers: { ...cors(), "Content-Type": "application/json" },
     });
@@ -369,33 +677,87 @@ Deno.serve(async (req: Request) => {
           .maybeSingle()
       ).data?.sort_order ?? -1;
 
-    for (const mediaId of body.mediaItemIds) {
-      const metaRes = await fetch(
-        `https://photoslibrary.googleapis.com/v1/mediaItems/${mediaId}`,
+    const pickerSessionId = body.pickerSessionId;
+    if (
+      !pickerSessionId ||
+      typeof pickerSessionId !== "string" ||
+      !pickerSessionId.trim()
+    ) {
+      return new Response(
+        JSON.stringify({
+          error: "missing_picker_session",
+          message:
+            "Imports require an active Google Photos picker session. Pick photos again.",
+        }),
         {
-          headers: { Authorization: `Bearer ${accessToken}` },
+          status: 400,
+          headers: { ...cors(), "Content-Type": "application/json" },
         },
       );
-      const meta = (await metaRes.json()) as {
-        id?: string;
-        baseUrl?: string;
-        mimeType?: string;
-        mediaMetadata?: { creationTime?: string };
-        productUrl?: string;
-      };
-      if (!metaRes.ok || !meta.baseUrl) continue;
+    }
 
-      const imgUrl = `${meta.baseUrl}=w1600-h1600`;
-      const imgRes = await fetch(imgUrl);
-      if (!imgRes.ok) continue;
-      const buf = new Uint8Array(await imgRes.arrayBuffer());
-      const ext = meta.mimeType?.includes("png") ? "png" : "jpg";
+    let pickerById: Map<string, PickerMediaItem>;
+    try {
+      const items = await listAllPickerMedia(accessToken, pickerSessionId);
+      pickerById = new Map(items.map((i) => [i.id, i]));
+    } catch (e) {
+      console.error(e);
+      return new Response(
+        JSON.stringify({
+          error: "picker_import_resolve_failed",
+          message:
+            "Could not load picked media from Google. Try picking again.",
+        }),
+        {
+          status: 502,
+          headers: { ...cors(), "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    for (const mediaId of body.mediaItemIds) {
+      let buf: Uint8Array | null = null;
+      let mime = "image/jpeg";
+      let ext = "jpg";
+      let capturedAt: string | null = null;
+      const external_ref: Record<string, unknown> = {
+        kind: "google_photos",
+        mediaItemId: mediaId,
+        source: "picker",
+      };
+
+      const picked = pickerById.get(mediaId);
+      const mf = picked?.mediaFile;
+      if (!mf?.baseUrl) continue;
+      capturedAt = picked?.createTime ?? null;
+
+      const isVideo = picked?.type === "VIDEO";
+      if (isVideo) {
+        mime = mf.mimeType ?? "video/mp4";
+        ext = mime.includes("quicktime") ? "mov" : "mp4";
+        const vidRes = await fetch(`${mf.baseUrl}=dv`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (!vidRes.ok) continue;
+        buf = new Uint8Array(await vidRes.arrayBuffer());
+      } else {
+        mime = mf.mimeType ?? "image/jpeg";
+        ext = mime.includes("png") ? "png" : "jpg";
+        buf = await fetchGooglePhotoBytes(
+          accessToken,
+          mf.baseUrl,
+          "=w1600-h1600",
+        );
+      }
+
+      if (!buf) continue;
+
       const path = `${t.journal_id}/${t.id}/gp-${mediaId}.${ext}`;
 
       const { error: upErr } = await admin.storage
         .from("trace-photos")
         .upload(path, buf, {
-          contentType: meta.mimeType ?? "image/jpeg",
+          contentType: mime,
           upsert: false,
         });
       if (upErr) {
@@ -404,12 +766,6 @@ Deno.serve(async (req: Request) => {
       }
 
       sort += 1;
-      const capturedAt = meta.mediaMetadata?.creationTime;
-      const external_ref = {
-        kind: "google_photos",
-        mediaItemId: mediaId,
-        productUrl: meta.productUrl ?? null,
-      };
 
       const { data: ins, error: insErr } = await admin
         .from("photos")
@@ -426,6 +782,10 @@ Deno.serve(async (req: Request) => {
         .single();
 
       if (!insErr && ins?.id) imported.push(ins.id as string);
+    }
+
+    if (pickerSessionId) {
+      await deletePickerSession(accessToken, pickerSessionId);
     }
 
     return new Response(JSON.stringify({ importedIds: imported }), {

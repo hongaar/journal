@@ -1,5 +1,6 @@
 import type { PluginCapability } from "./capabilities";
 import type { PluginContributions } from "./contributions";
+import type { PluginAccountSettingsComponent } from "./account-panel";
 import type { ComponentType } from "react";
 
 export type PluginIconComponent = ComponentType<{ className?: string }>;
@@ -15,6 +16,11 @@ export type PluginDefinition = {
   implemented: boolean;
   /** Optional metadata for settings UI, hooks registry, and Edge deploy lists */
   contributions?: PluginContributions;
+  /**
+   * Account-wide configuration rendered below the title/description + enabled toggle
+   * (OAuth linking, API keys, etc.).
+   */
+  AccountSettingsPanel?: PluginAccountSettingsComponent;
 };
 
 export type PluginRegistry = Record<string, PluginDefinition>;

@@ -10,10 +10,14 @@
     }
   },
   "dependencies": {
-    "@curolia/plugin-contract": "file:../../plugin-contract"
+    "@curolia/plugin-contract": "file:../../plugin-contract",
+    "@curolia/plugin-oauth": "file:../oauth"
   },
   "peerDependencies": {
-    "react": ">=19"
+    "@curolia/ui": "*",
+    "@tanstack/react-query": ">=5",
+    "react": ">=19",
+    "sonner": ">=2"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"

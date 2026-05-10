@@ -13,13 +13,7 @@ import { cn } from "@/lib/utils";
 import type { Tag } from "@/types/database";
 import { DROPDOWN_PANEL_WIDE_CLASS } from "@/lib/dropdown-panel";
 import { sidebarPickerTriggerClass } from "@/components/layout/sidebar-dropdown-triggers";
-import {
-  Check,
-  ChevronDown,
-  Plus,
-  Settings2,
-  Tag as TagIcon,
-} from "lucide-react";
+import { Check, ChevronDown, Pencil, Plus, Tag as TagIcon } from "lucide-react";
 
 type SidebarTagsFilterDropdownProps = {
   tags: Tag[];
@@ -110,7 +104,7 @@ export function SidebarTagsFilterDropdown({
                     type="button"
                     variant="ghost"
                     size="icon"
-                    title="Tag settings"
+                    title="Edit tag"
                     className="text-muted-foreground hover:text-foreground size-8 shrink-0 rounded-md"
                     onClick={(e) => {
                       e.preventDefault();
@@ -118,7 +112,7 @@ export function SidebarTagsFilterDropdown({
                       onEditTag(tag);
                     }}
                   >
-                    <Settings2 className="size-4" />
+                    <Pencil className="size-4" aria-hidden />
                   </Button>
                 </div>
               );

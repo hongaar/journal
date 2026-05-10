@@ -192,7 +192,6 @@ export type Database = {
           id?: string;
           is_personal?: boolean;
           name: string;
-          /** Omitted when `public.journals_set_slug()` assigns from `name`. */
           slug?: string;
           updated_at?: string;
         };
@@ -507,7 +506,6 @@ export type Database = {
           id?: string;
           journal_id: string;
           name: string;
-          /** Omitted when `public.tags_set_slug()` assigns from `name`. */
           slug?: string;
           updated_at?: string;
         };
@@ -527,6 +525,57 @@ export type Database = {
             columns: ["journal_id"];
             isOneToOne: false;
             referencedRelation: "journals";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      trace_links: {
+        Row: {
+          created_at: string;
+          favicon_url: string | null;
+          id: string;
+          journal_id: string;
+          sort_order: number;
+          title: string | null;
+          trace_id: string;
+          updated_at: string;
+          url: string;
+        };
+        Insert: {
+          created_at?: string;
+          favicon_url?: string | null;
+          id?: string;
+          journal_id: string;
+          sort_order?: number;
+          title?: string | null;
+          trace_id: string;
+          updated_at?: string;
+          url: string;
+        };
+        Update: {
+          created_at?: string;
+          favicon_url?: string | null;
+          id?: string;
+          journal_id?: string;
+          sort_order?: number;
+          title?: string | null;
+          trace_id?: string;
+          updated_at?: string;
+          url?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "trace_links_journal_id_fkey";
+            columns: ["journal_id"];
+            isOneToOne: false;
+            referencedRelation: "journals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "trace_links_trace_id_fkey";
+            columns: ["trace_id"];
+            isOneToOne: false;
+            referencedRelation: "traces";
             referencedColumns: ["id"];
           },
         ];
@@ -590,7 +639,6 @@ export type Database = {
           lng: number;
           location_label?: string | null;
           modified_by_user_id?: string | null;
-          /** Omitted when `public.traces_set_slug()` assigns from `title`. */
           slug?: string;
           title?: string | null;
           updated_at?: string;

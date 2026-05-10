@@ -1,5 +1,12 @@
 import type { PluginPackageManifest } from "@curolia/plugin-contract";
+import { OAUTH_COMPANION_SCOPES_BY_PROVIDER } from "@curolia/plugin-oauth";
+import { GooglePhotosAccountSettingsPanel } from "./account-settings-panel";
 import { GooglePhotosIcon } from "./icon";
+
+/** API/resource scopes only; companion `openid`/`email`/`profile` come from `@curolia/plugin-oauth`. */
+const GOOGLE_PHOTOS_RESOURCE_SCOPES = [
+  "https://www.googleapis.com/auth/photospicker.mediaitems.readonly",
+] as const;
 
 export const googlePhotosPluginManifest: PluginPackageManifest = {
   id: "google_photos",
@@ -8,18 +15,22 @@ export const googlePhotosPluginManifest: PluginPackageManifest = {
   icon: GooglePhotosIcon,
   capabilities: ["import_media", "trace_photo_suggestions"] as const,
   implemented: true,
+  AccountSettingsPanel: GooglePhotosAccountSettingsPanel,
   contributions: {
     oauth: [
       {
         provider: "google",
-        scopes: ["https://www.googleapis.com/auth/photoslibrary.readonly"],
+        scopes: [
+          ...OAUTH_COMPANION_SCOPES_BY_PROVIDER.google,
+          ...GOOGLE_PHOTOS_RESOURCE_SCOPES,
+        ],
       },
     ],
     appHooks: [
       {
         name: "photos.suggestionsForTrace",
         description:
-          "Suggest library photos using trace coordinates and date range via the google-photos Edge function.",
+          "Pick photos from Google Photos for a trace via the google-photos Edge function.",
       },
     ],
     edgeFunctions: [
@@ -27,7 +38,7 @@ export const googlePhotosPluginManifest: PluginPackageManifest = {
         slug: "google-photos",
         verifyJwt: true,
         description:
-          "Search and import Google Photos library items for a trace.",
+          "Google Photos Picker sessions and import picked media for a trace.",
       },
     ],
   },

@@ -98,6 +98,20 @@ export type Photo = {
   captured_at: string | null;
 };
 
+export type TraceLink = {
+  id: string;
+  journal_id: string;
+  trace_id: string;
+  url: string;
+  /** Page title imported from the URL when added (editable). */
+  title: string | null;
+  /** Resolved favicon URL discovered when the link was added. */
+  favicon_url: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
 export type PluginType = {
   id: string;
   display_name: string;
@@ -195,7 +209,11 @@ export type Database = {
       };
       tags: {
         Row: Tag;
-        Insert: Omit<Tag, "id" | "created_at" | "updated_at"> & { id?: string };
+        Insert: Omit<Tag, "id" | "created_at" | "updated_at" | "slug"> & {
+          id?: string;
+          /** Omitted when `public.tags_set_slug()` assigns from `name`. */
+          slug?: string;
+        };
         Update: Partial<Tag>;
       };
       trace_tags: {
@@ -207,6 +225,18 @@ export type Database = {
         Row: Photo;
         Insert: Omit<Photo, "id" | "created_at"> & { id?: string };
         Update: Partial<Photo>;
+      };
+      trace_links: {
+        Row: TraceLink;
+        Insert: Omit<
+          TraceLink,
+          "id" | "journal_id" | "created_at" | "updated_at"
+        > & {
+          id?: string;
+          /** Set automatically by trigger from the parent trace. */
+          journal_id?: string;
+        };
+        Update: Partial<TraceLink>;
       };
       plugin_types: { Row: PluginType; Insert: never; Update: never };
       journal_plugins: {

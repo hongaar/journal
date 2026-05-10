@@ -13,12 +13,21 @@ import { Label } from "@curolia/ui/label";
 import { Textarea } from "@curolia/ui/textarea";
 import { mapAnchorPanelMiddleware } from "@/lib/map-anchor-floating-ui";
 import { reversePhotonLocationLabel } from "@/lib/photon-geocode";
+import { photosToLightboxItems } from "@/lib/trace-photo-lightbox-items";
 import { supabase } from "@/lib/supabase";
+import { useTracePhotosSignedUrls } from "@/lib/use-trace-photos";
 import type { Tag, Trace } from "@/types/database";
 import { autoUpdate, computePosition } from "@floating-ui/dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Upload } from "lucide-react";
 import { useMaxSm } from "@/hooks/use-max-sm";
+import { TraceGooglePhotosSuggestions } from "@/components/traces/trace-google-photos-suggestions";
+import {
+  TracePhotoLightbox,
+  TracePhotoThumb,
+} from "@/components/traces/trace-photo-lightbox";
+import { TraceLinksEditor } from "@/components/traces/trace-links-editor";
 
 type TraceFormDialogProps = {
   open: boolean;
@@ -56,8 +65,18 @@ export function TraceFormDialog({
   const [locationLookupPending, setLocationLookupPending] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [photoLightbox, setPhotoLightbox] = useState<{
+    photoId: string;
+  } | null>(null);
   const floatingRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<{ x: number; y: number } | null>(null);
+
+  const editTraceId = trace?.id;
+  const { photos, signedUrlByPhotoId } = useTracePhotosSignedUrls(editTraceId);
+  const lightboxItems = useMemo(
+    () => photosToLightboxItems(photos, signedUrlByPhotoId),
+    [photos, signedUrlByPhotoId],
+  );
 
   const floatingNew = Boolean(open && !trace && anchorScreen && !isNarrow);
 
@@ -162,7 +181,7 @@ export function TraceFormDialog({
   }, [open, trace, defaultLat, defaultLng]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || trace) return;
     const latN = Number(lat);
     const lngN = Number(lng);
     if (Number.isNaN(latN) || Number.isNaN(lngN)) return;
@@ -188,12 +207,16 @@ export function TraceFormDialog({
       window.clearTimeout(t);
       setLocationLookupPending(false);
     };
-  }, [open, lat, lng]);
+  }, [open, trace, lat, lng]);
 
   useEffect(() => {
     if (!open || trace) return;
     onNewTraceTagIdsChange?.([...selectedTags]);
   }, [open, trace, selectedTags, onNewTraceTagIdsChange]);
+
+  useEffect(() => {
+    if (!open) setPhotoLightbox(null);
+  }, [open]);
 
   async function save() {
     setSaving(true);
@@ -286,8 +309,40 @@ export function TraceFormDialog({
 
   const idSuffix = trace ? "e" : "n";
 
+  async function onUploadPhotos(files: FileList | null) {
+    if (!files?.length || !trace || !journalId) return;
+    let sort = photos.length;
+    for (const file of Array.from(files)) {
+      const path = `${journalId}/${trace.id}/${crypto.randomUUID()}-${file.name.replace(/[^\w.-]+/g, "_")}`;
+      const { error: upErr } = await supabase.storage
+        .from("trace-photos")
+        .upload(path, file, {
+          upsert: false,
+        });
+      if (upErr) {
+        console.error(upErr);
+        continue;
+      }
+      const { error: insErr } = await supabase.from("photos").insert({
+        journal_id: journalId,
+        trace_id: trace.id,
+        storage_path: path,
+        sort_order: sort++,
+      });
+      if (insErr) console.error(insErr);
+    }
+    await qc.invalidateQueries({ queryKey: ["photos", trace.id] });
+    await qc.invalidateQueries({ queryKey: ["photo-urls", trace.id] });
+    await qc.invalidateQueries({
+      queryKey: ["journal-trace-photos", journalId],
+    });
+    await qc.invalidateQueries({
+      queryKey: ["photo-urls-batch", journalId],
+    });
+  }
+
   const formFields = (
-    <div className="grid gap-3 py-2">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-3 py-2">
       <div className="space-y-2">
         <Label htmlFor={`t-title-${idSuffix}`}>Title</Label>
         <Input
@@ -328,7 +383,7 @@ export function TraceFormDialog({
           className="rounded-lg"
         />
       </div>
-      {trace || !anchorScreen ? (
+      {!trace && !anchorScreen ? (
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-2">
             <Label htmlFor={`t-lat-${idSuffix}`}>Latitude</Label>
@@ -350,18 +405,70 @@ export function TraceFormDialog({
           </div>
         </div>
       ) : null}
-      <div className="space-y-2">
-        <Label>Place</Label>
-        <p className="text-muted-foreground min-h-[1.35rem] text-sm leading-snug">
-          {locationLookupPending ? (
-            <span className="opacity-70">Looking up address…</span>
-          ) : locationLabel ? (
-            locationLabel
-          ) : (
-            <span className="opacity-70">No place name yet…</span>
-          )}
-        </p>
-      </div>
+      {!trace ? (
+        <div className="space-y-2">
+          <Label>Place</Label>
+          <p className="text-muted-foreground min-h-[1.35rem] text-sm leading-snug">
+            {locationLookupPending ? (
+              <span className="opacity-70">Looking up address…</span>
+            ) : locationLabel ? (
+              locationLabel
+            ) : (
+              <span className="opacity-70">No place name yet…</span>
+            )}
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="space-y-2">
+            <Label>Photos</Label>
+            <div className="flex flex-wrap gap-2">
+              {photos.map((p) => {
+                const url = signedUrlByPhotoId[p.id];
+                return url ? (
+                  <TracePhotoThumb
+                    key={p.id}
+                    url={url}
+                    className="border-border size-24 shrink-0 overflow-hidden rounded-md border"
+                    onOpen={() => setPhotoLightbox({ photoId: p.id })}
+                  />
+                ) : (
+                  <div
+                    key={p.id}
+                    className="border-border bg-muted text-muted-foreground flex size-24 shrink-0 items-center justify-center rounded-md border text-xs"
+                  >
+                    …
+                  </div>
+                );
+              })}
+              {photos.length === 0 ? (
+                <p className="text-muted-foreground text-sm">No photos yet.</p>
+              ) : null}
+            </div>
+            <label className="inline-flex cursor-pointer items-center gap-2 text-sm">
+              <Upload className="size-4" />
+              <span>Upload photos</span>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="sr-only"
+                onChange={(e) => void onUploadPhotos(e.target.files)}
+              />
+            </label>
+          </div>
+          <TraceGooglePhotosSuggestions
+            traceId={trace.id}
+            journalId={journalId}
+            traceDate={trace.date}
+            traceEndDate={trace.end_date}
+          />
+          <div className="space-y-2">
+            <Label>Links</Label>
+            <TraceLinksEditor traceId={trace.id} journalId={journalId} />
+          </div>
+        </>
+      )}
       <div className="space-y-2">
         <Label>Tags</Label>
         <div className="max-h-40 space-y-2 overflow-y-auto rounded-lg border border-border/80 p-2">
@@ -431,26 +538,44 @@ export function TraceFormDialog({
     </Card>
   );
 
+  const photoLightboxOverlay = trace ? (
+    <TracePhotoLightbox
+      open={photoLightbox !== null}
+      onOpenChange={(o) => {
+        if (!o) setPhotoLightbox(null);
+      }}
+      items={lightboxItems}
+      initialPhotoId={photoLightbox?.photoId ?? null}
+      title={trace.title?.trim() || "Untitled place"}
+    />
+  ) : null;
+
   if (floatingNew && anchorScreen) {
     return (
-      <div
-        ref={floatingRef}
-        className="pointer-events-none z-[45] w-max min-w-0"
-      >
-        <div className="pointer-events-auto relative min-w-[288px] max-w-sm rounded-2xl">
-          <div className="max-h-[min(92dvh,44rem)] min-h-0 overflow-hidden rounded-2xl ring-1 ring-[var(--panel-border)]">
-            {formShell}
+      <>
+        <div
+          ref={floatingRef}
+          className="pointer-events-none z-[45] w-max min-w-0"
+        >
+          <div className="pointer-events-auto relative min-w-[288px] max-w-sm rounded-2xl">
+            <div className="max-h-[min(92dvh,44rem)] min-h-0 overflow-hidden rounded-2xl ring-1 ring-[var(--panel-border)]">
+              {formShell}
+            </div>
           </div>
         </div>
-      </div>
+        {photoLightboxOverlay}
+      </>
     );
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] w-[calc(100%-2rem)] gap-0 overflow-hidden border-[var(--panel-border)] bg-transparent p-0 shadow-none sm:max-w-md [&>button]:z-50">
-        {formShell}
-      </DialogContent>
-    </Dialog>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-h-[90vh] w-[calc(100%-2rem)] gap-0 overflow-hidden border-[var(--panel-border)] bg-transparent p-0 shadow-none sm:max-w-md [&>button]:z-50">
+          {formShell}
+        </DialogContent>
+      </Dialog>
+      {photoLightboxOverlay}
+    </>
   );
 }

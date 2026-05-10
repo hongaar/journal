@@ -1,15 +1,33 @@
 import { FloatingPanel } from "@/components/layout/floating-panel";
 import { JournalViewInitialLoader } from "@/components/layout/journal-view-initial-loader";
+import { AddTraceFab } from "@/components/traces/add-trace-fab";
 import { EmojiPicker } from "@/components/traces/emoji-picker";
 import { PresetColorPicker } from "@/components/traces/preset-color-picker";
-import { AddTraceFab } from "@/components/traces/add-trace-fab";
-import { useMountTagSidebarRegistration } from "@/providers/tag-sidebar-provider";
 import { TraceFormDialog } from "@/components/traces/trace-form-dialog";
 import {
   TracePhotoLightbox,
   TracePhotoThumb,
 } from "@/components/traces/trace-photo-lightbox";
+import { useBlogTraceListOrder } from "@/hooks/use-blog-trace-list-order";
+import { orderedBlogTraceList } from "@/lib/blog-trace-list-order";
+import { DEFAULT_TRACE_TAG_COLOR } from "@/lib/preset-trace-tag-colors";
+import { supabase } from "@/lib/supabase";
+import { formatTraceDateRange } from "@/lib/trace-dates";
+import { photosToLightboxItems } from "@/lib/trace-photo-lightbox-items";
+import { filterTracesByTags, type TraceWithTags } from "@/lib/trace-with-tags";
+import { useJournalTracesPhotosSignedUrls } from "@/lib/use-trace-photos";
+import { cn, contrastingForeground } from "@/lib/utils";
+import { useJournal } from "@/providers/journal-provider";
+import { useMountTagSidebarRegistration } from "@/providers/tag-sidebar-provider";
+import type { Tag } from "@/types/database";
 import { Button, buttonVariants } from "@curolia/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@curolia/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,37 +37,19 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@curolia/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@curolia/ui/dialog";
 import { Input } from "@curolia/ui/input";
 import { Label } from "@curolia/ui/label";
-import { formatTraceDateRange } from "@/lib/trace-dates";
-import { DEFAULT_TRACE_TAG_COLOR } from "@/lib/preset-trace-tag-colors";
-import { supabase } from "@/lib/supabase";
-import { photosToLightboxItems } from "@/lib/trace-photo-lightbox-items";
-import { filterTracesByTags, type TraceWithTags } from "@/lib/trace-with-tags";
-import { useJournalTracesPhotosSignedUrls } from "@/lib/use-trace-photos";
-import { cn, contrastingForeground } from "@/lib/utils";
-import { orderedBlogTraceList } from "@/lib/blog-trace-list-order";
-import { useBlogTraceListOrder } from "@/hooks/use-blog-trace-list-order";
-import { useJournal } from "@/providers/journal-provider";
-import type { Tag } from "@/types/database";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useMemo, useState, type SetStateAction } from "react";
 import { ChevronDown } from "lucide-react";
+import { useCallback, useMemo, useState, type SetStateAction } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
+import { useJournalSlugRouteSync } from "@/hooks/use-journal-slug-route-sync";
+import { traceDetailHref } from "@/lib/app-paths";
 import {
   applyFilterTagsToSearchParams,
   resolveFilterTagIdsFromSearchParams,
 } from "@/lib/map-view-params";
-import { useJournalSlugRouteSync } from "@/hooks/use-journal-slug-route-sync";
-import { traceDetailHref } from "@/lib/app-paths";
 
 export function BlogPage() {
   const qc = useQueryClient();
@@ -397,12 +397,12 @@ export function BlogPage() {
                               : "#"
                           }
                           className={buttonVariants({
-                            variant: "outline",
-                            size: "sm",
+                            variant: "secondary",
+                            size: "default",
                             className: "rounded-xl",
                           })}
                         >
-                          Read more
+                          View trace
                         </Link>
                       </div>
                     </article>

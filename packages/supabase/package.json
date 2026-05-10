@@ -16,6 +16,7 @@
     "functions:stop": "pkill -f 'supabase functions serve' || true"
   },
   "devDependencies": {
-    "supabase": "^2.98.0"
+    "supabase": "^2.98.0",
+    "tsx": "^4.19.3"
   }
 }

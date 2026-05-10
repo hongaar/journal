@@ -489,7 +489,13 @@ export const TraceMap = forwardRef<TraceMapHandle, TraceMapProps>(
         style: initialStyle,
         center: start ? [start.lng, start.lat] : [10, 20],
         zoom: start?.zoom ?? 1.5,
+        attributionControl: false,
+        maplibreLogo: false,
       });
+      map.addControl(
+        new maplibregl.AttributionControl({ compact: false }),
+        "bottom-right",
+      );
 
       mapRef.current = map;
       return () => {
@@ -791,6 +797,7 @@ export const TraceMap = forwardRef<TraceMapHandle, TraceMapProps>(
       <>
         <div
           ref={containerRef}
+          data-curolia-trace-map
           className={cn(
             "h-full min-h-0 w-full min-w-0",
             placementMode && "ring-2 ring-primary/50",
