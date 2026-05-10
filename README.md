@@ -9,7 +9,7 @@ Travel / place journal: private **traces** (visits) per **journal**, with maps, 
 - `packages/supabase/supabase/` — Supabase project (migrations, `config.toml`, `functions/`) via **`@curolia/supabase`**
 - `packages/brand/` — app logo + theme config (**`@curolia/brand`**) and generators for web/native branding assets
 - `packages/plugin-contract` — shared plugin manifest / contribution types (`@curolia/plugin-contract`)
-- `packages/plugins/*` — optional plugin packages (e.g. `@curolia/plugin-ical`); Edge sources sync into `packages/supabase/supabase/functions/` via `npx turbo run functions:sync`
+- `packages/plugins/*` — optional plugin packages (e.g. `@curolia/plugin-ical`); Edge sources sync into `packages/supabase/supabase/functions/` via `npx turbo run functions:sync`. Plugins that need OAuth or external dashboards document setup in **their own README** (e.g. [`packages/plugins/google-photos/README.md`](packages/plugins/google-photos/README.md), [`packages/plugins/spotify/README.md`](packages/plugins/spotify/README.md)).
 
 Plugin architecture details: [`packages/plugin-contract/README.md`](packages/plugin-contract/README.md).
 
@@ -131,53 +131,20 @@ Notes:
 
 ### Plugin OAuth + Edge config (local)
 
-Current plugin OAuth flow is handled by the `plugin-oauth` Edge Function, and plugin-specific APIs (for example `google-photos`) use encrypted tokens from `user_plugin_oauth_tokens`.
+Plugin OAuth is handled by the **`plugin-oauth`** Edge Function; encrypted tokens live in **`user_plugin_oauth_tokens`**. Provider client IDs/secrets and dashboard steps are **per plugin** — see:
 
-1. Ensure local Supabase and functions are running:
+- [Google Photos](packages/plugins/google-photos/README.md)
+- [Spotify](packages/plugins/spotify/README.md)
 
-```bash
-npm run db:start -w @curolia/supabase
-npx turbo run functions:sync
-npm run functions:start -w @curolia/supabase
-```
+Common steps:
 
-2. Set frontend env in `apps/web/.env`:
+1. Run Supabase and functions (see above). After changing files under **`packages/plugins/*/supabase/functions/`**, run **`npx turbo run functions:sync`** and restart **`functions serve`** if needed.
 
-```bash
-VITE_SUPABASE_URL=http://127.0.0.1:54321
-VITE_SUPABASE_PUBLISHABLE_KEY=<local anon/publishable key from `npm run db:status -w @curolia/supabase`>
-```
+2. **`apps/web/.env`**: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` (see [`apps/web/.env.example`](apps/web/.env.example)).
 
-3. Set local function secrets (required for OAuth). Use **`packages/supabase/supabase/functions/.env`** (same file as push secrets above — see `.env.example`). The CLI does **not** support `supabase secrets set --local`.
+3. **`packages/supabase/supabase/functions/.env`**: copy from [`.env.example`](packages/supabase/supabase/functions/.env.example). Always set **`PLUGIN_OAUTH_ENCRYPTION_KEY`** (generate with `openssl rand -base64 32`) and **`PUBLIC_APP_ORIGIN`** (e.g. `http://127.0.0.1:5173`). Add provider vars for the plugins you use (**`GOOGLE_*`**, **`SPOTIFY_*`**). Restart **`npm run functions:start -w @curolia/supabase`** after edits.
 
-   Generate `PLUGIN_OAUTH_ENCRYPTION_KEY` (32 random bytes, Base64-encoded) with:
-
-   ```bash
-   openssl rand -base64 32
-   ```
-
-   Add to `.env` (along with any push vars you use):
-
-   ```bash
-   PLUGIN_OAUTH_ENCRYPTION_KEY=<paste output of openssl rand -base64 32>
-   GOOGLE_CLIENT_ID=<google oauth client id>
-   GOOGLE_CLIENT_SECRET=<google oauth client secret>
-   PUBLIC_APP_ORIGIN=http://127.0.0.1:5173
-   ```
-
-   Restart **`npm run functions:start -w @curolia/supabase`** after editing `.env`.
-
-   **Google error `redirect_uri=http://kong:8000/...`:** locally, Edge sometimes sees `SUPABASE_URL` as the internal Docker gateway (`kong`). The function maps that to **`http://127.0.0.1:54321`** for the OAuth callback URL so it matches Google Cloud. If your API port differs, set **`SUPABASE_PUBLIC_PORT`** or **`PLUGIN_OAUTH_CALLBACK_URL`** (full callback URL) in the same `.env`.
-
-4. In Google Cloud console:
-   - Enable Google Photos Library API.
-   - Use OAuth consent + web app credentials.
-   - Add redirect URI: `http://127.0.0.1:54321/functions/v1/plugin-oauth?action=callback`.
-
-5. In app UI:
-   - Enable Google Photos under `/settings/plugins`.
-   - Click **Link Google Photos**.
-   - In a trace, use **Google Photos** suggestions to search/import photos.
+4. **`redirect_uri` / Kong:** locally, Edge may see `SUPABASE_URL` as **`http://kong:8000`**. **`plugin-oauth`** maps that to **`http://127.0.0.1:54321`** for the OAuth callback when the hostname is `kong`. Override with **`SUPABASE_PUBLIC_PORT`** or **`PLUGIN_OAUTH_CALLBACK_URL`** if needed.
 
 On first signup, a **profile**, personal **journal**, and **owner** membership are created automatically (via the migration trigger).
 
@@ -236,35 +203,28 @@ When env vars are already configured in Vercel UI, copy these frontend vars manu
 
 ### Plugin OAuth + Edge config (production)
 
-Set all OAuth and plugin runtime secrets in Supabase project secrets (not in Vercel browser env).
+Put **OAuth and plugin secrets in the Supabase project** (Dashboard → Edge Functions secrets or `supabase secrets set`), not in Vercel. Browser/build vars stay **`VITE_SUPABASE_*`** only.
 
-Generate `PLUGIN_OAUTH_ENCRYPTION_KEY` (32 random bytes, Base64-encoded) with:
-
-```bash
-openssl rand -base64 32
-```
+Generate **`PLUGIN_OAUTH_ENCRYPTION_KEY`** with `openssl rand -base64 32`. Include **`PUBLIC_APP_ORIGIN`** (your deployed web origin) plus whichever providers you enable, for example:
 
 ```bash
 cd packages/supabase && npx supabase secrets set \
   PLUGIN_OAUTH_ENCRYPTION_KEY=<base64 32-byte key> \
-  GOOGLE_CLIENT_ID=<google oauth client id> \
-  GOOGLE_CLIENT_SECRET=<google oauth client secret> \
-  PUBLIC_APP_ORIGIN=https://<your-vercel-domain>
+  PUBLIC_APP_ORIGIN=https://<your-vercel-domain> \
+  GOOGLE_CLIENT_ID=... \
+  GOOGLE_CLIENT_SECRET=... \
+  SPOTIFY_CLIENT_ID=...
+# Optional: SPOTIFY_CLIENT_SECRET=...  — if your Spotify app uses a client secret
 ```
+
+Provider-specific redirect URIs and dashboards: [Google Photos](packages/plugins/google-photos/README.md), [Spotify](packages/plugins/spotify/README.md). The **`plugin-oauth`** callback path is always **`/functions/v1/plugin-oauth?action=callback`** on your Supabase API URL.
 
 Production checklist:
 
-1. In Google Cloud OAuth client, set callback URI to:
-   - `https://<your-project-ref>.supabase.co/functions/v1/plugin-oauth?action=callback`
-2. In Vercel project env vars (Preview + Production), set:
-   - `VITE_SUPABASE_URL=https://<your-project-ref>.supabase.co`
-   - `VITE_SUPABASE_PUBLISHABLE_KEY=<supabase publishable/anon key>`
-3. Keep `packages/supabase/supabase/config.toml` function policy aligned:
-   - `plugin-oauth` must keep `verify_jwt = false` (provider callback has no JWT).
-   - plugin APIs can validate JWT inside handler.
-4. Deploy flow:
-   - GitHub workflow runs `functions:sync` (via `@curolia/supabase`), `supabase db push`, and `supabase functions deploy --use-api` from `packages/supabase`.
-   - Then GitHub workflow deploys web to Vercel via `vercel build --prod` + `vercel deploy --prebuilt --prod`.
+1. In each provider’s developer console, register the Supabase callback URL `https://<project-ref>.supabase.co/functions/v1/plugin-oauth?action=callback` where required.
+2. Vercel **Preview + Production**: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`.
+3. **`config.toml`**: `plugin-oauth` keeps **`verify_jwt = false`** (browser redirect has no JWT); other functions verify JWT in the handler if needed.
+4. Deploy: GitHub workflow runs **`functions:sync`**, **`supabase db push`**, **`supabase functions deploy --use-api`**, then Vercel prebuilt deploy.
 
 ## Roadmap
 

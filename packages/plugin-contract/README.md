@@ -27,6 +27,7 @@ Each plugin package under `packages/plugins/<id>` should:
    - `implemented`
    - `contributions` (when needed)
 3. Keep plugin-specific config parsing/types in the plugin package.
+4. If the plugin needs OAuth, external API keys, or dashboard setup, add a **`README.md`** in that plugin package so the repo root README stays generic.
 
 Minimal example:
 
