@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ComponentType } from "react";
 
 /**
@@ -39,6 +40,12 @@ export type PluginAccountPanelProps = {
   accessToken: string | null;
   onRefresh: () => Promise<void>;
   oauth?: PluginOAuthShellHandlers;
+  /**
+   * Optional: panels that update `user_plugins` or other tables from the client
+   * (e.g. API keys / usernames). The web shell provides these when supported.
+   */
+  supabase?: SupabaseClient;
+  userId?: string | null;
 };
 
 export type PluginAccountSettingsComponent =

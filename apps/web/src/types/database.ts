@@ -125,12 +125,6 @@ export type PluginEntityData = {
   updated_at: string;
 };
 
-export type PluginType = {
-  id: string;
-  display_name: string;
-  description: string | null;
-};
-
 export type JournalPlugin = {
   id: string;
   journal_id: string;
@@ -267,7 +261,6 @@ export type Database = {
           >
         >;
       };
-      plugin_types: { Row: PluginType; Insert: never; Update: never };
       journal_plugins: {
         Row: JournalPlugin;
         Insert: Omit<JournalPlugin, "id" | "created_at" | "updated_at"> & {

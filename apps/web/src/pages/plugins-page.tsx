@@ -31,6 +31,7 @@ function PluginRow({
   toggleDisabled,
   accessToken,
   onRefreshAccountPanels,
+  userId,
 }: {
   plugin: PluginDefinition;
   up: UserPlugin | undefined;
@@ -38,6 +39,7 @@ function PluginRow({
   toggleDisabled: boolean;
   accessToken: string | null;
   onRefreshAccountPanels: () => Promise<void>;
+  userId: string | undefined;
 }) {
   const Icon = plugin.icon;
   const implemented = plugin.implemented;
@@ -111,6 +113,8 @@ function PluginRow({
           accessToken={accessToken}
           onRefresh={onRefreshAccountPanels}
           oauth={oauthHandlers}
+          supabase={supabase}
+          userId={userId}
         />
       ) : null}
     </div>
@@ -240,6 +244,7 @@ export function PluginsPage() {
                   toggleDisabled={!user || userPluginsQuery.isLoading}
                   accessToken={session?.access_token ?? null}
                   onRefreshAccountPanels={onRefreshAccountPanels}
+                  userId={user?.id}
                 />
               );
             })}

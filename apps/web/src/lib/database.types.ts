@@ -286,13 +286,6 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "photos_source_plugin_id_fkey";
-            columns: ["source_plugin_id"];
-            isOneToOne: false;
-            referencedRelation: "plugin_types";
-            referencedColumns: ["id"];
-          },
-          {
             foreignKeyName: "photos_trace_id_fkey";
             columns: ["trace_id"];
             isOneToOne: false;
@@ -369,24 +362,6 @@ export type Database = {
           redirect_after?: string | null;
           state?: string;
           user_id?: string;
-        };
-        Relationships: [];
-      };
-      plugin_types: {
-        Row: {
-          description: string | null;
-          display_name: string;
-          id: string;
-        };
-        Insert: {
-          description?: string | null;
-          display_name: string;
-          id: string;
-        };
-        Update: {
-          description?: string | null;
-          display_name?: string;
-          id?: string;
         };
         Relationships: [];
       };

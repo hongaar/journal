@@ -24,6 +24,7 @@
     "@curolia/plugin-contract": "file:../../packages/plugin-contract",
     "@curolia/plugin-google-photos": "file:../../packages/plugins/google-photos",
     "@curolia/plugin-ical": "file:../../packages/plugins/ical",
+    "@curolia/plugin-lastfm": "file:../../packages/plugins/lastfm",
     "@curolia/plugin-spotify": "file:../../packages/plugins/spotify",
     "@curolia/ui": "file:../../packages/ui",
     "@floating-ui/dom": "^1.7.6",

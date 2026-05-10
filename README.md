@@ -9,7 +9,7 @@ Travel / place journal: private **traces** (visits) per **journal**, with maps, 
 - `packages/supabase/supabase/` — Supabase project (migrations, `config.toml`, `functions/`) via **`@curolia/supabase`**
 - `packages/brand/` — app logo + theme config (**`@curolia/brand`**) and generators for web/native branding assets
 - `packages/plugin-contract` — shared plugin manifest / contribution types (`@curolia/plugin-contract`)
-- `packages/plugins/*` — optional plugin packages (e.g. `@curolia/plugin-ical`); Edge sources sync into `packages/supabase/supabase/functions/` via `npx turbo run functions:sync`. Structured plugin payloads attached to traces (and future entities) use **`public.plugin_entity_data`** (see migrations). Plugins that need OAuth or external dashboards document setup in **their own README** (e.g. [`packages/plugins/google-photos/README.md`](packages/plugins/google-photos/README.md), [`packages/plugins/spotify/README.md`](packages/plugins/spotify/README.md)).
+- `packages/plugins/*` — optional plugin packages (e.g. `@curolia/plugin-ical`); Edge sources sync into `packages/supabase/supabase/functions/` via `npx turbo run functions:sync`. Structured plugin payloads attached to traces (and future entities) use **`public.plugin_entity_data`** (see migrations). Plugins that need OAuth or external dashboards document setup in **their own README** (e.g. [`packages/plugins/google-photos/README.md`](packages/plugins/google-photos/README.md), [`packages/plugins/spotify/README.md`](packages/plugins/spotify/README.md), [`packages/plugins/lastfm/README.md`](packages/plugins/lastfm/README.md)).
 
 Plugin architecture details: [`packages/plugin-contract/README.md`](packages/plugin-contract/README.md).
 
@@ -135,6 +135,7 @@ Plugin OAuth is handled by the **`plugin-oauth`** Edge Function; encrypted token
 
 - [Google Photos](packages/plugins/google-photos/README.md)
 - [Spotify](packages/plugins/spotify/README.md)
+- [Last.fm](packages/plugins/lastfm/README.md)
 
 Common steps:
 
@@ -142,7 +143,7 @@ Common steps:
 
 2. **`apps/web/.env`**: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` (see [`apps/web/.env.example`](apps/web/.env.example)).
 
-3. **`packages/supabase/supabase/functions/.env`**: copy from [`.env.example`](packages/supabase/supabase/functions/.env.example). Always set **`PLUGIN_OAUTH_ENCRYPTION_KEY`** (generate with `openssl rand -base64 32`) and **`PUBLIC_APP_ORIGIN`** (e.g. `http://127.0.0.1:5173`). Add provider vars for the plugins you use (**`GOOGLE_*`**, **`SPOTIFY_*`**). Restart **`npm run functions:start -w @curolia/supabase`** after edits.
+3. **`packages/supabase/supabase/functions/.env`**: copy from [`.env.example`](packages/supabase/supabase/functions/.env.example). Always set **`PLUGIN_OAUTH_ENCRYPTION_KEY`** (generate with `openssl rand -base64 32`) and **`PUBLIC_APP_ORIGIN`** (e.g. `http://127.0.0.1:5173`). Add provider vars for the plugins you use (**`GOOGLE_*`**, **`SPOTIFY_*`**, **`LASTFM_API_KEY`**). Restart **`npm run functions:start -w @curolia/supabase`** after edits.
 
 4. **`redirect_uri` / Kong:** locally, Edge may see `SUPABASE_URL` as **`http://kong:8000`**. **`plugin-oauth`** maps that to **`http://127.0.0.1:54321`** for the OAuth callback when the hostname is `kong`. Override with **`SUPABASE_PUBLIC_PORT`** or **`PLUGIN_OAUTH_CALLBACK_URL`** if needed.
 
@@ -217,7 +218,7 @@ cd packages/supabase && npx supabase secrets set \
 # Optional: SPOTIFY_CLIENT_SECRET=...  — if your Spotify app uses a client secret
 ```
 
-Provider-specific redirect URIs and dashboards: [Google Photos](packages/plugins/google-photos/README.md), [Spotify](packages/plugins/spotify/README.md). The **`plugin-oauth`** callback path is always **`/functions/v1/plugin-oauth?action=callback`** on your Supabase API URL.
+Provider-specific redirect URIs and dashboards: [Google Photos](packages/plugins/google-photos/README.md), [Spotify](packages/plugins/spotify/README.md), [Last.fm](packages/plugins/lastfm/README.md). The **`plugin-oauth`** callback path is always **`/functions/v1/plugin-oauth?action=callback`** on your Supabase API URL.
 
 Production checklist:
 
