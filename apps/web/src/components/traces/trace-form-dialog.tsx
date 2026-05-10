@@ -676,21 +676,6 @@ export function TraceFormDialog({
           <div className="space-y-2">
             <Label>Links</Label>
             <TraceLinksEditor traceId={trace.id} journalId={journalId} />
-            {pluginList.map((p) => {
-              const Listen = p.TraceListeningSlot;
-              if (!Listen) return null;
-              return (
-                <Listen
-                  key={`listen-${p.id}`}
-                  supabase={supabase}
-                  userId={user?.id}
-                  traceId={trace.id}
-                  journalId={journalId}
-                  traceDate={trace.date}
-                  traceEndDate={trace.end_date}
-                />
-              );
-            })}
           </div>
         </>
       )}

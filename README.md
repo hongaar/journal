@@ -9,7 +9,7 @@ Travel / place journal: private **traces** (visits) per **journal**, with maps, 
 - `packages/supabase/supabase/` — Supabase project (migrations, `config.toml`, `functions/`) via **`@curolia/supabase`**
 - `packages/brand/` — app logo + theme config (**`@curolia/brand`**) and generators for web/native branding assets
 - `packages/plugin-contract` — shared plugin manifest / contribution types (`@curolia/plugin-contract`)
-- `packages/plugins/*` — optional plugin packages (e.g. `@curolia/plugin-ical`); Edge sources sync into `packages/supabase/supabase/functions/` via `npx turbo run functions:sync`. Plugins that need OAuth or external dashboards document setup in **their own README** (e.g. [`packages/plugins/google-photos/README.md`](packages/plugins/google-photos/README.md), [`packages/plugins/spotify/README.md`](packages/plugins/spotify/README.md)).
+- `packages/plugins/*` — optional plugin packages (e.g. `@curolia/plugin-ical`); Edge sources sync into `packages/supabase/supabase/functions/` via `npx turbo run functions:sync`. Structured plugin payloads attached to traces (and future entities) use **`public.plugin_entity_data`** (see migrations). Plugins that need OAuth or external dashboards document setup in **their own README** (e.g. [`packages/plugins/google-photos/README.md`](packages/plugins/google-photos/README.md), [`packages/plugins/spotify/README.md`](packages/plugins/spotify/README.md)).
 
 Plugin architecture details: [`packages/plugin-contract/README.md`](packages/plugin-contract/README.md).
 

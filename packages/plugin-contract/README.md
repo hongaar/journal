@@ -23,7 +23,6 @@ Each plugin package under `packages/plugins/<id>` should:
    - `displayName`
    - `description` (recommended)
    - `icon` (required React component used by host UI)
-   - `capabilities`
    - `implemented`
    - `contributions` (when needed)
 3. Keep plugin-specific config parsing/types in the plugin package.
@@ -43,7 +42,6 @@ export const pluginManifest: PluginPackageManifest = {
   displayName: "Example Plugin",
   description: "Example integration.",
   icon: ExampleIcon,
-  capabilities: ["import_media"],
   implemented: true,
 };
 ```
@@ -61,3 +59,12 @@ npm run plugins:sync -w @curolia/web
 ```
 
 This keeps plugin add/remove flow dependency-driven (no manual registry edits).
+
+### Trace UI surfaces
+
+- **`TracePhotoImportSlot`**: trace editor (e.g. cloud photo pickers).
+- **`TraceDetailSection`**: optional block on the trace detail route; receives **`TraceContextProps`** (trace id, journal id, dates, `supabase`, `userId`). Plugins that persist JSON should use the shared **`plugin_entity_data`** table (see Supabase migrations).
+
+### Entity-attached plugin data
+
+Structured payloads keyed by **`entity_type`** + **`entity_id`** + **`plugin_type_id`** live in **`public.plugin_entity_data`** so plugins do not overload unrelated tables (e.g. trace links).

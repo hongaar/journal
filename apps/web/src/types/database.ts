@@ -112,6 +112,19 @@ export type TraceLink = {
   updated_at: string;
 };
 
+/** Generic plugin payload row (see `plugin_entity_data` migration). */
+export type PluginEntityData = {
+  id: string;
+  journal_id: string;
+  /** Discriminator for which table `entity_id` references; today only `trace`. */
+  entity_type: string;
+  entity_id: string;
+  plugin_type_id: string;
+  data: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+};
+
 export type PluginType = {
   id: string;
   display_name: string;
@@ -237,6 +250,22 @@ export type Database = {
           journal_id?: string;
         };
         Update: Partial<TraceLink>;
+      };
+      plugin_entity_data: {
+        Row: PluginEntityData;
+        Insert: Omit<PluginEntityData, "id" | "created_at" | "updated_at"> & {
+          id?: string;
+        };
+        Update: Partial<
+          Pick<
+            PluginEntityData,
+            | "data"
+            | "journal_id"
+            | "entity_type"
+            | "entity_id"
+            | "plugin_type_id"
+          >
+        >;
       };
       plugin_types: { Row: PluginType; Insert: never; Update: never };
       journal_plugins: {

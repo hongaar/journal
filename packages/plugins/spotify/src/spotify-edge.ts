@@ -1,25 +1,33 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SpotifyTracePayload } from "./spotify-trace-data";
 
-export type SpotifySyncTopTracksResult = {
-  added: number;
-  skippedExisting: number;
-  scannedPages: number;
-  playsInRange: number;
-  limitedByPagination: boolean;
-  skippedReason?: string;
-};
+export type SpotifySyncResponse =
+  | {
+      skippedReason: "no_trace_date";
+      cleared?: boolean;
+    }
+  | {
+      synced: true;
+      payload: SpotifyTracePayload;
+    }
+  | {
+      error: string;
+      reason?: string;
+    };
 
-export async function spotifySyncTopTracksForTrace(
+export async function spotifySyncTraceListening(
   supabase: SupabaseClient,
   traceId: string,
-): Promise<SpotifySyncTopTracksResult> {
-  const { data, error } =
-    await supabase.functions.invoke<SpotifySyncTopTracksResult>("spotify", {
-      body: { action: "sync_top_tracks", traceId },
-    });
-  if (error) throw new Error(error.message || "spotify_sync_failed");
-  if (!data || typeof data.added !== "number") {
-    throw new Error("spotify_sync_invalid_response");
+): Promise<SpotifySyncResponse> {
+  const { data, error } = await supabase.functions.invoke<SpotifySyncResponse>(
+    "spotify",
+    { body: { action: "sync_top_tracks", traceId } },
+  );
+  if (error) {
+    return { error: error.message || "spotify_sync_failed" };
+  }
+  if (!data || typeof data !== "object") {
+    return { error: "spotify_sync_invalid_response" };
   }
   return data;
 }

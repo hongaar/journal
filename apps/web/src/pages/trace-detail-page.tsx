@@ -8,6 +8,8 @@ import { photosToLightboxItems } from "@/lib/trace-photo-lightbox-items";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useJournal } from "@/providers/journal-provider";
+import { useAuth } from "@/providers/auth-provider";
+import { pluginList } from "@/plugins/registry";
 import type { Trace } from "@/types/database";
 import { useTracePhotosSignedUrls } from "@/lib/use-trace-photos";
 import { TraceFormDialogTrigger } from "@/components/traces/trace-form-dialog";
@@ -40,6 +42,7 @@ export function TraceDetailPage() {
     traceSlug: string;
   }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { journals, activeJournalId } = useJournal();
   const [photoLightbox, setPhotoLightbox] = useState<{
     photoId: string;
@@ -203,6 +206,21 @@ export function TraceDetailPage() {
               })}
             </div>
             <TraceLinksList traceId={trace.id} />
+            {pluginList.map((p) => {
+              const Section = p.TraceDetailSection;
+              if (!Section) return null;
+              return (
+                <Section
+                  key={`detail-${p.id}`}
+                  supabase={supabase}
+                  userId={user?.id}
+                  traceId={trace.id}
+                  journalId={trace.journal_id}
+                  traceDate={trace.date}
+                  traceEndDate={trace.end_date}
+                />
+              );
+            })}
             <TraceMetadataFooter
               createdAt={trace.created_at}
               updatedAt={trace.updated_at}

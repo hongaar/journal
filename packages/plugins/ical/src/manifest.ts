@@ -6,7 +6,6 @@ export const icalPluginManifest: PluginPackageManifest = {
   displayName: "iCalendar",
   description: "Publish traces as iCalendar (.ics) files.",
   icon: IcalIcon,
-  capabilities: ["export_ics"] as const,
   implemented: true,
   contributions: {
     journalSettings: {

@@ -301,6 +301,47 @@ export type Database = {
           },
         ];
       };
+      plugin_entity_data: {
+        Row: {
+          created_at: string;
+          data: Json;
+          entity_id: string;
+          entity_type: string;
+          id: string;
+          journal_id: string;
+          plugin_type_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          data?: Json;
+          entity_id: string;
+          entity_type: string;
+          id?: string;
+          journal_id: string;
+          plugin_type_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          data?: Json;
+          entity_id?: string;
+          entity_type?: string;
+          id?: string;
+          journal_id?: string;
+          plugin_type_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "plugin_entity_data_journal_id_fkey";
+            columns: ["journal_id"];
+            isOneToOne: false;
+            referencedRelation: "journals";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       plugin_oauth_pending: {
         Row: {
           code_verifier: string;

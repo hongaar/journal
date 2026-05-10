@@ -1,6 +1,6 @@
 # Spotify plugin (`@curolia/plugin-spotify`)
 
-Adds **top streamed tracks** (by replay count in your Spotify **recently played** history) that fall within each trace’s **date range** as **trace links**. Tokens use the shared **`plugin-oauth`** Edge Function (PKCE).
+Resolves **top streamed tracks** (by replay count in your Spotify **recently played** history) that fall within each trace’s **date range**, stores them in **`public.plugin_entity_data`**, and renders a **Spotify** card on the **trace detail** page. OAuth uses the shared **`plugin-oauth`** Edge Function (PKCE).
 
 ## Prerequisites
 
@@ -19,9 +19,10 @@ Adds **top streamed tracks** (by replay count in your Spotify **recently played*
 ## App usage
 
 1. **Settings → Plugins**: enable **Spotify**, then **Link Spotify**.
-2. Edit a trace that has a **start date** (and optional end date). While the trace editor is open, the app syncs links automatically (subject to client/API limits documented in `src/constants.ts`).
+2. Open a **trace** that has a **start date** (and optional end date). The trace detail page runs sync when dates are set; changing dates invalidates the sync query key (see **`spotifyTraceSyncQueryKey`** in **`src/query-keys.ts`**) so Spotify refreshes without extra wiring in the web shell.
 
 ## Behaviour notes
 
 - Ranking uses **recently played** entries inside the trace window, **not** Spotify’s separate “top tracks” API (which uses fixed time ranges, not calendar dates).
 - Long windows are capped: see **`SPOTIFY_RECENTLY_PLAYED_MAX_PAGES`** and related constants in **`src/constants.ts`** to avoid excessive Spotify pagination.
+- Payload shape for `plugin_entity_data.data` is **`SpotifyTracePayload`** in **`src/spotify-trace-data.ts`** (`schemaVersion: 1`).

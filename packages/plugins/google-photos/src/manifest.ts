@@ -15,7 +15,6 @@ export const googlePhotosPluginManifest: PluginPackageManifest = {
   displayName: googlePhotosPluginMeta.displayName,
   description: "Link photos from Google Photos.",
   icon: GooglePhotosIcon,
-  capabilities: ["import_media", "trace_photo_suggestions"] as const,
   implemented: googlePhotosPluginMeta.implemented,
   AccountSettingsPanel: GooglePhotosAccountSettingsPanel,
   TracePhotoImportSlot: GooglePhotosTracePhotoImportSlot,

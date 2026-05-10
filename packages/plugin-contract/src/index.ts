@@ -1,4 +1,3 @@
-export type { PluginCapability } from "./capabilities";
 export type {
   AppHookDeclaration,
   EdgeFunctionDeclaration,
@@ -12,6 +11,7 @@ export type {
   PluginDefinition,
   PluginPackageManifest,
   PluginRegistry,
+  TraceContextProps,
   TracePhotoImportSlotProps,
 } from "./definition";
 export type {

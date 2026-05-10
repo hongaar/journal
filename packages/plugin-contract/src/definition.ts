@@ -1,4 +1,3 @@
-import type { PluginCapability } from "./capabilities";
 import type { PluginContributions } from "./contributions";
 import type { PluginAccountSettingsComponent } from "./account-panel";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -15,6 +14,9 @@ export type TracePhotoImportSlotProps = {
   traceEndDate?: string | null;
 };
 
+/** Shared trace-scoped props for plugin surfaces (photo slots, trace detail panels, …). */
+export type TraceContextProps = TracePhotoImportSlotProps;
+
 export type PluginIconComponent = ComponentType<{ className?: string }>;
 
 export type PluginDefinition = {
@@ -23,7 +25,6 @@ export type PluginDefinition = {
   description?: string;
   /** UI icon component provided by plugin package. */
   icon: PluginIconComponent;
-  capabilities: readonly PluginCapability[];
   /** When false, UI shows that sync is not implemented yet */
   implemented: boolean;
   /** Optional metadata for settings UI, hooks registry, and Edge deploy lists */
@@ -39,10 +40,9 @@ export type PluginDefinition = {
    */
   TracePhotoImportSlot?: ComponentType<TracePhotoImportSlotProps>;
   /**
-   * Optional trace-period enrichment (e.g. auto-import top streamed tracks as links).
-   * Same date context as photo import slots.
+   * Optional block on the trace detail page (plugin-owned UI + data loaded via plugin routes).
    */
-  TraceListeningSlot?: ComponentType<TracePhotoImportSlotProps>;
+  TraceDetailSection?: ComponentType<TraceContextProps>;
 };
 
 export type PluginRegistry = Record<string, PluginDefinition>;

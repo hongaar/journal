@@ -361,14 +361,17 @@ Deno.serve(async (req: Request) => {
 
   const bounds = periodBoundsMs(t);
   if (!bounds) {
+    await admin
+      .from("plugin_entity_data")
+      .delete()
+      .eq("entity_type", "trace")
+      .eq("entity_id", t.id)
+      .eq("plugin_type_id", "spotify");
+
     return new Response(
       JSON.stringify({
-        added: 0,
-        skippedExisting: 0,
-        scannedPages: 0,
-        playsInRange: 0,
-        limitedByPagination: false,
         skippedReason: "no_trace_date",
+        cleared: true,
       }),
       {
         status: 200,
@@ -466,54 +469,45 @@ Deno.serve(async (req: Request) => {
     .sort((a, b) => b[1].n - a[1].n)
     .slice(0, TOP_TRACKS_LIMIT);
 
-  const { data: existingRows } = await admin
-    .from("trace_links")
-    .select("url")
-    .eq("trace_id", t.id);
-
-  const existing = new Set((existingRows ?? []).map((r) => r.url as string));
-
-  const { data: sortRow } = await admin
-    .from("trace_links")
-    .select("sort_order")
-    .eq("trace_id", t.id)
-    .order("sort_order", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  let sortOrder =
-    typeof sortRow?.sort_order === "number" ? sortRow.sort_order : -1;
-
-  let added = 0;
-  let skippedExisting = 0;
-
-  for (const [trackId, { title }] of ranked) {
-    const url = `https://open.spotify.com/track/${trackId}`;
-    if (existing.has(url)) {
-      skippedExisting += 1;
-      continue;
-    }
-    sortOrder += 1;
-    const { error: insErr } = await admin.from("trace_links").insert({
-      trace_id: t.id,
-      url,
+  const payload = {
+    schemaVersion: 1 as const,
+    periodStart: t.date,
+    periodEnd: t.end_date ?? t.date,
+    syncedAt: new Date().toISOString(),
+    limitedByPagination,
+    scannedPages,
+    playsInRange,
+    tracks: ranked.map(([trackId, { title, n }]) => ({
+      trackId,
       title,
-      favicon_url: "https://open.spotify.com/favicon.ico",
-      sort_order: sortOrder,
+      openUrl: `https://open.spotify.com/track/${trackId}`,
+      playCount: n,
+    })),
+  };
+
+  const { error: upsertErr } = await admin.from("plugin_entity_data").upsert(
+    {
+      journal_id: t.journal_id,
+      entity_type: "trace",
+      entity_id: t.id,
+      plugin_type_id: "spotify",
+      data: payload as unknown as Record<string, unknown>,
+    },
+    { onConflict: "entity_type,entity_id,plugin_type_id" },
+  );
+
+  if (upsertErr) {
+    console.error("plugin_entity_data upsert failed", upsertErr);
+    return new Response(JSON.stringify({ error: "db_upsert_failed" }), {
+      status: 500,
+      headers: { ...cors(), "Content-Type": "application/json" },
     });
-    if (!insErr) {
-      added += 1;
-      existing.add(url);
-    }
   }
 
   return new Response(
     JSON.stringify({
-      added,
-      skippedExisting,
-      scannedPages,
-      playsInRange,
-      limitedByPagination,
+      synced: true,
+      payload,
     }),
     {
       status: 200,
