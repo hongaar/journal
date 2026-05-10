@@ -7,4 +7,6 @@ export type PluginCapability =
   /** Export as standard .ics calendar files */
   | "export_ics"
   /** Suggest library photos for a trace (date + location) */
-  | "trace_photo_suggestions";
+  | "trace_photo_suggestions"
+  /** Attach listening history for the trace period (e.g. Spotify top tracks). */
+  | "trace_listening";

@@ -8,6 +8,7 @@ import type {
   Profile,
 } from "@/types/database";
 import { Button } from "@curolia/ui/button";
+import { CautionPanel } from "@curolia/ui/caution-panel";
 import { Input } from "@curolia/ui/input";
 import { Label } from "@curolia/ui/label";
 import {
@@ -364,19 +365,20 @@ export function JournalSharingSection({
             </div>
           ) : null}
 
-          <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-4">
-            <h3 className="text-foreground text-sm font-medium">
-              Transfer ownership
-            </h3>
-            <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
-              Choose an existing member. You will become a contributor. All
-              journal plugins and calendar feed links for &quot;{journalName}
-              &quot; will be removed.
-            </p>
+          <CautionPanel
+            title="Transfer ownership"
+            description={
+              <>
+                Choose an existing member. You will become a contributor. All
+                journal plugins and calendar feed links for &quot;{journalName}
+                &quot; will be removed.
+              </>
+            }
+          >
             <Button
               type="button"
               variant="secondary"
-              className="mt-3 rounded-xl"
+              className="rounded-xl"
               onClick={() => {
                 setTransferErr(null);
                 setTransferOpen(true);
@@ -384,7 +386,7 @@ export function JournalSharingSection({
             >
               Transfer ownership…
             </Button>
-          </div>
+          </CautionPanel>
 
           <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
             <DialogContent className="border-[var(--panel-border)] bg-[var(--panel-bg)] backdrop-blur-xl">

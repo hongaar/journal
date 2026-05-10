@@ -1,22 +1,128 @@
 export function IcalIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
-      <rect
-        x="3"
-        y="4"
-        width="18"
-        height="17"
-        rx="2"
-        fill="currentColor"
-        opacity="0.12"
-      />
-      <path
-        d="M7 2v4M17 2v4M3 9h18"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-      <rect x="7" y="12" width="4" height="3" rx="1" fill="currentColor" />
+    <svg viewBox="0 0 55 60" className={className} aria-hidden="true">
+      <g clip-path="url(#clip0_5_419)">
+        <path
+          d="M52 60H3C1.34 60 0 58.66 0 57V5.87C0 4.21 1.34 2.87 3 2.87H52C53.66 2.87 55 4.21 55 5.87V57C55 58.66 53.66 60 52 60Z"
+          fill="url(#paint0_linear_5_419)"
+        />
+        <g filter="url(#filter0_i_5_419)">
+          <path
+            d="M46.52 28.93H40.52C39.97 28.93 39.52 28.48 39.52 27.93V21.62C39.52 21.07 39.97 20.62 40.52 20.62H46.52C47.07 20.62 47.52 21.07 47.52 21.62V27.93C47.52 28.48 47.07 28.93 46.52 28.93Z"
+            fill="#F0F0F0"
+          />
+          <path
+            d="M35.52 28.93H29.52C28.97 28.93 28.52 28.48 28.52 27.93V21.62C28.52 21.07 28.97 20.62 29.52 20.62H35.52C36.07 20.62 36.52 21.07 36.52 21.62V27.93C36.52 28.48 36.07 28.93 35.52 28.93Z"
+            fill="#F0F0F0"
+          />
+          <path
+            d="M24.52 28.93H18.52C17.97 28.93 17.52 28.48 17.52 27.93V21.62C17.52 21.07 17.97 20.62 18.52 20.62H24.52C25.07 20.62 25.52 21.07 25.52 21.62V27.93C25.52 28.48 25.07 28.93 24.52 28.93Z"
+            fill="#F0F0F0"
+          />
+          <path
+            d="M46.52 40.3501H40.52C39.97 40.3501 39.52 39.9001 39.52 39.3501V33.04C39.52 32.49 39.97 32.04 40.52 32.04H46.52C47.07 32.04 47.52 32.49 47.52 33.04V39.3501C47.52 39.9001 47.07 40.3501 46.52 40.3501Z"
+            fill="#F0F0F0"
+          />
+          <path
+            d="M35.52 40.3501H29.52C28.97 40.3501 28.52 39.9001 28.52 39.3501V33.04C28.52 32.49 28.97 32.04 29.52 32.04H35.52C36.07 32.04 36.52 32.49 36.52 33.04V39.3501C36.52 39.9001 36.07 40.3501 35.52 40.3501Z"
+            fill="#F0F0F0"
+          />
+          <path
+            d="M24.52 40.3501H18.52C17.97 40.3501 17.52 39.9001 17.52 39.3501V33.04C17.52 32.49 17.97 32.04 18.52 32.04H24.52C25.07 32.04 25.52 32.49 25.52 33.04V39.3501C25.52 39.9001 25.07 40.3501 24.52 40.3501Z"
+            fill="#F0F0F0"
+          />
+          <path
+            d="M35.52 51.78H29.52C28.97 51.78 28.52 51.33 28.52 50.78V44.47C28.52 43.92 28.97 43.47 29.52 43.47H35.52C36.07 43.47 36.52 43.92 36.52 44.47V50.78C36.52 51.33 36.07 51.78 35.52 51.78Z"
+            fill="#F0F0F0"
+          />
+          <path
+            d="M24.52 51.78H18.52C17.97 51.78 17.52 51.33 17.52 50.78V44.47C17.52 43.92 17.97 43.47 18.52 43.47H24.52C25.07 43.47 25.52 43.92 25.52 44.47V50.78C25.52 51.33 25.07 51.78 24.52 51.78Z"
+            fill="#F0F0F0"
+          />
+          <path
+            d="M13.52 51.78H7.52002C6.97002 51.78 6.52002 51.33 6.52002 50.78V44.47C6.52002 43.92 6.97002 43.47 7.52002 43.47H13.52C14.07 43.47 14.52 43.92 14.52 44.47V50.78C14.52 51.33 14.07 51.78 13.52 51.78Z"
+            fill="#F0F0F0"
+          />
+          <path
+            d="M13.52 40.3501H7.52002C6.97002 40.3501 6.52002 39.9001 6.52002 39.3501V33.04C6.52002 32.49 6.97002 32.04 7.52002 32.04H13.52C14.07 32.04 14.52 32.49 14.52 33.04V39.3501C14.52 39.9001 14.07 40.3501 13.52 40.3501Z"
+            fill="#F0F0F0"
+          />
+        </g>
+        <path
+          d="M55 13.26H0V5.87C0 4.21 1.34 2.87 3 2.87H52C53.66 2.87 55 4.21 55 5.87V13.26Z"
+          fill="url(#paint1_linear_5_419)"
+        />
+        <path
+          d="M9.97998 10.39C8.59998 10.39 7.47998 9.27 7.47998 7.89V2.5C7.47998 1.12 8.59998 0 9.97998 0C11.36 0 12.48 1.12 12.48 2.5V7.89C12.48 9.27 11.36 10.39 9.97998 10.39Z"
+          fill="#4DC2EB"
+        />
+        <path
+          d="M45.02 10.39C43.64 10.39 42.52 9.27 42.52 7.89V2.5C42.52 1.12 43.64 0 45.02 0C46.4 0 47.52 1.12 47.52 2.5V7.89C47.52 9.27 46.4 10.39 45.02 10.39Z"
+          fill="#4DC2EB"
+        />
+      </g>
+      <defs>
+        <filter
+          id="filter0_i_5_419"
+          x="6.52002"
+          y="20.62"
+          width="41"
+          height="31.16"
+          filterUnits="userSpaceOnUse"
+          color-interpolation-filters="sRGB"
+        >
+          <feFlood flood-opacity="0" result="BackgroundImageFix" />
+          <feBlend
+            mode="normal"
+            in="SourceGraphic"
+            in2="BackgroundImageFix"
+            result="shape"
+          />
+          <feColorMatrix
+            in="SourceAlpha"
+            type="matrix"
+            values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
+            result="hardAlpha"
+          />
+          <feOffset />
+          <feGaussianBlur stdDeviation="1" />
+          <feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1" />
+          <feColorMatrix
+            type="matrix"
+            values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.1 0"
+          />
+          <feBlend
+            mode="normal"
+            in2="shape"
+            result="effect1_innerShadow_5_419"
+          />
+        </filter>
+        <linearGradient
+          id="paint0_linear_5_419"
+          x1="-6.9137"
+          y1="-8.427"
+          x2="61.2239"
+          y2="70.5007"
+          gradientUnits="userSpaceOnUse"
+        >
+          <stop stop-color="#34ACE3" />
+          <stop offset="1" stop-color="#2778BD" />
+        </linearGradient>
+        <linearGradient
+          id="paint1_linear_5_419"
+          x1="8.3403"
+          y1="-13.1854"
+          x2="46.1494"
+          y2="30.6111"
+          gradientUnits="userSpaceOnUse"
+        >
+          <stop stop-color="#2371B8" />
+          <stop offset="1" stop-color="#0F579F" />
+        </linearGradient>
+        <clipPath id="clip0_5_419">
+          <rect width="55" height="60" fill="white" />
+        </clipPath>
+      </defs>
     </svg>
   );
 }

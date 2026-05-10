@@ -45,14 +45,15 @@ function PluginRow({
   const Panel = plugin.AccountSettingsPanel;
 
   const oauthHandlers = useMemo(() => {
-    if (plugin.id !== "google_photos") return undefined;
+    const hasOAuth = Boolean(plugin.contributions?.oauth?.length);
+    if (!hasOAuth || !accessToken) return undefined;
     return {
-      fetchLinkStatus: () => fetchPluginOAuthLinkStatus("google_photos"),
-      unlink: () => unlinkPluginOAuth("google_photos"),
+      fetchLinkStatus: () => fetchPluginOAuthLinkStatus(plugin.id),
+      unlink: () => unlinkPluginOAuth(plugin.id),
       startOAuth: (redirectAfter: string) =>
-        startPluginOAuth("google_photos", redirectAfter),
+        startPluginOAuth(plugin.id, redirectAfter),
     };
-  }, [plugin.id]);
+  }, [plugin.contributions?.oauth?.length, plugin.id, accessToken]);
 
   const userSnapshot = useMemo(
     () =>
@@ -151,7 +152,7 @@ export function PluginsPage() {
 
     const reason = searchParams.get("reason");
     if (status === "success") {
-      toast.success("Google Photos linked.");
+      toast.success("Account linked.");
     } else if (status === "error") {
       toast.error(
         reason

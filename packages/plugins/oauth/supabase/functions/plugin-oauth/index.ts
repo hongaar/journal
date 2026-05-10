@@ -2,18 +2,33 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import {
   authorizeScopesSpaceSeparated,
-  pluginOAuthScopesFor,
+  oauthProviderIdsForPlugin,
 } from "./scopes-registry.gen.ts";
 
 const GOOGLE_AUTH = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN = "https://oauth2.googleapis.com/token";
 
-/** OAuth provider id for the Google authorize/token endpoints (PKCE flow in this function). */
-const GOOGLE_OAUTH_PROVIDER_ID = "google";
+const SPOTIFY_AUTH = "https://accounts.spotify.com/authorize";
+const SPOTIFY_TOKEN = "https://accounts.spotify.com/api/token";
 
-function supportsGooglePluginOAuth(pluginTypeId: string): boolean {
-  const scopes = pluginOAuthScopesFor(pluginTypeId, GOOGLE_OAUTH_PROVIDER_ID);
-  return Boolean(scopes?.length);
+function cors(): HeadersInit {
+  return {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+  };
+}
+
+function supportsPluginOAuth(pluginTypeId: string): boolean {
+  return oauthProviderIdsForPlugin(pluginTypeId).length > 0;
+}
+
+/** Each plugin manifest must declare exactly one OAuth provider for this Edge flow. */
+function oauthProviderForPlugin(pluginTypeId: string): string | null {
+  const ids = oauthProviderIdsForPlugin(pluginTypeId);
+  if (ids.length !== 1) return null;
+  return ids[0]!;
 }
 
 type StartBody = {
@@ -31,15 +46,6 @@ type LinkStatusBody = {
   action: "link_status";
   plugin_type_id: string;
 };
-
-function cors(): HeadersInit {
-  return {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type",
-    "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-  };
-}
 
 function base64UrlEncode(buf: ArrayBuffer): string {
   const bytes = new Uint8Array(buf);
@@ -72,7 +78,6 @@ async function importAesKey(raw: Uint8Array): Promise<CryptoKey> {
 function getEncryptionKey(): Uint8Array {
   let b64 = (Deno.env.get("PLUGIN_OAUTH_ENCRYPTION_KEY") ?? "").trim();
   if (!b64) throw new Error("PLUGIN_OAUTH_ENCRYPTION_KEY is not set");
-  // Accept URL-safe base64 and fix padding so decode matches google-photos Edge function.
   b64 = b64.replace(/-/g, "+").replace(/_/g, "/");
   const pad = b64.length % 4;
   if (pad) b64 += "=".repeat(4 - pad);
@@ -122,9 +127,6 @@ function callbackUrl(): string {
   if (explicit) return explicit;
 
   let base = (Deno.env.get("SUPABASE_URL") ?? "").replace(/\/$/, "");
-  // Local `supabase functions serve` often sets SUPABASE_URL to the internal API gateway
-  // (e.g. http://kong:8000). Google OAuth requires redirect_uri to exactly match a
-  // browser-reachable URL registered in Cloud Console — not the Docker hostname.
   try {
     const u = new URL(base || "http://invalid");
     if (u.hostname === "kong") {
@@ -138,11 +140,42 @@ function callbackUrl(): string {
   return `${base}/functions/v1/plugin-oauth?action=callback`;
 }
 
+async function insertPendingOauth(
+  admin: ReturnType<typeof createClient>,
+  args: {
+    state: string;
+    userId: string;
+    pluginTypeId: string;
+    codeVerifier: string;
+    redirectAfter: string | null;
+  },
+): Promise<Response | null> {
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+  const { error: pendErr } = await admin.from("plugin_oauth_pending").insert({
+    state: args.state,
+    user_id: args.userId,
+    plugin_type_id: args.pluginTypeId,
+    code_verifier: args.codeVerifier,
+    redirect_after: args.redirectAfter,
+    expires_at: expiresAt,
+  });
+  if (pendErr) {
+    console.error(pendErr);
+    return new Response(
+      JSON.stringify({ error: "could not store oauth state" }),
+      {
+        status: 500,
+        headers: { ...cors(), "Content-Type": "application/json" },
+      },
+    );
+  }
+  return null;
+}
+
 async function handleStart(body: StartBody, jwt: string): Promise<Response> {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const googleClientId = Deno.env.get("GOOGLE_CLIENT_ID") ?? "";
 
   if (!jwt) {
     return new Response(JSON.stringify({ error: "missing Authorization" }), {
@@ -158,7 +191,8 @@ async function handleStart(body: StartBody, jwt: string): Promise<Response> {
     });
   }
 
-  if (!supportsGooglePluginOAuth(body.plugin_type_id)) {
+  const oauthProviderId = oauthProviderForPlugin(body.plugin_type_id);
+  if (!oauthProviderId || !supportsPluginOAuth(body.plugin_type_id)) {
     return new Response(
       JSON.stringify({ error: "unsupported plugin_type_id" }),
       {
@@ -180,63 +214,89 @@ async function handleStart(body: StartBody, jwt: string): Promise<Response> {
   }
   const userId = userData.user.id;
 
-  if (!googleClientId) {
-    return new Response(
-      JSON.stringify({ error: "GOOGLE_CLIENT_ID not configured" }),
-      {
-        status: 500,
-        headers: { ...cors(), "Content-Type": "application/json" },
-      },
-    );
-  }
-
   const codeVerifier = randomUrlSafe(48);
   const codeChallenge = await sha256Base64Url(codeVerifier);
   const state = randomUrlSafe(24);
 
   const admin = createClient(supabaseUrl, serviceKey);
-  const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-  const { error: pendErr } = await admin.from("plugin_oauth_pending").insert({
+  const pendErrResp = await insertPendingOauth(admin, {
     state,
-    user_id: userId,
-    plugin_type_id: body.plugin_type_id,
-    code_verifier: codeVerifier,
-    redirect_after: body.redirect_after ?? null,
-    expires_at: expiresAt,
+    userId,
+    pluginTypeId: body.plugin_type_id,
+    codeVerifier,
+    redirectAfter: body.redirect_after ?? null,
   });
-  if (pendErr) {
-    console.error(pendErr);
-    return new Response(
-      JSON.stringify({ error: "could not store oauth state" }),
-      {
-        status: 500,
-        headers: { ...cors(), "Content-Type": "application/json" },
-      },
-    );
-  }
+  if (pendErrResp) return pendErrResp;
 
   const redirectUri = callbackUrl();
   const scope = authorizeScopesSpaceSeparated(
     body.plugin_type_id,
-    GOOGLE_OAUTH_PROVIDER_ID,
+    oauthProviderId,
   );
-  const params = new URLSearchParams({
-    client_id: googleClientId,
-    redirect_uri: redirectUri,
-    response_type: "code",
-    scope,
-    state,
-    code_challenge: codeChallenge,
-    code_challenge_method: "S256",
-    access_type: "offline",
-    prompt: "consent",
-  });
 
-  const authorizeUrl = `${GOOGLE_AUTH}?${params.toString()}`;
-  return new Response(JSON.stringify({ url: authorizeUrl }), {
-    status: 200,
-    headers: { ...cors(), "Content-Type": "application/json" },
-  });
+  if (oauthProviderId === "google") {
+    const googleClientId = Deno.env.get("GOOGLE_CLIENT_ID") ?? "";
+    if (!googleClientId) {
+      return new Response(
+        JSON.stringify({ error: "GOOGLE_CLIENT_ID not configured" }),
+        {
+          status: 500,
+          headers: { ...cors(), "Content-Type": "application/json" },
+        },
+      );
+    }
+    const params = new URLSearchParams({
+      client_id: googleClientId,
+      redirect_uri: redirectUri,
+      response_type: "code",
+      scope,
+      state,
+      code_challenge: codeChallenge,
+      code_challenge_method: "S256",
+      access_type: "offline",
+      prompt: "consent",
+    });
+    const authorizeUrl = `${GOOGLE_AUTH}?${params.toString()}`;
+    return new Response(JSON.stringify({ url: authorizeUrl }), {
+      status: 200,
+      headers: { ...cors(), "Content-Type": "application/json" },
+    });
+  }
+
+  if (oauthProviderId === "spotify") {
+    const spotifyClientId = Deno.env.get("SPOTIFY_CLIENT_ID") ?? "";
+    if (!spotifyClientId) {
+      return new Response(
+        JSON.stringify({ error: "SPOTIFY_CLIENT_ID not configured" }),
+        {
+          status: 500,
+          headers: { ...cors(), "Content-Type": "application/json" },
+        },
+      );
+    }
+    const params = new URLSearchParams({
+      client_id: spotifyClientId,
+      redirect_uri: redirectUri,
+      response_type: "code",
+      scope,
+      state,
+      code_challenge: codeChallenge,
+      code_challenge_method: "S256",
+    });
+    const authorizeUrl = `${SPOTIFY_AUTH}?${params.toString()}`;
+    return new Response(JSON.stringify({ url: authorizeUrl }), {
+      status: 200,
+      headers: { ...cors(), "Content-Type": "application/json" },
+    });
+  }
+
+  return new Response(
+    JSON.stringify({ error: "oauth_provider_not_implemented" }),
+    {
+      status: 500,
+      headers: { ...cors(), "Content-Type": "application/json" },
+    },
+  );
 }
 
 async function handleUnlink(body: UnlinkBody, jwt: string): Promise<Response> {
@@ -258,7 +318,7 @@ async function handleUnlink(body: UnlinkBody, jwt: string): Promise<Response> {
     });
   }
 
-  if (!supportsGooglePluginOAuth(body.plugin_type_id)) {
+  if (!oauthProviderForPlugin(body.plugin_type_id)) {
     return new Response(
       JSON.stringify({ error: "unsupported plugin_type_id" }),
       {
@@ -352,7 +412,7 @@ async function handleLinkStatus(
     });
   }
 
-  if (!supportsGooglePluginOAuth(body.plugin_type_id)) {
+  if (!oauthProviderForPlugin(body.plugin_type_id)) {
     return new Response(
       JSON.stringify({ error: "unsupported plugin_type_id" }),
       {
@@ -420,6 +480,8 @@ async function handleCallback(req: Request, url: URL): Promise<Response> {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const googleClientId = Deno.env.get("GOOGLE_CLIENT_ID") ?? "";
   const googleClientSecret = Deno.env.get("GOOGLE_CLIENT_SECRET") ?? "";
+  const spotifyClientId = Deno.env.get("SPOTIFY_CLIENT_ID") ?? "";
+  const spotifyClientSecret = Deno.env.get("SPOTIFY_CLIENT_SECRET") ?? "";
   const defaultOrigin =
     Deno.env.get("PUBLIC_APP_ORIGIN") ?? "http://127.0.0.1:5173";
 
@@ -482,25 +544,63 @@ async function handleCallback(req: Request, url: URL): Promise<Response> {
     redirect_after: string | null;
   };
 
-  const redirectUri = callbackUrl();
-  const tokenBody = new URLSearchParams({
-    client_id: googleClientId,
-    client_secret: googleClientSecret,
-    code,
-    code_verifier: p.code_verifier,
-    grant_type: "authorization_code",
-    redirect_uri: redirectUri,
-  });
+  const oauthProviderId = oauthProviderForPlugin(p.plugin_type_id);
+  if (!oauthProviderId) {
+    await admin.from("plugin_oauth_pending").delete().eq("state", state);
+    return redirectBack(`${defaultOrigin}/settings/plugins`, {
+      plugin_oauth: "error",
+      reason: "unsupported_plugin",
+    });
+  }
 
-  const tokenRes = await fetch(GOOGLE_TOKEN, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: tokenBody,
-  });
-  const tokenJson = (await tokenRes.json()) as Record<string, unknown>;
+  const redirectUri = callbackUrl();
+  let tokenJson: Record<string, unknown>;
+  let tokenRes: Response;
+
+  if (oauthProviderId === "google") {
+    const tokenBody = new URLSearchParams({
+      client_id: googleClientId,
+      client_secret: googleClientSecret,
+      code,
+      code_verifier: p.code_verifier,
+      grant_type: "authorization_code",
+      redirect_uri: redirectUri,
+    });
+
+    tokenRes = await fetch(GOOGLE_TOKEN, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: tokenBody,
+    });
+    tokenJson = (await tokenRes.json()) as Record<string, unknown>;
+  } else if (oauthProviderId === "spotify") {
+    const body = new URLSearchParams({
+      client_id: spotifyClientId,
+      grant_type: "authorization_code",
+      code,
+      redirect_uri: redirectUri,
+      code_verifier: p.code_verifier,
+    });
+    if (spotifyClientSecret.trim()) {
+      body.set("client_secret", spotifyClientSecret);
+    }
+
+    tokenRes = await fetch(SPOTIFY_TOKEN, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+    });
+    tokenJson = (await tokenRes.json()) as Record<string, unknown>;
+  } else {
+    await admin.from("plugin_oauth_pending").delete().eq("state", state);
+    return redirectBack(`${defaultOrigin}/settings/plugins`, {
+      plugin_oauth: "error",
+      reason: "oauth_provider_not_implemented",
+    });
+  }
 
   if (!tokenRes.ok) {
-    console.error("google token error", tokenJson);
+    console.error("oauth token error", oauthProviderId, tokenJson);
     await admin.from("plugin_oauth_pending").delete().eq("state", state);
     const base = p.redirect_after ?? `${defaultOrigin}/settings/plugins`;
     return redirectBack(base, {
@@ -531,7 +631,7 @@ async function handleCallback(req: Request, url: URL): Promise<Response> {
   const row = {
     user_id: p.user_id,
     plugin_type_id: p.plugin_type_id,
-    provider: "google",
+    provider: oauthProviderId,
     refresh_token_ciphertext: byteaInsertValue(refreshCt),
     access_token_ciphertext: accessCt ? byteaInsertValue(accessCt) : null,
     access_token_expires_at: accessExpires,
@@ -563,10 +663,11 @@ async function handleCallback(req: Request, url: URL): Promise<Response> {
     .maybeSingle();
 
   const oauthMeta: Record<string, unknown> = {
-    provider: "google",
+    provider: oauthProviderId,
     linked_at: new Date().toISOString(),
   };
-  if (accessToken) {
+
+  if (oauthProviderId === "google" && accessToken) {
     try {
       const ui = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
         headers: { Authorization: `Bearer ${accessToken}` },
@@ -579,6 +680,23 @@ async function handleCallback(req: Request, url: URL): Promise<Response> {
       }
     } catch (e) {
       console.error("google userinfo failed", e);
+    }
+  }
+
+  if (oauthProviderId === "spotify" && accessToken) {
+    try {
+      const ui = await fetch("https://api.spotify.com/v1/me", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (ui.ok) {
+        const j = (await ui.json()) as Record<string, unknown>;
+        const dn = j.display_name;
+        const id = j.id;
+        if (typeof dn === "string" && dn.trim()) oauthMeta.email = dn;
+        if (typeof id === "string") oauthMeta.sub = id;
+      }
+    } catch (e) {
+      console.error("spotify me failed", e);
     }
   }
 

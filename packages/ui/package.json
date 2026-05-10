@@ -12,6 +12,7 @@
     "./button": "./src/components/button.tsx",
     "./card": "./src/components/card.tsx",
     "./checkbox": "./src/components/checkbox.tsx",
+    "./caution-panel": "./src/components/caution-panel.tsx",
     "./dialog": "./src/components/dialog.tsx",
     "./dropdown-menu": "./src/components/dropdown-menu.tsx",
     "./emoji-picker": "./src/components/emoji-picker.tsx",

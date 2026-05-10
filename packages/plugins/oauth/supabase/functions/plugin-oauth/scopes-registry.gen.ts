@@ -7,6 +7,7 @@ export const OAUTH_COMPANION_SCOPES_BY_PROVIDER: Record<
   readonly string[]
 > = {
   google: ["openid", "email", "profile"],
+  spotify: [],
 };
 
 /** pluginTypeId → provider id → resource/API scopes (excludes companion scopes). */
@@ -19,7 +20,19 @@ const PLUGIN_OAUTH_SCOPES_BY_PROVIDER: Record<
       "https://www.googleapis.com/auth/photospicker.mediaitems.readonly",
     ],
   },
+  spotify: {
+    spotify: ["user-read-recently-played"],
+  },
 };
+
+/** OAuth provider ids declared for a plugin (manifest contributions.oauth). */
+export function oauthProviderIdsForPlugin(
+  pluginTypeId: string,
+): readonly string[] {
+  const provMap = PLUGIN_OAUTH_SCOPES_BY_PROVIDER[pluginTypeId];
+  if (!provMap) return [];
+  return Object.keys(provMap).sort();
+}
 
 export function pluginOAuthScopesFor(
   pluginTypeId: string,

@@ -1,6 +1,5 @@
 import { FloatingPanel } from "@/components/layout/floating-panel";
 import type { TraceMapHandle } from "@/components/map/trace-map";
-import { TraceFormDialog } from "@/components/traces/trace-form-dialog";
 import {
   TracePhotoLightbox,
   TracePhotoThumb,
@@ -14,13 +13,12 @@ import { photosToLightboxItems } from "@/lib/trace-photo-lightbox-items";
 import type { TraceWithTags } from "@/lib/trace-with-tags";
 import { useTracePhotosSignedUrls } from "@/lib/use-trace-photos";
 import { cn, contrastingForeground } from "@/lib/utils";
-import type { Trace } from "@/types/database";
 import { Badge } from "@curolia/ui/badge";
 import { Button, buttonVariants } from "@curolia/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@curolia/ui/sheet";
 import { autoUpdate, computePosition } from "@floating-ui/dom";
 import { useQuery } from "@tanstack/react-query";
-import { Pencil, X } from "lucide-react";
+import { X } from "lucide-react";
 import {
   useLayoutEffect,
   useMemo,
@@ -71,7 +69,6 @@ export function TraceMapSidebar({
   const [photoLightbox, setPhotoLightbox] = useState<{
     photoId: string;
   } | null>(null);
-  const [editOpen, setEditOpen] = useState(false);
   /** Desktop floating: hide until first computePosition applies (avoids 0,0 / flow flash). */
   const [placementReady, setPlacementReady] = useState(false);
 
@@ -225,8 +222,6 @@ export function TraceMapSidebar({
     };
   }, [isMobile, anchorCoords, virtualReference, traceId, mapRef]);
 
-  const traceForEdit: Trace | null = trace ?? null;
-
   const titleText = traceQuery.isLoading
     ? "Loading…"
     : trace?.title || "Untitled place";
@@ -243,18 +238,6 @@ export function TraceMapSidebar({
           {titleText}
         </h2>
         <div className="flex shrink-0 items-center gap-1">
-          {trace && journalId ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="rounded-xl"
-              onClick={() => setEditOpen(true)}
-            >
-              <Pencil className="size-4" />
-              Edit
-            </Button>
-          ) : null}
           <Button
             type="button"
             variant="ghost"
@@ -364,16 +347,6 @@ export function TraceMapSidebar({
 
   const desktopFallback = !isMobile && !anchorCoords;
 
-  const editDialog =
-    traceForEdit && journalId ? (
-      <TraceFormDialog
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        journalId={journalId}
-        trace={traceForEdit}
-      />
-    ) : null;
-
   if (isMobile) {
     return (
       <>
@@ -396,13 +369,12 @@ export function TraceMapSidebar({
             </div>
           </SheetContent>
         </Sheet>
-        {editDialog}
       </>
     );
   }
 
   if (!anchorCoords && traceQuery.isPending) {
-    return editDialog;
+    return null;
   }
 
   return (
@@ -424,7 +396,6 @@ export function TraceMapSidebar({
           {body}
         </FloatingPanel>
       )}
-      {editDialog}
     </>
   );
 }

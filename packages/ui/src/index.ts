@@ -2,6 +2,7 @@ export { cn, contrastingForeground } from "./lib/utils";
 export * from "./components/badge";
 export * from "./components/button";
 export * from "./components/card";
+export * from "./components/caution-panel";
 export * from "./components/checkbox";
 export * from "./components/dialog";
 export * from "./components/dropdown-menu";

@@ -1,37 +1,25 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
 import {
   TracePhotoLightbox,
   TracePhotoThumb,
 } from "@/components/traces/trace-photo-lightbox";
 import { photosToLightboxItems } from "@/lib/trace-photo-lightbox-items";
 import { useQuery } from "@tanstack/react-query";
-import { Pencil, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useJournal } from "@/providers/journal-provider";
 import type { Trace } from "@/types/database";
 import { useTracePhotosSignedUrls } from "@/lib/use-trace-photos";
-import { TraceFormDialog } from "@/components/traces/trace-form-dialog";
+import { TraceFormDialogTrigger } from "@/components/traces/trace-form-dialog";
 import { TraceLinksList } from "@/components/traces/trace-links-list";
 import { PageBackButton } from "@/components/layout/page-back-button";
-import { Button, buttonVariants } from "@curolia/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@curolia/ui/dialog";
+import { buttonVariants } from "@curolia/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@curolia/ui/card";
 import { Badge } from "@curolia/ui/badge";
 import { formatTraceDateRange } from "@/lib/trace-dates";
 import { TraceMetadataFooter } from "@/components/traces/trace-metadata-footer";
 import { journalViewHref } from "@/lib/app-paths";
 import { contrastingForeground } from "@/lib/utils";
-import { toast } from "sonner";
-
 type TraceRow = Trace & {
   trace_tags?: {
     tag_id: string;
@@ -52,11 +40,7 @@ export function TraceDetailPage() {
     traceSlug: string;
   }>();
   const navigate = useNavigate();
-  const qc = useQueryClient();
   const { journals, activeJournalId } = useJournal();
-  const [editOpen, setEditOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [photoLightbox, setPhotoLightbox] = useState<{
     photoId: string;
   } | null>(null);
@@ -153,33 +137,6 @@ export function TraceDetailPage() {
 
   const traceDateSubtitle = formatTraceDateRange(trace.date, trace.end_date);
 
-  async function confirmDeleteTrace() {
-    if (!trace || !journalForRoute) return;
-    setDeleting(true);
-    try {
-      const { error } = await supabase
-        .from("traces")
-        .delete()
-        .eq("id", trace.id);
-      if (error) throw error;
-      await qc.invalidateQueries({ queryKey: ["traces", trace.journal_id] });
-      await qc.invalidateQueries({ queryKey: ["trace"] });
-      await qc.invalidateQueries({
-        queryKey: ["journal-trace-photos", trace.journal_id],
-      });
-      setPhotoLightbox(null);
-      setDeleteOpen(false);
-      toast.success("Trace deleted");
-      navigate(journalViewHref("map", journalForRoute.slug));
-    } catch (e) {
-      toast.error(
-        e instanceof Error ? e.message : "Could not delete this trace.",
-      );
-    } finally {
-      setDeleting(false);
-    }
-  }
-
   return (
     <div className="h-full overflow-y-auto px-3 pt-[4.75rem] pb-10 sm:px-6 sm:pt-[5.25rem]">
       <div className="mx-auto max-w-2xl space-y-4">
@@ -212,25 +169,13 @@ export function TraceDetailPage() {
               </div>
             </div>
             <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-start">
-              <Button
+              <TraceFormDialogTrigger
+                journalId={trace.journal_id}
+                trace={trace}
                 variant="outline"
                 size="sm"
                 className="rounded-xl"
-                onClick={() => setEditOpen(true)}
-              >
-                <Pencil className="size-4" aria-hidden />
-                Edit
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="rounded-xl border-destructive/50 text-destructive hover:bg-destructive/10"
-                onClick={() => setDeleteOpen(true)}
-              >
-                <Trash2 className="size-4" aria-hidden />
-                Delete
-              </Button>
+              />
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -266,53 +211,6 @@ export function TraceDetailPage() {
             />
           </CardContent>
         </Card>
-        <TraceFormDialog
-          open={editOpen}
-          onOpenChange={setEditOpen}
-          journalId={trace.journal_id}
-          trace={trace}
-        />
-        <Dialog
-          open={deleteOpen}
-          onOpenChange={(open) => {
-            if (!open && deleting) return;
-            setDeleteOpen(open);
-          }}
-        >
-          <DialogContent
-            showCloseButton={!deleting}
-            className="border-[var(--panel-border)] bg-[var(--panel-bg)] backdrop-blur-xl sm:max-w-md"
-          >
-            <DialogHeader>
-              <DialogTitle className="font-display text-xl font-normal">
-                Delete trace?
-              </DialogTitle>
-              <DialogDescription>
-                This removes the trace from your journal. This cannot be undone.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter className="border-border/40 sm:justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-xl"
-                disabled={deleting}
-                onClick={() => setDeleteOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                className="rounded-xl"
-                disabled={deleting}
-                onClick={() => void confirmDeleteTrace()}
-              >
-                {deleting ? "Deleting…" : "Delete trace"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
         <TracePhotoLightbox
           open={photoLightbox !== null}
           onOpenChange={(o) => {

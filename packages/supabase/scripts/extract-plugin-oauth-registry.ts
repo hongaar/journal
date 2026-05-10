@@ -130,6 +130,19 @@ function emitRegistry(byPlugin: ByPluginMap): void {
   }
   lines.push(`};`);
   lines.push(``);
+  lines.push(
+    `/** OAuth provider ids declared for a plugin (manifest contributions.oauth). */`,
+  );
+  lines.push(
+    `export function oauthProviderIdsForPlugin(pluginTypeId: string): readonly string[] {`,
+  );
+  lines.push(
+    `  const provMap = PLUGIN_OAUTH_SCOPES_BY_PROVIDER[pluginTypeId];`,
+  );
+  lines.push(`  if (!provMap) return [];`);
+  lines.push(`  return Object.keys(provMap).sort();`);
+  lines.push(`}`);
+  lines.push(``);
   lines.push(`export function pluginOAuthScopesFor(`);
   lines.push(`  pluginTypeId: string,`);
   lines.push(`  providerId: string,`);

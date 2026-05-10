@@ -8,4 +8,6 @@ export const OAUTH_COMPANION_SCOPES_BY_PROVIDER: Readonly<
   Record<string, readonly string[]>
 > = {
   google: ["openid", "email", "profile"],
+  /** Spotify: no extra companion scopes; resource scopes come from each plugin manifest. */
+  spotify: [],
 };

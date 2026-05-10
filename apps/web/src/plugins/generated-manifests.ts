@@ -4,8 +4,10 @@ import type { PluginPackageManifest } from "@curolia/plugin-contract";
 
 import { pluginManifest as pluginManifest0 } from "@curolia/plugin-google-photos";
 import { pluginManifest as pluginManifest1 } from "@curolia/plugin-ical";
+import { pluginManifest as pluginManifest2 } from "@curolia/plugin-spotify";
 
 export const installedPluginManifests: PluginPackageManifest[] = [
   pluginManifest0,
   pluginManifest1,
+  pluginManifest2,
 ];

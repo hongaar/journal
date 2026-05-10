@@ -1,3 +1,20 @@
+import { TraceLinksEditor } from "@/components/traces/trace-links-editor";
+import {
+  TracePhotoLightbox,
+  TracePhotoThumb,
+} from "@/components/traces/trace-photo-lightbox";
+import { useMaxSm } from "@/hooks/use-max-sm";
+import { journalViewHref, traceDetailHref } from "@/lib/app-paths";
+import { mapAnchorPanelMiddleware } from "@/lib/map-anchor-floating-ui";
+import { reversePhotonLocationLabel } from "@/lib/photon-geocode";
+import { supabase } from "@/lib/supabase";
+import { photosToLightboxItems } from "@/lib/trace-photo-lightbox-items";
+import { useTracePhotosSignedUrls } from "@/lib/use-trace-photos";
+import { cn } from "@/lib/utils";
+import { pluginList } from "@/plugins/registry";
+import { useAuth } from "@/providers/auth-provider";
+import { useJournal } from "@/providers/journal-provider";
+import type { Tag, Trace } from "@/types/database";
 import { Button } from "@curolia/ui/button";
 import {
   Card,
@@ -6,29 +23,39 @@ import {
   CardHeader,
   CardTitle,
 } from "@curolia/ui/card";
+import { CautionPanel } from "@curolia/ui/caution-panel";
 import { Checkbox } from "@curolia/ui/checkbox";
-import { Dialog, DialogContent } from "@curolia/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@curolia/ui/dialog";
 import { Input } from "@curolia/ui/input";
 import { Label } from "@curolia/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@curolia/ui/select";
 import { Textarea } from "@curolia/ui/textarea";
-import { mapAnchorPanelMiddleware } from "@/lib/map-anchor-floating-ui";
-import { reversePhotonLocationLabel } from "@/lib/photon-geocode";
-import { photosToLightboxItems } from "@/lib/trace-photo-lightbox-items";
-import { supabase } from "@/lib/supabase";
-import { useTracePhotosSignedUrls } from "@/lib/use-trace-photos";
-import type { Tag, Trace } from "@/types/database";
 import { autoUpdate, computePosition } from "@floating-ui/dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Upload } from "lucide-react";
-import { useMaxSm } from "@/hooks/use-max-sm";
-import { pluginList } from "@/plugins/registry";
+import { Pencil, Trash2, Upload } from "lucide-react";
 import {
-  TracePhotoLightbox,
-  TracePhotoThumb,
-} from "@/components/traces/trace-photo-lightbox";
-import { TraceLinksEditor } from "@/components/traces/trace-links-editor";
-import { useAuth } from "@/providers/auth-provider";
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentProps,
+} from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 type TraceFormDialogProps = {
   open: boolean;
@@ -54,6 +81,8 @@ export function TraceFormDialog({
   onNewTraceTagIdsChange,
 }: TraceFormDialogProps) {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const { journals } = useJournal();
   const isNarrow = useMaxSm();
   const qc = useQueryClient();
   const [title, setTitle] = useState("");
@@ -70,6 +99,11 @@ export function TraceFormDialog({
   const [photoLightbox, setPhotoLightbox] = useState<{
     photoId: string;
   } | null>(null);
+  const [moveOpen, setMoveOpen] = useState(false);
+  const [moveTargetJournalId, setMoveTargetJournalId] = useState("");
+  const [moving, setMoving] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const floatingRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<{ x: number; y: number } | null>(null);
 
@@ -137,6 +171,29 @@ export function TraceFormDialog({
   }, [floatingNew, onOpenChange]);
 
   const dialogTitle = trace ? "Edit trace" : "New trace";
+
+  const otherJournals = useMemo(
+    () => (trace ? journals.filter((j) => j.id !== trace.journal_id) : []),
+    [journals, trace],
+  );
+
+  /** Base UI Select maps values → labels for `<SelectValue>` (otherwise the raw id is shown). */
+  const journalSelectItems = useMemo(
+    () =>
+      Object.fromEntries(otherJournals.map((j) => [j.id, j.name])) as Record<
+        string,
+        string
+      >,
+    [otherJournals],
+  );
+
+  const moveTargetJournal = useMemo(
+    () =>
+      moveTargetJournalId
+        ? (journals.find((j) => j.id === moveTargetJournalId) ?? null)
+        : null,
+    [journals, moveTargetJournalId],
+  );
 
   const tagsQuery = useQuery({
     queryKey: ["tags", journalId],
@@ -217,8 +274,148 @@ export function TraceFormDialog({
   }, [open, trace, selectedTags, onNewTraceTagIdsChange]);
 
   useEffect(() => {
-    if (!open) setPhotoLightbox(null);
+    if (!open) {
+      setPhotoLightbox(null);
+      setMoveOpen(false);
+      setMoveTargetJournalId("");
+      setMoving(false);
+      setDeleteOpen(false);
+      setDeleting(false);
+    }
   }, [open]);
+
+  async function confirmMoveTrace() {
+    if (!trace || !moveTargetJournalId) return;
+    const targetJournal = journals.find((j) => j.id === moveTargetJournalId);
+    if (!targetJournal) return;
+
+    setMoving(true);
+    setError(null);
+    const oldJournalId = trace.journal_id;
+    try {
+      const { data: photoRows, error: phFetchErr } = await supabase
+        .from("photos")
+        .select("id, storage_path")
+        .eq("trace_id", trace.id);
+      if (phFetchErr) throw phFetchErr;
+
+      for (const p of photoRows ?? []) {
+        const path = p.storage_path?.trim();
+        if (!path) continue;
+        const segments = path.split("/").filter(Boolean);
+        if (segments.length < 3) continue;
+        const tail = segments.slice(2).join("/");
+        const newPath = `${moveTargetJournalId}/${trace.id}/${tail}`;
+        if (newPath === path) continue;
+
+        const { data: blob, error: dlErr } = await supabase.storage
+          .from("trace-photos")
+          .download(path);
+        if (dlErr || !blob) throw dlErr ?? new Error("Photo download failed");
+        const { error: upErr } = await supabase.storage
+          .from("trace-photos")
+          .upload(newPath, blob, {
+            upsert: false,
+            contentType: blob.type || undefined,
+          });
+        if (upErr) throw upErr;
+
+        const { error: uErr } = await supabase
+          .from("photos")
+          .update({
+            journal_id: moveTargetJournalId,
+            storage_path: newPath,
+          })
+          .eq("id", p.id);
+        if (uErr) throw uErr;
+
+        await supabase.storage.from("trace-photos").remove([path]);
+      }
+
+      const { error: ttErr } = await supabase
+        .from("trace_tags")
+        .delete()
+        .eq("trace_id", trace.id);
+      if (ttErr) throw ttErr;
+
+      const { error: tlErr } = await supabase
+        .from("trace_links")
+        .update({ journal_id: moveTargetJournalId })
+        .eq("trace_id", trace.id);
+      if (tlErr) throw tlErr;
+
+      const { data: traceRow, error: trErr } = await supabase
+        .from("traces")
+        .update({
+          journal_id: moveTargetJournalId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", trace.id)
+        .select("slug")
+        .single();
+      if (trErr || !traceRow?.slug) throw trErr ?? new Error("Move failed");
+
+      await qc.invalidateQueries({ queryKey: ["traces", oldJournalId] });
+      await qc.invalidateQueries({ queryKey: ["traces", moveTargetJournalId] });
+      await qc.invalidateQueries({ queryKey: ["trace"] });
+      await qc.invalidateQueries({ queryKey: ["trace", trace.id] });
+      await qc.invalidateQueries({ queryKey: ["photos", trace.id] });
+      await qc.invalidateQueries({ queryKey: ["photo-urls", trace.id] });
+      await qc.invalidateQueries({
+        queryKey: ["journal-trace-photos", oldJournalId],
+      });
+      await qc.invalidateQueries({
+        queryKey: ["journal-trace-photos", moveTargetJournalId],
+      });
+      await qc.invalidateQueries({
+        queryKey: ["photo-urls-batch", oldJournalId],
+      });
+      await qc.invalidateQueries({
+        queryKey: ["photo-urls-batch", moveTargetJournalId],
+      });
+
+      setMoveOpen(false);
+      setMoveTargetJournalId("");
+      onOpenChange(false);
+      toast.success(`Moved to ${targetJournal.name}`);
+      navigate(
+        traceDetailHref(targetJournal.slug.trim(), traceRow.slug.trim()),
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not move trace");
+    } finally {
+      setMoving(false);
+    }
+  }
+
+  async function confirmDeleteTrace() {
+    if (!trace) return;
+    setDeleting(true);
+    try {
+      const journalSlug =
+        journals.find((j) => j.id === trace.journal_id)?.slug?.trim() ?? "";
+      const { error } = await supabase
+        .from("traces")
+        .delete()
+        .eq("id", trace.id);
+      if (error) throw error;
+      await qc.invalidateQueries({ queryKey: ["traces", trace.journal_id] });
+      await qc.invalidateQueries({ queryKey: ["trace"] });
+      await qc.invalidateQueries({
+        queryKey: ["journal-trace-photos", trace.journal_id],
+      });
+      setDeleteOpen(false);
+      onOpenChange(false);
+      toast.success("Trace deleted");
+      navigate(journalSlug ? journalViewHref("map", journalSlug) : "/");
+    } catch (e) {
+      toast.error(
+        e instanceof Error ? e.message : "Could not delete this trace.",
+      );
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   async function save() {
     setSaving(true);
@@ -479,6 +676,21 @@ export function TraceFormDialog({
           <div className="space-y-2">
             <Label>Links</Label>
             <TraceLinksEditor traceId={trace.id} journalId={journalId} />
+            {pluginList.map((p) => {
+              const Listen = p.TraceListeningSlot;
+              if (!Listen) return null;
+              return (
+                <Listen
+                  key={`listen-${p.id}`}
+                  supabase={supabase}
+                  userId={user?.id}
+                  traceId={trace.id}
+                  journalId={journalId}
+                  traceDate={trace.date}
+                  traceEndDate={trace.end_date}
+                />
+              );
+            })}
           </div>
         </>
       )}
@@ -512,6 +724,43 @@ export function TraceFormDialog({
           ) : null}
         </div>
       </div>
+      {trace ? (
+        <div className="mt-4 border-t border-border/40 pt-4">
+          <CautionPanel
+            title="Danger zone"
+            description="Move this trace to another journal or delete it permanently."
+          >
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+              <Button
+                type="button"
+                variant="secondary"
+                className="rounded-xl"
+                disabled={otherJournals.length === 0}
+                onClick={() => {
+                  setMoveTargetJournalId("");
+                  setMoveOpen(true);
+                }}
+              >
+                Move to another journal…
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-xl border-destructive/40 text-destructive hover:bg-destructive/10"
+                onClick={() => setDeleteOpen(true)}
+              >
+                <Trash2 className="size-4" aria-hidden />
+                Delete trace
+              </Button>
+            </div>
+            {otherJournals.length === 0 ? (
+              <p className="text-muted-foreground mt-2 text-[11px] leading-snug">
+                No other journals to move to.
+              </p>
+            ) : null}
+          </CautionPanel>
+        </div>
+      ) : null}
       {error ? <p className="text-destructive text-sm">{error}</p> : null}
     </div>
   );
@@ -563,6 +812,127 @@ export function TraceFormDialog({
     />
   ) : null;
 
+  const moveTraceDialog = trace ? (
+    <Dialog
+      open={moveOpen}
+      onOpenChange={(next) => {
+        if (!moving) setMoveOpen(next);
+      }}
+    >
+      <DialogContent className="border-[var(--panel-border)] bg-[var(--panel-bg)] backdrop-blur-xl sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="font-display text-xl font-normal">
+            Move trace to another journal
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            Tags will be removed. If you choose a shared journal, other members
+            may see this trace. Pick a destination journal below.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-3">
+          <ul className="text-muted-foreground list-disc space-y-1.5 pl-4 text-sm">
+            <li>
+              All tags will be removed from this trace. Tags belong to a journal
+              and do not carry over.
+            </li>
+            {moveTargetJournal && !moveTargetJournal.is_personal ? (
+              <li>
+                This journal is shared with others. Members who can access it
+                may be able to see this trace.
+              </li>
+            ) : null}
+          </ul>
+          <div className="space-y-2">
+            <Label htmlFor="move-trace-journal">Destination journal</Label>
+            <Select
+              modal={false}
+              value={moveTargetJournalId === "" ? null : moveTargetJournalId}
+              onValueChange={(v) => setMoveTargetJournalId(v ?? "")}
+              items={journalSelectItems}
+            >
+              <SelectTrigger
+                id="move-trace-journal"
+                className="w-full rounded-xl"
+              >
+                <SelectValue placeholder="Choose a journal" />
+              </SelectTrigger>
+              <SelectContent alignItemWithTrigger={false}>
+                {otherJournals.map((j) => (
+                  <SelectItem key={j.id} value={j.id}>
+                    {j.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter className="gap-2 sm:justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-xl"
+            disabled={moving}
+            onClick={() => setMoveOpen(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            className="rounded-xl"
+            disabled={moving || !moveTargetJournalId}
+            onClick={() => void confirmMoveTrace()}
+          >
+            {moving ? "Moving…" : "Move trace"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  ) : null;
+
+  const deleteTraceDialog = trace ? (
+    <Dialog
+      open={deleteOpen}
+      onOpenChange={(next) => {
+        if (!next && deleting) return;
+        setDeleteOpen(next);
+      }}
+    >
+      <DialogContent
+        showCloseButton={!deleting}
+        className="border-[var(--panel-border)] bg-[var(--panel-bg)] backdrop-blur-xl sm:max-w-md"
+      >
+        <DialogHeader>
+          <DialogTitle className="font-display text-xl font-normal">
+            Delete trace?
+          </DialogTitle>
+          <DialogDescription>
+            This removes the trace from your journal. This cannot be undone.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="border-border/40 gap-2 sm:justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-xl"
+            disabled={deleting}
+            onClick={() => setDeleteOpen(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            className="rounded-xl"
+            disabled={deleting}
+            onClick={() => void confirmDeleteTrace()}
+          >
+            {deleting ? "Deleting…" : "Delete trace"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  ) : null;
+
   if (floatingNew && anchorScreen) {
     return (
       <>
@@ -589,6 +959,46 @@ export function TraceFormDialog({
         </DialogContent>
       </Dialog>
       {photoLightboxOverlay}
+      {moveTraceDialog}
+      {deleteTraceDialog}
+    </>
+  );
+}
+
+type TraceFormDialogTriggerProps = {
+  journalId: string;
+  trace: Trace;
+  label?: string;
+} & Pick<ComponentProps<typeof Button>, "variant" | "size" | "className">;
+
+/** Opens {@link TraceFormDialog} — use instead of an external Edit control. */
+export function TraceFormDialogTrigger({
+  journalId,
+  trace,
+  label = "Edit",
+  variant = "outline",
+  size = "sm",
+  className,
+}: TraceFormDialogTriggerProps) {
+  const [dialogOpen, setDialogOpen] = useState(false);
+  return (
+    <>
+      <Button
+        type="button"
+        variant={variant}
+        size={size}
+        className={cn("rounded-xl", className)}
+        onClick={() => setDialogOpen(true)}
+      >
+        <Pencil className="size-4" aria-hidden />
+        {label}
+      </Button>
+      <TraceFormDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        journalId={journalId}
+        trace={trace}
+      />
     </>
   );
 }

@@ -38,6 +38,11 @@ export type PluginDefinition = {
    * library media for an existing trace.
    */
   TracePhotoImportSlot?: ComponentType<TracePhotoImportSlotProps>;
+  /**
+   * Optional trace-period enrichment (e.g. auto-import top streamed tracks as links).
+   * Same date context as photo import slots.
+   */
+  TraceListeningSlot?: ComponentType<TracePhotoImportSlotProps>;
 };
 
 export type PluginRegistry = Record<string, PluginDefinition>;
