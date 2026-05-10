@@ -26,3 +26,15 @@ Resolves **top streamed tracks** (by replay count in your Spotify **recently pla
 - Ranking uses **recently played** entries inside the trace window, **not** Spotify’s separate “top tracks” API (which uses fixed time ranges, not calendar dates).
 - Long windows are capped: see **`SPOTIFY_RECENTLY_PLAYED_MAX_PAGES`** and related constants in **`src/constants.ts`** to avoid excessive Spotify pagination.
 - Payload shape for `plugin_entity_data.data` is **`SpotifyTracePayload`** in **`src/spotify-trace-data.ts`** (`schemaVersion: 1`).
+
+### Why past trace dates often show “no plays”
+
+Spotify’s **[Get Recently Played Tracks](https://developer.spotify.com/documentation/web-api/reference/get-recently-played)** endpoint exposes **recent** streams with pagination—it is **not** a complete listening-history archive by calendar day. Third‑party integrations cannot reconstruct “everything you played on 2023‑06‑15” the way your Spotify Wrapped or internal Spotify logs might.
+
+In practice:
+
+- Only plays that appear in this **recently-played feed** can be matched to your trace window. Listening **months or years ago** usually **won’t** appear, even if you definitely listened that day.
+- Cursor paging helps scan backward only **within the history Spotify returns** for your account; once the API stops returning older pages, we cannot see further back ([historical discussion](https://github.com/spotify/web-api/issues/1405)).
+- Trace dates are interpreted as **UTC** calendar days (`YYYY-MM-DD` → start/end of that day in UTC). Local‑timezone listening can fall on the adjacent UTC date.
+
+For calendar‑accurate long‑term scrobbling, users typically need something like **Last.fm** (or another service that logs plays continuously), not the Spotify Web API alone.

@@ -142,10 +142,18 @@ export function SpotifyTraceDetailSection({
           </p>
         ) : null}
         {!payload?.tracks?.length && !busy && !syncFailed ? (
-          <p className="text-muted-foreground text-sm">
-            No qualifying plays in your Spotify history for this date range (or
-            history doesn&apos;t reach far enough back).
-          </p>
+          <div className="text-muted-foreground space-y-2 text-sm leading-relaxed">
+            <p>
+              No streams in this trace&apos;s dates matched Spotify&apos;s
+              recently-played feed from the Web API.
+            </p>
+            <p className="text-xs">
+              Spotify’s Web API only returns a shallow, rolling “recently
+              played” stream—not full playback history by calendar day—so
+              listening from older periods usually isn’t visible here. Trace
+              dates use UTC calendar boundaries (midnight–end of day UTC).
+            </p>
+          </div>
         ) : null}
         {payload?.tracks?.length ? (
           <ul className="space-y-2">
