@@ -22,12 +22,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Upload } from "lucide-react";
 import { useMaxSm } from "@/hooks/use-max-sm";
-import { TraceGooglePhotosSuggestions } from "@/components/traces/trace-google-photos-suggestions";
+import { pluginList } from "@/plugins/registry";
 import {
   TracePhotoLightbox,
   TracePhotoThumb,
 } from "@/components/traces/trace-photo-lightbox";
 import { TraceLinksEditor } from "@/components/traces/trace-links-editor";
+import { useAuth } from "@/providers/auth-provider";
 
 type TraceFormDialogProps = {
   open: boolean;
@@ -52,6 +53,7 @@ export function TraceFormDialog({
   anchorScreen = null,
   onNewTraceTagIdsChange,
 }: TraceFormDialogProps) {
+  const { user } = useAuth();
   const isNarrow = useMaxSm();
   const qc = useQueryClient();
   const [title, setTitle] = useState("");
@@ -445,24 +447,35 @@ export function TraceFormDialog({
                 <p className="text-muted-foreground text-sm">No photos yet.</p>
               ) : null}
             </div>
-            <label className="inline-flex cursor-pointer items-center gap-2 text-sm">
-              <Upload className="size-4" />
-              <span>Upload photos</span>
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                className="sr-only"
-                onChange={(e) => void onUploadPhotos(e.target.files)}
-              />
-            </label>
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="inline-flex cursor-pointer items-center gap-2 text-sm">
+                <Upload className="size-4" />
+                <span>Upload photos</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="sr-only"
+                  onChange={(e) => void onUploadPhotos(e.target.files)}
+                />
+              </label>
+              {pluginList.map((p) => {
+                const Slot = p.TracePhotoImportSlot;
+                if (!Slot) return null;
+                return (
+                  <Slot
+                    key={p.id}
+                    supabase={supabase}
+                    userId={user?.id}
+                    traceId={trace.id}
+                    journalId={journalId}
+                    traceDate={trace.date}
+                    traceEndDate={trace.end_date}
+                  />
+                );
+              })}
+            </div>
           </div>
-          <TraceGooglePhotosSuggestions
-            traceId={trace.id}
-            journalId={journalId}
-            traceDate={trace.date}
-            traceEndDate={trace.end_date}
-          />
           <div className="space-y-2">
             <Label>Links</Label>
             <TraceLinksEditor traceId={trace.id} journalId={journalId} />

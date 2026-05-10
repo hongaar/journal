@@ -12,6 +12,7 @@ export type {
   PluginDefinition,
   PluginPackageManifest,
   PluginRegistry,
+  TracePhotoImportSlotProps,
 } from "./definition";
 export type {
   PluginAccountPanelProps,

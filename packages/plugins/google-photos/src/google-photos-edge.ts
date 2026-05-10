@@ -1,5 +1,5 @@
 import type { TracePhotoSuggestion } from "@curolia/plugin-contract";
-import { supabase } from "@/lib/supabase";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type GooglePhotosPickerHint = {
   startDate: string;
@@ -64,7 +64,10 @@ function normalizePickerSession(data: unknown): GooglePhotosPickerSession {
   };
 }
 
-export async function googlePhotosPickerCreate(traceId?: string): Promise<{
+export async function googlePhotosPickerCreate(
+  supabase: SupabaseClient,
+  traceId?: string,
+): Promise<{
   sessionId: string;
   pickerUri: string;
   expireTime: string | null;
@@ -92,6 +95,7 @@ export async function googlePhotosPickerCreate(traceId?: string): Promise<{
 }
 
 export async function googlePhotosPickerSession(
+  supabase: SupabaseClient,
   sessionId: string,
 ): Promise<GooglePhotosPickerSession> {
   const { data, error } = await supabase.functions.invoke<
@@ -103,7 +107,10 @@ export async function googlePhotosPickerSession(
   return normalizePickerSession(data);
 }
 
-async function googlePhotosPickerListOnce(sessionId: string): Promise<{
+async function googlePhotosPickerListOnce(
+  supabase: SupabaseClient,
+  sessionId: string,
+): Promise<{
   suggestions: TracePhotoSuggestion[];
 }> {
   const { data, error } = await supabase.functions.invoke<{
@@ -122,7 +129,10 @@ async function googlePhotosPickerListOnce(sessionId: string): Promise<{
  * After the picker completes, Google's `mediaItems.list` occasionally returns []
  * briefly; retry a few times with backoff before giving up.
  */
-export async function googlePhotosPickerList(sessionId: string): Promise<{
+export async function googlePhotosPickerList(
+  supabase: SupabaseClient,
+  sessionId: string,
+): Promise<{
   suggestions: TracePhotoSuggestion[];
 }> {
   const delaysMs = [0, 450, 900, 1350];
@@ -135,7 +145,7 @@ export async function googlePhotosPickerList(sessionId: string): Promise<{
         window.setTimeout(resolve, wait);
       });
     try {
-      const r = await googlePhotosPickerListOnce(sessionId);
+      const r = await googlePhotosPickerListOnce(supabase, sessionId);
       lastSuggestions = r.suggestions;
       lastErr = undefined;
       if (lastSuggestions.length > 0) return { suggestions: lastSuggestions };
@@ -147,26 +157,6 @@ export async function googlePhotosPickerList(sessionId: string): Promise<{
   return { suggestions: lastSuggestions ?? [] };
 }
 
-export async function googlePhotosPickerThumbnails(
-  sessionId: string,
-  mediaItemIds: string[],
-): Promise<Record<string, string>> {
-  const { data, error } = await supabase.functions.invoke<{
-    thumbnails?: Record<string, string>;
-    error?: string;
-    message?: string;
-  }>("google-photos", {
-    body: {
-      action: "picker_thumbnails",
-      sessionId,
-      mediaItemIds,
-    },
-  });
-  if (error) throw error;
-  if (data?.error) throw new Error(data.message ?? data.error);
-  return data?.thumbnails ?? {};
-}
-
 function parseDurationMs(d: string | undefined): number {
   if (!d) return 2000;
   const m = /^([\d.]+)s$/.exec(d.trim());
@@ -176,6 +166,7 @@ function parseDurationMs(d: string | undefined): number {
 
 /** Poll until the user finishes picking in Google Photos or the session expires. */
 export async function googlePhotosWaitForPickerSelection(
+  supabase: SupabaseClient,
   sessionId: string,
   expireTime: string | null,
   /** When set, detect tab closed — `/autoclose` may finish before `mediaItemsSet` polls true. */
@@ -190,7 +181,7 @@ export async function googlePhotosWaitForPickerSelection(
       await new Promise((r) => {
         window.setTimeout(r, 700);
       });
-      const late = await googlePhotosPickerSession(sessionId);
+      const late = await googlePhotosPickerSession(supabase, sessionId);
       if (late.mediaItemsSet === true) {
         await new Promise((r) => {
           window.setTimeout(r, 400);
@@ -201,7 +192,7 @@ export async function googlePhotosWaitForPickerSelection(
       return true;
     }
 
-    const s = await googlePhotosPickerSession(sessionId);
+    const s = await googlePhotosPickerSession(supabase, sessionId);
     if (s.mediaItemsSet === true) {
       await new Promise((r) => {
         window.setTimeout(r, 400);
@@ -219,6 +210,7 @@ export async function googlePhotosWaitForPickerSelection(
 }
 
 export async function googlePhotosImport(
+  supabase: SupabaseClient,
   traceId: string,
   mediaItemIds: string[],
   pickerSessionId: string,

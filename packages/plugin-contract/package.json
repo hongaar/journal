@@ -9,6 +9,9 @@
       "default": "./src/index.ts"
     }
   },
+  "devDependencies": {
+    "@supabase/supabase-js": "^2.49.8"
+  },
   "peerDependencies": {
     "react": ">=19"
   },
